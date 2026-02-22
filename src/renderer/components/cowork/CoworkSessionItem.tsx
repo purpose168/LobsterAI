@@ -3,6 +3,16 @@ import type { CoworkSessionSummary, CoworkSessionStatus } from '../../types/cowo
 import { EllipsisHorizontalIcon, ExclamationTriangleIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { i18nService } from '../../services/i18n';
 
+/**
+ * 协作会话项组件属性接口
+ * @property session - 协作会话摘要信息
+ * @property hasUnread - 是否有未读消息
+ * @property isActive - 是否为当前激活的会话
+ * @property onSelect - 选择会话的回调函数
+ * @property onDelete - 删除会话的回调函数
+ * @property onTogglePin - 切换会话置顶状态的回调函数
+ * @property onRename - 重命名会话的回调函数
+ */
 interface CoworkSessionItemProps {
   session: CoworkSessionSummary;
   hasUnread: boolean;
@@ -13,13 +23,19 @@ interface CoworkSessionItemProps {
   onRename: (title: string) => void;
 }
 
+// 会话状态标签映射表
 const statusLabels: Record<CoworkSessionStatus, string> = {
-  idle: 'coworkStatusIdle',
-  running: 'coworkStatusRunning',
-  completed: 'coworkStatusCompleted',
-  error: 'coworkStatusError',
+  idle: 'coworkStatusIdle',       // 空闲状态
+  running: 'coworkStatusRunning', // 运行中状态
+  completed: 'coworkStatusCompleted', // 已完成状态
+  error: 'coworkStatusError',     // 错误状态
 };
 
+/**
+ * 图钉图标组件
+ * 用于显示会话的置顶状态
+ * @param slashed - 是否显示斜线（取消置顶时显示）
+ */
 const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean }> = ({
   slashed,
   ...props
@@ -41,6 +57,12 @@ const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean 
   </svg>
 );
 
+/**
+ * 格式化相对时间
+ * 将时间戳转换为易读的相对时间格式
+ * @param timestamp - 时间戳（毫秒）
+ * @returns 包含紧凑格式和完整格式的相对时间对象
+ */
 const formatRelativeTime = (timestamp: number): { compact: string; full: string } => {
   const now = Date.now();
   const diff = now - timestamp;
@@ -77,6 +99,11 @@ const formatRelativeTime = (timestamp: number): { compact: string; full: string 
   }
 };
 
+/**
+ * 协作会话项组件
+ * 显示单个协作会话的信息，包括标题、状态、时间等
+ * 支持重命名、置顶、删除等操作
+ */
 const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
   session,
   hasUnread,
@@ -86,15 +113,19 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
   onTogglePin,
   onRename,
 }) => {
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(session.title);
-  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const actionButtonRef = useRef<HTMLButtonElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  const ignoreNextBlurRef = useRef(false);
+  // 状态管理
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false); // 是否显示删除确认对话框
+  const [isRenaming, setIsRenaming] = useState(false); // 是否处于重命名状态
+  const [renameValue, setRenameValue] = useState(session.title); // 重命名输入值
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null); // 菜单位置
+  
+  // DOM引用
+  const menuRef = useRef<HTMLDivElement>(null); // 菜单容器引用
+  const actionButtonRef = useRef<HTMLButtonElement>(null); // 操作按钮引用
+  const renameInputRef = useRef<HTMLInputElement>(null); // 重命名输入框引用
+  const ignoreNextBlurRef = useRef(false); // 是否忽略下一次失焦事件
 
+  // 同步重命名值与会话标题
   useEffect(() => {
     if (!isRenaming) {
       setRenameValue(session.title);
@@ -102,6 +133,12 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     }
   }, [isRenaming, session.title]);
 
+  /**
+   * 计算菜单位置
+   * 确保菜单在视口内显示
+   * @param height - 菜单高度
+   * @returns 菜单的x、y坐标，如果无法计算则返回null
+   */
   const calculateMenuPosition = (height: number) => {
     const rect = actionButtonRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -115,6 +152,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     return { x, y };
   };
 
+  /**
+   * 打开菜单
+   * 显示操作菜单，如果菜单已打开则关闭
+   */
   const openMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRenaming) return;
@@ -130,17 +171,29 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     setShowConfirmDelete(false);
   };
 
+  /**
+   * 关闭菜单
+   * 重置菜单状态
+   */
   const closeMenu = () => {
     setMenuPosition(null);
     setShowConfirmDelete(false);
   };
 
+  /**
+   * 处理置顶切换
+   * 切换会话的置顶状态
+   */
   const handleTogglePin = (e: React.MouseEvent) => {
     e.stopPropagation();
     onTogglePin(!session.pinned);
     closeMenu();
   };
 
+  /**
+   * 处理重命名点击
+   * 进入重命名模式
+   */
   const handleRenameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     ignoreNextBlurRef.current = false;
@@ -150,6 +203,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     setMenuPosition(null);
   };
 
+  /**
+   * 处理重命名保存
+   * 保存新的会话标题
+   */
   const handleRenameSave = (e?: React.SyntheticEvent) => {
     e?.stopPropagation();
     ignoreNextBlurRef.current = true;
@@ -160,6 +217,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     setIsRenaming(false);
   };
 
+  /**
+   * 处理重命名取消
+   * 取消重命名操作，恢复原标题
+   */
   const handleRenameCancel = (e?: React.MouseEvent | React.KeyboardEvent) => {
     e?.stopPropagation();
     ignoreNextBlurRef.current = true;
@@ -167,6 +228,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     setIsRenaming(false);
   };
 
+  /**
+   * 处理重命名输入框失焦
+   * 失焦时自动保存
+   */
   const handleRenameBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     if (ignoreNextBlurRef.current) {
       ignoreNextBlurRef.current = false;
@@ -175,22 +240,35 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     handleRenameSave(event);
   };
 
+  /**
+   * 处理删除点击
+   * 显示删除确认对话框
+   */
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowConfirmDelete(true);
     setMenuPosition(null);
   };
 
+  /**
+   * 确认删除
+   * 执行删除操作
+   */
   const handleConfirmDelete = () => {
     onDelete();
     setShowConfirmDelete(false);
   };
 
+  /**
+   * 取消删除
+   * 关闭删除确认对话框
+   */
   const handleCancelDelete = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setShowConfirmDelete(false);
   };
 
+  // 监听菜单外部点击和键盘事件
   useEffect(() => {
     if (!menuPosition) return;
     const handleClickOutside = (event: MouseEvent) => {
@@ -217,6 +295,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     };
   }, [menuPosition]);
 
+  // 动态调整菜单位置
   useEffect(() => {
     if (!menuPosition) return;
     const menuHeight = showConfirmDelete ? 112 : 120;
@@ -226,6 +305,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     }
   }, [menuPosition, showConfirmDelete]);
 
+  // 重命名模式下自动聚焦输入框
   useEffect(() => {
     if (!isRenaming) return;
     requestAnimationFrame(() => {
@@ -234,6 +314,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
     });
   }, [isRenaming]);
 
+  // 准备显示数据
   const pinButtonLabel = session.pinned ? i18nService.t('coworkUnpinSession') : i18nService.t('coworkPinSession');
   const actionLabel = i18nService.t('coworkSessionActions');
   const renameLabel = i18nService.t('renameConversation');
@@ -242,6 +323,8 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
   const showRunningIndicator = session.status === 'running';
   const showUnreadIndicator = !showRunningIndicator && hasUnread;
   const showStatusIndicator = showRunningIndicator || showUnreadIndicator;
+  
+  // 菜单项配置
   const menuItems = useMemo(() => {
     return [
       { key: 'rename', label: renameLabel, onClick: handleRenameClick, tone: 'neutral' as const },
@@ -270,11 +353,11 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
           : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
       }`}
     >
-      {/* Content area */}
+      {/* 内容区域 */}
       <div className="flex items-start">
         <div className="flex-1 min-w-0">
           <div className={`flex items-center mb-1 ${showStatusIndicator ? 'gap-2' : 'gap-0'}`}>
-            {/* Status indicator */}
+            {/* 状态指示器 */}
             {showStatusIndicator && (
               <span
                 className={`block w-2 h-2 rounded-full bg-claude-accent flex-shrink-0 ${
@@ -317,7 +400,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         </div>
       </div>
 
-      {/* Actions - absolutely positioned overlay */}
+      {/* 操作按钮 - 绝对定位覆盖层 */}
       <div
         className={`absolute right-1.5 top-1.5 transition-opacity ${
           isRenaming
@@ -344,6 +427,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         </button>
       </div>
 
+      {/* 下拉菜单 */}
       {menuPosition && (
         <div
           ref={menuRef}
@@ -376,7 +460,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* 删除确认对话框 */}
       {showConfirmDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -386,7 +470,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
             className="w-full max-w-sm mx-4 dark:bg-claude-darkSurface bg-claude-surface rounded-2xl shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
+            {/* 对话框头部 */}
             <div className="flex items-center gap-3 px-5 py-4">
               <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
                 <ExclamationTriangleIcon className="h-5 w-5 text-red-600 dark:text-red-500" />
@@ -396,14 +480,14 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
               </h2>
             </div>
 
-            {/* Content */}
+            {/* 对话框内容 */}
             <div className="px-5 pb-4">
               <p className="text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary">
                 {i18nService.t('deleteTaskConfirmMessage')}
               </p>
             </div>
 
-            {/* Footer */}
+            {/* 对话框底部 */}
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t dark:border-claude-darkBorder border-claude-border">
               <button
                 onClick={handleCancelDelete}

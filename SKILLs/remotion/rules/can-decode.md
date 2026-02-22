@@ -1,17 +1,17 @@
 ---
 name: can-decode
-description: Check if a video can be decoded by the browser using Mediabunny
+description: 使用 Mediabunny 检查视频是否可以被浏览器解码
 metadata:
-  tags: decode, validation, video, audio, compatibility, browser
+  tags: 解码, 验证, 视频, 音频, 兼容性, 浏览器
 ---
 
-# Checking if a video can be decoded
+# 检查视频是否可以解码
 
-Use Mediabunny to check if a video can be decoded by the browser before attempting to play it.
+在尝试播放视频之前，使用 Mediabunny 检查视频是否可以被浏览器解码。
 
-## The `canDecode()` function
+## `canDecode()` 函数
 
-This function can be copy-pasted into any project.
+此函数可以复制粘贴到任何项目中。
 
 ```tsx
 import { Input, ALL_FORMATS, UrlSource } from "mediabunny";
@@ -25,41 +25,41 @@ export const canDecode = async (src: string) => {
   });
 
   try {
-    await input.getFormat();
+    await input.getFormat(); // 获取格式信息
   } catch {
-    return false;
+    return false; // 如果获取失败，返回 false
   }
 
-  const videoTrack = await input.getPrimaryVideoTrack();
+  const videoTrack = await input.getPrimaryVideoTrack(); // 获取主视频轨道
   if (videoTrack && !(await videoTrack.canDecode())) {
-    return false;
+    return false; // 如果视频轨道存在但无法解码，返回 false
   }
 
-  const audioTrack = await input.getPrimaryAudioTrack();
+  const audioTrack = await input.getPrimaryAudioTrack(); // 获取主音频轨道
   if (audioTrack && !(await audioTrack.canDecode())) {
-    return false;
+    return false; // 如果音频轨道存在但无法解码，返回 false
   }
 
-  return true;
+  return true; // 所有检查通过，返回 true
 };
 ```
 
-## Usage
+## 使用方法
 
 ```tsx
 const src = "https://remotion.media/video.mp4";
 const isDecodable = await canDecode(src);
 
 if (isDecodable) {
-  console.log("Video can be decoded");
+  console.log("视频可以解码");
 } else {
-  console.log("Video cannot be decoded by this browser");
+  console.log("此浏览器无法解码该视频");
 }
 ```
 
-## Using with Blob
+## 使用 Blob
 
-For file uploads or drag-and-drop, use `BlobSource`:
+对于文件上传或拖放操作，使用 `BlobSource`：
 
 ```tsx
 import { Input, ALL_FORMATS, BlobSource } from "mediabunny";
@@ -70,6 +70,6 @@ export const canDecodeBlob = async (blob: Blob) => {
     source: new BlobSource(blob),
   });
 
-  // Same validation logic as above
+  // 与上述相同的验证逻辑
 };
 ```

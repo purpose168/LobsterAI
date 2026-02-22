@@ -1,71 +1,175 @@
 #!/bin/bash
+# =============================================================================
+# 脚本名称：fix-mac-icon-display.sh
+# 用途：修复 macOS 图标显示问题（针对 Apple Silicon 芯片）
+# 作者：LobsterAI 开发团队
+# 联系方式：purpose168@outlook.com
+# =============================================================================
+# 脚本说明：
+#   这是一个构建后处理脚本，用于解决 macOS 应用程序在 Apple Silicon 芯片上的
+#   图标显示问题。确保应用程序图标在"关于"对话框中正确显示。
+#
+# 使用方法：
+#   ./fix-mac-icon-display.sh <应用程序路径>
+#
+# 示例：
+#   ./fix-mac-icon-display.sh release/mac-arm64/LobsterAI.app
+#
+# 技术背景：
+#   在 Apple Silicon (M1/M2/M3) 芯片上，某些应用程序的图标可能无法正确显示。
+#   这通常是因为 Info.plist 文件中缺少 CFBundleIconName 键值，或者图标缓存
+#   需要更新。本脚本通过以下方式解决该问题：
+#   1. 检查并添加 CFBundleIconName 键
+#   2. 验证图标文件是否存在
+#   3. 清除图标缓存
+#   4. 更新文件修改时间以触发系统刷新
+# =============================================================================
+
+# 设置严格模式：遇到错误立即退出
+# -e: 当命令返回非零状态码时立即退出脚本
 set -e
 
-# Post-build script to fix macOS icon display issue on Apple Silicon
-# This script ensures the app icon is displayed correctly in "About" dialog
+# 显示脚本执行开始信息
+echo "🔧 正在应用 macOS 图标修复（Apple Silicon 兼容性）..."
 
-echo "🔧 Applying macOS icon fix for Apple Silicon compatibility..."
+# =============================================================================
+# 参数验证部分
+# =============================================================================
 
+# 检查是否提供了应用程序路径参数
+# $1 表示脚本的第一个参数
+# -z 用于检查字符串是否为空
 if [ -z "$1" ]; then
-    echo "Usage: $0 <path-to-app>"
-    echo "Example: $0 release/mac-arm64/LobsterAI.app"
+    echo "用法：$0 <应用程序路径>"
+    echo "示例：$0 release/mac-arm64/LobsterAI.app"
     exit 1
 fi
 
+# =============================================================================
+# 路径设置部分
+# =============================================================================
+
+# 应用程序包路径（.app 文件的完整路径）
 APP_PATH="$1"
+
+# 资源目录路径（包含图标、配置文件等资源）
+# macOS 应用程序包结构：App.app/Contents/Resources/
 RESOURCES_PATH="$APP_PATH/Contents/Resources"
+
+# Info.plist 文件路径（应用程序的配置清单文件）
+# Info.plist 包含应用程序的元数据，如名称、版本、图标等
 INFO_PLIST="$APP_PATH/Contents/Info.plist"
 
+# =============================================================================
+# 文件存在性验证
+# =============================================================================
+
+# 验证应用程序包是否存在
+# -d 用于检查是否为目录（.app 实际上是一个目录）
 if [ ! -d "$APP_PATH" ]; then
-    echo "❌ Error: App not found at $APP_PATH"
+    echo "❌ 错误：未找到应用程序，路径：$APP_PATH"
     exit 1
 fi
 
+# 验证 Info.plist 文件是否存在
+# -f 用于检查是否为普通文件
 if [ ! -f "$INFO_PLIST" ]; then
-    echo "❌ Error: Info.plist not found at $INFO_PLIST"
+    echo "❌ 错误：未找到 Info.plist 文件，路径：$INFO_PLIST"
     exit 1
 fi
 
-echo "  App: $APP_PATH"
+# 显示正在处理的应用程序路径
+echo "  应用程序：$APP_PATH"
 
-# Check if CFBundleIconName is already set
+# =============================================================================
+# CFBundleIconName 配置检查与设置
+# =============================================================================
+
+# 检查 Info.plist 中是否已设置 CFBundleIconName 键
+# plutil 是 macOS 自带的属性列表操作工具
+# -extract：提取指定键的值
+# raw：以原始格式输出
+# &>/dev/null：将标准输出和错误输出都重定向到空设备（不显示）
 if plutil -extract CFBundleIconName raw "$INFO_PLIST" &>/dev/null; then
+    # 如果键已存在，读取并显示当前值
+    # $() 是命令替换语法，将命令的输出赋值给变量
     ICON_NAME=$(plutil -extract CFBundleIconName raw "$INFO_PLIST")
-    echo "  ✓ CFBundleIconName already set: $ICON_NAME"
+    echo "  ✓ CFBundleIconName 已设置：$ICON_NAME"
 else
-    echo "  ℹ️  Adding CFBundleIconName to Info.plist..."
+    # 如果键不存在，添加该键
+    # -insert：插入新的键值对
+    # -string：指定值类型为字符串
+    echo "  ℹ️  正在向 Info.plist 添加 CFBundleIconName..."
     plutil -insert CFBundleIconName -string "icon" "$INFO_PLIST"
-    echo "  ✓ CFBundleIconName added"
+    echo "  ✓ CFBundleIconName 已添加"
 fi
 
-# Verify icon file exists
+# =============================================================================
+# 图标文件验证
+# =============================================================================
+
+# 定义图标文件路径
+# .icns 是 macOS 的图标文件格式
 ICON_FILE="$RESOURCES_PATH/icon.icns"
+
+# 检查图标文件是否存在
 if [ ! -f "$ICON_FILE" ]; then
-    echo "  ⚠️  Warning: icon.icns not found at $ICON_FILE"
+    echo "  ⚠️  警告：未找到图标文件，路径：$ICON_FILE"
 else
+    # 获取图标文件大小
+    # stat 命令用于显示文件状态信息
+    # -f%z：macOS 的 stat 格式（显示文件大小，单位：字节）
+    # -c%s：Linux 的 stat 格式（显示文件大小，单位：字节）
+    # 2>/dev/null：将错误输出重定向到空设备
+    # ||：逻辑或，如果第一个命令失败则执行第二个命令
     FILE_SIZE=$(stat -f%z "$ICON_FILE" 2>/dev/null || stat -c%s "$ICON_FILE" 2>/dev/null)
-    echo "  ✓ icon.icns found ($(numfmt --to=iec-i --suffix=B $FILE_SIZE 2>/dev/null || echo $FILE_SIZE bytes))"
+    
+    # 格式化显示文件大小
+    # numfmt：数字格式化工具
+    # --to=iec-i：使用 IEC 标准（1024 为基数）
+    # --suffix=B：添加字节后缀
+    # 2>/dev/null ||：如果 numfmt 不可用，则显示原始字节数
+    echo "  ✓ 图标文件已找到 ($(numfmt --to=iec-i --suffix=B $FILE_SIZE 2>/dev/null || echo $FILE_SIZE 字节))"
 fi
 
-# Update the app's extended attributes to clear any cached icon data
-echo "  🧹 Clearing icon cache..."
+# =============================================================================
+# 图标缓存清理
+# =============================================================================
+
+# 清除应用程序的扩展属性（包括缓存的图标数据）
+# xattr：用于操作文件的扩展属性
+# -c：清除所有扩展属性
+# -r：递归处理目录
+# 2>/dev/null || true：忽略错误，确保脚本继续执行
+echo "  🧹 正在清除图标缓存..."
 xattr -cr "$APP_PATH" 2>/dev/null || true
 
-# Touch the app to update modification time
+# 更新应用程序的修改时间
+# touch 命令用于更新文件的访问和修改时间戳
+# 这会触发系统重新读取应用程序信息
 touch "$APP_PATH"
 
-# Force icon cache refresh by touching Resources directory
+# 更新资源目录的修改时间
+# 强制系统刷新图标缓存
 touch "$RESOURCES_PATH"
 
+# =============================================================================
+# 完成提示
+# =============================================================================
+
 echo ""
-echo "✅ Icon fix applied successfully!"
+echo "✅ 图标修复已成功应用！"
 echo ""
-echo "📝 Next steps:"
-echo "   1. If the app is signed, you may need to re-sign it:"
+echo "📝 后续步骤："
+echo "   1. 如果应用程序已签名，您可能需要重新签名："
 echo "      codesign --force --deep --sign - \"$APP_PATH\""
 echo ""
-echo "   2. Clear system icon cache (optional, may require restart):"
+echo "   2. 清除系统图标缓存（可选，可能需要重启）："
 echo "      sudo rm -rf /Library/Caches/com.apple.iconservices.store"
 echo "      killall Dock"
 echo ""
-echo "   3. Test the app to verify the icon appears in About dialog"
+echo "   3. 测试应用程序，验证图标是否在"关于"对话框中正确显示"
+
+# =============================================================================
+# 脚本结束
+# =============================================================================

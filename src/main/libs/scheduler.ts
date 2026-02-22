@@ -21,7 +21,7 @@ export class Scheduler {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
   private activeTasks: Map<string, AbortController> = new Map();
-  // Track cowork session IDs for running tasks so we can stop them
+  // 跟踪正在运行任务的协同会话ID，以便我们可以停止它们
   private taskSessionIds: Map<string, string> = new Map();
 
   private static readonly MAX_TIMER_INTERVAL_MS = 60_000;
@@ -35,12 +35,12 @@ export class Scheduler {
     this.getSkillsPrompt = deps.getSkillsPrompt ?? null;
   }
 
-  // --- Lifecycle ---
+  // --- 生命周期 ---
 
   start(): void {
     if (this.running) return;
     this.running = true;
-    console.log('[Scheduler] Started');
+    console.log('[调度器] 已启动');
     this.scheduleNext();
   }
 
@@ -54,7 +54,7 @@ export class Scheduler {
       controller.abort();
     }
     this.activeTasks.clear();
-    console.log('[Scheduler] Stopped');
+    console.log('[调度器] 已停止');
   }
 
   reschedule(): void {
@@ -66,7 +66,7 @@ export class Scheduler {
     this.scheduleNext();
   }
 
-  // --- Core Scheduling ---
+  // --- 核心调度 ---
 
   private scheduleNext(): void {
     if (!this.running) return;
@@ -102,22 +102,22 @@ export class Scheduler {
     this.scheduleNext();
   }
 
-  // --- Task Execution ---
+  // --- 任务执行 ---
 
   async executeTask(
     task: ScheduledTask,
     trigger: 'scheduled' | 'manual'
   ): Promise<void> {
     if (this.activeTasks.has(task.id)) {
-      console.log(`[Scheduler] Task ${task.id} already running, skipping`);
+      console.log(`[调度器] 任务 ${task.id} 已在运行中，跳过`);
       return;
     }
 
-    // Check if task has expired (skip for manual triggers)
+    // 检查任务是否已过期（手动触发时跳过）
     if (trigger === 'scheduled' && task.expiresAt) {
       const todayStr = new Date().toISOString().slice(0, 10);
       if (task.expiresAt <= todayStr) {
-        console.log(`[Scheduler] Task ${task.id} expired (${task.expiresAt}), skipping`);
+        console.log(`[调度器] 任务 ${task.id} 已过期（${task.expiresAt}），跳过`);
         return;
       }
     }
@@ -141,17 +141,17 @@ export class Scheduler {
       success = true;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : String(err);
-      console.error(`[Scheduler] Task ${task.id} failed:`, error);
+      console.error(`[调度器] 任务 ${task.id} 失败:`, error);
     } finally {
       const durationMs = Date.now() - startTime;
       this.activeTasks.delete(task.id);
       this.taskSessionIds.delete(task.id);
 
-      // Check if task still exists (may have been deleted while running)
+      // 检查任务是否仍然存在（可能在运行时已被删除）
       const taskStillExists = this.store.getTask(task.id) !== null;
 
       if (taskStillExists) {
-        // Update run record
+        // 更新运行记录
         this.store.completeRun(
           run.id,
           success ? 'success' : 'error',
@@ -160,7 +160,7 @@ export class Scheduler {
           error
         );
 
-        // Update task state
+        // 更新任务状态
         this.store.markTaskCompleted(
           task.id,
           success,
@@ -169,36 +169,36 @@ export class Scheduler {
           task.schedule
         );
 
-        // Auto-disable on too many consecutive errors
+        // 连续错误过多时自动禁用
         const updatedTask = this.store.getTask(task.id);
         if (updatedTask && updatedTask.state.consecutiveErrors >= Scheduler.MAX_CONSECUTIVE_ERRORS) {
           this.store.toggleTask(task.id, false);
           console.warn(
-            `[Scheduler] Task ${task.id} auto-disabled after ${Scheduler.MAX_CONSECUTIVE_ERRORS} consecutive errors`
+            `[调度器] 任务 ${task.id} 在连续 ${Scheduler.MAX_CONSECUTIVE_ERRORS} 次错误后自动禁用`
           );
         }
 
-        // Disable one-shot 'at' tasks after execution
+        // 执行后禁用一次性 'at' 任务
         if (task.schedule.type === 'at') {
           this.store.toggleTask(task.id, false);
         }
 
-        // Prune old run history
+        // 清理旧的运行历史
         this.store.pruneRuns(task.id, 100);
 
-        // Send IM notifications
+        // 发送IM通知
         if (task.notifyPlatforms && task.notifyPlatforms.length > 0) {
           await this.sendNotifications(task, success, durationMs, error);
         }
 
-        // Emit final updates
+        // 发送最终更新
         this.emitTaskStatusUpdate(task.id);
         const updatedRun = this.store.getRun(run.id);
         if (updatedRun) {
           this.emitRunUpdate(updatedRun);
         }
       } else {
-        console.log(`[Scheduler] Task ${task.id} was deleted during execution, skipping post-run updates`);
+        console.log(`[调度器] 任务 ${task.id} 在执行期间被删除，跳过运行后更新`);
       }
 
       this.reschedule();
@@ -214,7 +214,7 @@ export class Scheduler {
       try {
         skillsPrompt = await this.getSkillsPrompt();
       } catch (error) {
-        console.warn('[Scheduler] Failed to build skills prompt for scheduled task:', error);
+        console.warn('[调度器] 为定时任务构建技能提示失败:', error);
       }
     }
     const systemPrompt = [skillsPrompt, baseSystemPrompt]
@@ -222,7 +222,7 @@ export class Scheduler {
       .join('\n\n');
     const executionMode = task.executionMode || config.executionMode || 'auto';
 
-    // Create a cowork session
+    // 创建协同会话
     const session = this.coworkStore.createSession(
       `[定时] ${task.name}`,
       cwd,
@@ -231,16 +231,16 @@ export class Scheduler {
       []
     );
 
-    // Update session to running
+    // 更新会话状态为运行中
     this.coworkStore.updateSession(session.id, { status: 'running' });
 
-    // Add initial user message
+    // 添加初始用户消息
     this.coworkStore.addMessage(session.id, {
       type: 'user',
       content: task.prompt,
     });
 
-    // Start the session with normal permission flow (no auto-approve).
+    // 使用正常权限流程启动会话（无自动批准）
     this.taskSessionIds.set(task.id, session.id);
     const runner = this.getCoworkRunner();
     await runner.startSession(session.id, task.prompt, {
@@ -251,7 +251,7 @@ export class Scheduler {
     return session.id;
   }
 
-  // --- IM Notifications ---
+  // --- IM通知 ---
 
   private async sendNotifications(
     task: ScheduledTask,
@@ -275,32 +275,32 @@ export class Scheduler {
     for (const platform of task.notifyPlatforms) {
       try {
         await imManager.sendNotification(platform, message);
-        console.log(`[Scheduler] Notification sent via ${platform} for task ${task.id}`);
+        console.log(`[调度器] 已通过 ${platform} 为任务 ${task.id} 发送通知`);
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        console.warn(`[Scheduler] Failed to send notification via ${platform}: ${errMsg}`);
+        console.warn(`[调度器] 通过 ${platform} 发送通知失败: ${errMsg}`);
       }
     }
   }
 
-  // --- Manual Execution ---
+  // --- 手动执行 ---
 
   async runManually(taskId: string): Promise<void> {
     const task = this.store.getTask(taskId);
-    if (!task) throw new Error(`Task not found: ${taskId}`);
+    if (!task) throw new Error(`未找到任务: ${taskId}`);
     await this.executeTask(task, 'manual');
   }
 
   stopTask(taskId: string): boolean {
     const controller = this.activeTasks.get(taskId);
     if (controller) {
-      // Also stop the cowork session if one is running
+      // 如果有正在运行的协同会话，也停止它
       const sessionId = this.taskSessionIds.get(taskId);
       if (sessionId) {
         try {
           this.getCoworkRunner().stopSession(sessionId);
         } catch (err) {
-          console.warn(`[Scheduler] Failed to stop cowork session for task ${taskId}:`, err);
+          console.warn(`[调度器] 停止任务 ${taskId} 的协同会话失败:`, err);
         }
       }
       controller.abort();
@@ -309,7 +309,7 @@ export class Scheduler {
     return false;
   }
 
-  // --- Event Emission ---
+  // --- 事件发送 ---
 
   private emitTaskStatusUpdate(taskId: string): void {
     const task = this.store.getTask(taskId);

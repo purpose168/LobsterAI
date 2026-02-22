@@ -1,29 +1,29 @@
-# Web Search Skill - Basic Usage Examples
+# Web Search Skill - 基本使用示例
 
-This document provides practical examples of using the Web Search skill.
+本文档提供了使用 Web Search skill 的实际示例。
 
-## Quick Start
+## 快速开始
 
-### 1. Start the Bridge Server
+### 1. 启动 Bridge Server
 
 ```bash
 bash SKILLs/web-search/scripts/start-server.sh
 ```
 
-Expected output:
+预期输出:
 ```
 ✓ Bridge Server started successfully (PID: 12345)
   Health check: http://127.0.0.1:8923/api/health
   Logs: SKILLs/web-search/.server.log
 ```
 
-### 2. Perform a Simple Search
+### 2. 执行简单搜索
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "TypeScript tutorial" 5
 ```
 
-Expected output:
+预期输出:
 ```
 🔍 Searching for: "TypeScript tutorial"
 
@@ -41,75 +41,75 @@ Expected output:
 ...
 ```
 
-### 3. Stop the Server
+### 3. 停止服务器
 
 ```bash
 bash SKILLs/web-search/scripts/stop-server.sh
 ```
 
-## Common Use Cases
+## 常见用例
 
-### Example 1: Research Latest Information
+### 示例 1：研究最新信息
 
-**Scenario:** Find the latest React 19 features
+**场景：** 查找 React 19 的最新功能
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "React 19 new features" 10
 ```
 
-**Use Case:** When you need up-to-date information beyond Claude's knowledge cutoff.
+**用例：** 当您需要 Claude 知识截止日期之后的最新信息时使用。
 
-### Example 2: Technical Documentation
+### 示例 2：技术文档
 
-**Scenario:** Search for Next.js App Router documentation
+**场景：** 搜索 Next.js App Router 文档
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "Next.js App Router documentation" 5
 ```
 
-**Use Case:** Find official documentation for specific frameworks or libraries.
+**用例：** 查找特定框架或库的官方文档。
 
-### Example 3: News and Current Events
+### 示例 3：新闻和时事
 
-**Scenario:** Find recent AI news
+**场景：** 查找最新的 AI 新闻
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "AI news 2026" 10
 ```
 
-**Use Case:** Get real-time information about current events.
+**用例：** 获取有关时事的实时信息。
 
-### Example 4: Troubleshooting Errors
+### 示例 4：故障排查错误
 
-**Scenario:** Search for error solutions
+**场景：** 搜索错误解决方案
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "TypeError: Cannot read property of undefined" 5
 ```
 
-**Use Case:** Find solutions to specific error messages.
+**用例：** 查找特定错误消息的解决方案。
 
-### Example 5: Comparative Research
+### 示例 5：对比研究
 
-**Scenario:** Compare technologies
+**场景：** 比较技术方案
 
 ```bash
 bash SKILLs/web-search/scripts/search.sh "Vue vs React 2026 comparison" 8
 ```
 
-**Use Case:** Gather information for comparative analysis.
+**用例：** 收集信息进行对比分析。
 
-## Advanced API Usage
+## 高级 API 使用
 
-### Direct API Calls (for advanced users)
+### 直接 API 调用（面向高级用户）
 
-#### Health Check
+#### 健康检查
 
 ```bash
 curl http://127.0.0.1:8923/api/health
 ```
 
-Response:
+响应:
 ```json
 {
   "success": true,
@@ -121,14 +121,14 @@ Response:
 }
 ```
 
-#### Launch Browser
+#### 启动浏览器
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/browser/launch \
   -H "Content-Type: application/json"
 ```
 
-Response:
+响应:
 ```json
 {
   "success": true,
@@ -140,7 +140,7 @@ Response:
 }
 ```
 
-#### Connect to Browser
+#### 连接到浏览器
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/browser/connect \
@@ -148,7 +148,7 @@ curl -X POST http://127.0.0.1:8923/api/browser/connect \
   -d '{}'
 ```
 
-Response:
+响应:
 ```json
 {
   "success": true,
@@ -159,7 +159,7 @@ Response:
 }
 ```
 
-#### Perform Search
+#### 执行搜索
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/search \
@@ -171,7 +171,7 @@ curl -X POST http://127.0.0.1:8923/api/search \
   }'
 ```
 
-Response:
+响应:
 ```json
 {
   "success": true,
@@ -193,7 +193,7 @@ Response:
 }
 ```
 
-#### Take Screenshot
+#### 截取屏幕截图
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/page/screenshot \
@@ -205,7 +205,7 @@ curl -X POST http://127.0.0.1:8923/api/page/screenshot \
   }'
 ```
 
-Response:
+响应:
 ```json
 {
   "success": true,
@@ -217,7 +217,7 @@ Response:
 }
 ```
 
-#### Navigate to URL
+#### 导航到 URL
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/page/navigate \
@@ -230,7 +230,7 @@ curl -X POST http://127.0.0.1:8923/api/page/navigate \
   }'
 ```
 
-#### Get Page Text
+#### 获取页面文本
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/page/text \
@@ -240,7 +240,7 @@ curl -X POST http://127.0.0.1:8923/api/page/text \
   }'
 ```
 
-#### Disconnect
+#### 断开连接
 
 ```bash
 curl -X POST http://127.0.0.1:8923/api/browser/disconnect \
@@ -250,126 +250,126 @@ curl -X POST http://127.0.0.1:8923/api/browser/disconnect \
   }'
 ```
 
-## Workflow Example: Complete Research Session
+## 工作流示例：完整的研究会话
 
 ```bash
-# 1. Start server
+# 1. 启动服务器
 bash SKILLs/web-search/scripts/start-server.sh
 
-# 2. Search for topic
+# 2. 搜索主题
 bash SKILLs/web-search/scripts/search.sh "React Server Components" 5
 
-# 3. Search for related topic
+# 3. 搜索相关主题
 bash SKILLs/web-search/scripts/search.sh "Next.js 14 features" 5
 
-# 4. Search for comparisons
+# 4. 搜索对比内容
 bash SKILLs/web-search/scripts/search.sh "RSC vs traditional React" 3
 
-# 5. Stop server when done
+# 5. 完成后停止服务器
 bash SKILLs/web-search/scripts/stop-server.sh
 ```
 
-## Integration with Cowork Sessions
+## 与 Cowork 会话的集成
 
-When using this skill in Cowork sessions, Claude will automatically:
+在 Cowork 会话中使用此 skill 时，Claude 将自动：
 
-1. Check if the Bridge Server is running
-2. Start the server if needed (via Electron service manager)
-3. Execute searches using the simplified CLI
-4. Parse and analyze results
-5. Provide answers based on real-time information
+1. 检查 Bridge Server 是否正在运行
+2. 如有需要启动服务器（通过 Electron 服务管理器）
+3. 使用简化的 CLI 执行搜索
+4. 解析和分析结果
+5. 基于实时信息提供答案
 
-Example Cowork interaction:
+Cowork 交互示例：
 
 ```
-User: What are the new features in React 19?
+用户：React 19 有哪些新功能？
 
-Claude: Let me search for the latest information about React 19.
-        [Calls: bash SKILLs/web-search/scripts/search.sh "React 19 new features" 5]
+Claude：让我搜索有关 React 19 的最新信息。
+        [调用：bash SKILLs/web-search/scripts/search.sh "React 19 new features" 5]
 
-        Based on the search results, React 19 introduces several key features:
-        1. React Compiler - automatic optimization
-        2. Actions - simplified form handling
-        3. Document metadata - built-in SEO support
+        根据搜索结果，React 19 引入了几个关键功能：
+        1. React Compiler - 自动优化
+        2. Actions - 简化表单处理
+        3. Document metadata - 内置 SEO 支持
         ...
 ```
 
-## Troubleshooting
+## 故障排查
 
-### Server Won't Start
+### 服务器无法启动
 
-**Problem:** Bridge Server fails to start
+**问题：** Bridge Server 启动失败
 
-**Solution:**
+**解决方案：**
 ```bash
-# Check if port 8923 is already in use
+# 检查端口 8923 是否已被占用
 lsof -i :8923
 
-# Check logs
+# 检查日志
 cat SKILLs/web-search/.server.log
 
-# Reinstall dependencies
+# 重新安装依赖
 cd SKILLs/web-search
 npm install
 npm run build
 ```
 
-### Chrome Not Found
+### 找不到 Chrome
 
-**Problem:** Browser fails to launch
+**问题：** 浏览器无法启动
 
-**Solution:**
-- Install Google Chrome or Chromium
-- macOS: Download from https://www.google.com/chrome/
-- Linux: `sudo apt install chromium-browser`
-- Windows: Download from https://www.google.com/chrome/
+**解决方案：**
+- 安装 Google Chrome 或 Chromium
+- macOS：从 https://www.google.com/chrome/ 下载
+- Linux：`sudo apt install chromium-browser`
+- Windows：从 https://www.google.com/chrome/ 下载
 
-### Connection Failed
+### 连接失败
 
-**Problem:** Failed to connect to browser
+**问题：** 无法连接到浏览器
 
-**Solution:**
+**解决方案：**
 ```bash
-# Stop the server
+# 停止服务器
 bash SKILLs/web-search/scripts/stop-server.sh
 
-# Clear cache
+# 清除缓存
 rm SKILLs/web-search/.connection
 rm SKILLs/web-search/.server.pid
 
-# Restart
+# 重新启动
 bash SKILLs/web-search/scripts/start-server.sh
 ```
 
-### Search Timeout
+### 搜索超时
 
-**Problem:** Search takes too long or times out
+**问题：** 搜索耗时过长或超时
 
-**Solution:**
-- Check your internet connection
-- Try a different search query
-- Reduce max results (e.g., 3 instead of 10)
-- Restart the browser
+**解决方案：**
+- 检查您的网络连接
+- 尝试不同的搜索查询
+- 减少最大结果数（例如，使用 3 而不是 10）
+- 重启浏览器
 
-## Best Practices
+## 最佳实践
 
-1. **Start server once** - Keep server running during research sessions
-2. **Use specific queries** - Better results with focused search terms
-3. **Limit results** - Request only what you need (5-10 results)
-4. **Clean up** - Stop server when done to free resources
-5. **Check logs** - Review `.server.log` if issues occur
+1. **启动服务器一次** - 在研究会话期间保持服务器运行
+2. **使用具体的查询** - 使用聚焦的搜索词获得更好的结果
+3. **限制结果数量** - 只请求您需要的结果（5-10 个结果）
+4. **清理资源** - 完成后停止服务器以释放资源
+5. **检查日志** - 如果出现问题，查看 `.server.log`
 
-## Performance Tips
+## 性能提示
 
-- **Connection caching** - Reuses browser connections for faster searches
-- **Background server** - Server runs independently, no startup delay
-- **Concurrent searches** - Multiple searches can run simultaneously
-- **Resource cleanup** - Automatic cleanup on shutdown
+- **连接缓存** - 重用浏览器连接以加快搜索速度
+- **后台服务器** - 服务器独立运行，无启动延迟
+- **并发搜索** - 可以同时运行多个搜索
+- **资源清理** - 关闭时自动清理
 
-## Security Notes
+## 安全说明
 
-- Server only listens on `127.0.0.1` (localhost)
-- No external network exposure
-- Isolated browser profile (separate from your main Chrome)
-- All operations visible in the browser window
-- No credential storage or sensitive operations
+- 服务器仅在 `127.0.0.1`（本地主机）上监听
+- 无外部网络暴露
+- 隔离的浏览器配置文件（与您的主 Chrome 分开）
+- 所有操作在浏览器窗口中可见
+- 无凭据存储或敏感操作

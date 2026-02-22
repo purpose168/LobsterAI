@@ -1,37 +1,37 @@
 ---
 name: transparent-videos
-description: Rendering transparent videos in Remotion
+description: 在 Remotion 中渲染透明视频
 metadata:
   tags: transparent, alpha, codec, vp9, prores, webm
 ---
 
-# Rendering Transparent Videos
+# 渲染透明视频
 
-Remotion can render transparent videos in two ways: as a ProRes video or as a WebM video.
+Remotion 可以通过两种方式渲染透明视频：ProRes 视频或 WebM 视频。
 
-## Transparent ProRes
+## 透明 ProRes
 
-Ideal for when importing into video editing software.
+适用于导入到视频编辑软件的场景。
 
-**CLI:**
+**命令行 (CLI)：**
 
 ```bash
 npx remotion render --image-format=png --pixel-format=yuva444p10le --codec=prores --prores-profile=4444 MyComp out.mov
 ```
 
-**Default in Studio** (restart Studio after changing):
+**Studio 中的默认设置**（更改后需重启 Studio）：
 
 ```ts
 // remotion.config.ts
 import { Config } from "@remotion/cli/config";
 
-Config.setVideoImageFormat("png");
-Config.setPixelFormat("yuva444p10le");
-Config.setCodec("prores");
-Config.setProResProfile("4444");
+Config.setVideoImageFormat("png");      // 设置视频图像格式为 PNG
+Config.setPixelFormat("yuva444p10le");  // 设置像素格式
+Config.setCodec("prores");              // 设置编码器为 ProRes
+Config.setProResProfile("4444");        // 设置 ProRes 配置文件为 4444
 ```
 
-**Setting it as the default export settings for a composition** (using `calculateMetadata`):
+**将其设置为合成 (composition) 的默认导出设置**（使用 `calculateMetadata`）：
 
 ```tsx
 import { CalculateMetadataFunction } from "remotion";
@@ -40,10 +40,10 @@ const calculateMetadata: CalculateMetadataFunction<Props> = async ({
   props,
 }) => {
   return {
-    defaultCodec: "prores",
-    defaultVideoImageFormat: "png",
-    defaultPixelFormat: "yuva444p10le",
-    defaultProResProfile: "4444",
+    defaultCodec: "prores",               // 默认编码器
+    defaultVideoImageFormat: "png",       // 默认视频图像格式
+    defaultPixelFormat: "yuva444p10le",   // 默认像素格式
+    defaultProResProfile: "4444",         // 默认 ProRes 配置文件
   };
 };
 
@@ -58,28 +58,28 @@ const calculateMetadata: CalculateMetadataFunction<Props> = async ({
 />;
 ```
 
-## Transparent WebM (VP9)
+## 透明 WebM (VP9)
 
-Ideal for when playing in a browser.
+适用于在浏览器中播放的场景。
 
-**CLI:**
+**命令行 (CLI)：**
 
 ```bash
 npx remotion render --image-format=png --pixel-format=yuva420p --codec=vp9 MyComp out.webm
 ```
 
-**Default in Studio** (restart Studio after changing):
+**Studio 中的默认设置**（更改后需重启 Studio）：
 
 ```ts
 // remotion.config.ts
 import { Config } from "@remotion/cli/config";
 
-Config.setVideoImageFormat("png");
-Config.setPixelFormat("yuva420p");
-Config.setCodec("vp9");
+Config.setVideoImageFormat("png");      // 设置视频图像格式为 PNG
+Config.setPixelFormat("yuva420p");      // 设置像素格式
+Config.setCodec("vp9");                 // 设置编码器为 VP9
 ```
 
-**Setting it as the default export settings for a composition** (using `calculateMetadata`):
+**将其设置为合成 (composition) 的默认导出设置**（使用 `calculateMetadata`）：
 
 ```tsx
 import { CalculateMetadataFunction } from "remotion";
@@ -88,9 +88,9 @@ const calculateMetadata: CalculateMetadataFunction<Props> = async ({
   props,
 }) => {
   return {
-    defaultCodec: "vp8",
-    defaultVideoImageFormat: "png",
-    defaultPixelFormat: "yuva420p",
+    defaultCodec: "vp8",                 // 默认编码器
+    defaultVideoImageFormat: "png",      // 默认视频图像格式
+    defaultPixelFormat: "yuva420p",      // 默认像素格式
   };
 };
 

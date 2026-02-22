@@ -1,5 +1,5 @@
 /**
- * Bing Search Engine - Uses Playwright to search and extract results
+ * Bing 搜索引擎 - 使用 Playwright 进行搜索并提取结果
  */
 
 import { Page } from 'playwright-core';
@@ -7,11 +7,11 @@ import { PlaywrightManager } from '../playwright/manager';
 import { SearchResult, SearchResponse } from './types';
 
 export interface BingSearchOptions {
-  /** Maximum number of results to return */
+  /** 返回结果的最大数量 */
   maxResults?: number;
-  /** Navigation timeout in milliseconds */
+  /** 导航超时时间（毫秒） */
   navigationTimeout?: number;
-  /** Wait for results timeout in milliseconds */
+  /** 等待结果的超时时间（毫秒） */
   waitTimeout?: number;
 }
 
@@ -19,7 +19,7 @@ export class BingSearch {
   constructor(private playwrightManager: PlaywrightManager) {}
 
   /**
-   * Perform Bing search and extract results
+   * 执行 Bing 搜索并提取结果
    */
   async search(
     connectionId: string,
@@ -31,28 +31,28 @@ export class BingSearch {
     const navigationTimeout = options.navigationTimeout || 15000;
     const waitTimeout = options.waitTimeout || 10000;
 
-    console.log(`[Bing] Searching for: "${query}" (max ${maxResults} results)`);
+    console.log(`[Bing] 正在搜索: "${query}" (最多 ${maxResults} 条结果)`);
 
     const page = await this.playwrightManager.getPage(connectionId);
 
     try {
-      // Navigate to Bing search
+      // 导航到 Bing 搜索页面
       const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
-      console.log(`[Bing] Navigating to: ${searchUrl}`);
+      console.log(`[Bing] 正在导航至: ${searchUrl}`);
 
       await page.goto(searchUrl, {
         waitUntil: 'domcontentloaded',
         timeout: navigationTimeout
       });
 
-      console.log(`[Bing] Page loaded: ${page.url()}`);
+      console.log(`[Bing] 页面已加载: ${page.url()}`);
 
-      // Wait for search results to appear
+      // 等待搜索结果出现
       try {
         await page.waitForSelector('li.b_algo, ol#b_results li', { timeout: waitTimeout });
-        console.log(`[Bing] Search results found`);
+        console.log(`[Bing] 搜索结果已找到`);
       } catch (error) {
-        console.warn(`[Bing] No search results found or timeout`);
+        console.warn(`[Bing] 未找到搜索结果或超时`);
         return {
           query,
           engine: 'bing',
@@ -63,8 +63,8 @@ export class BingSearch {
         };
       }
 
-      // Extract search results using page.evaluate
-      // Note: Code inside evaluate runs in browser context
+      // 使用 page.evaluate 提取搜索结果
+      // 注意：evaluate 内的代码在浏览器上下文中运行
       const results = await page.evaluate((max) => {
         const items = document.querySelectorAll('li.b_algo');
         const extractedResults: Array<{
@@ -101,7 +101,7 @@ export class BingSearch {
       }, maxResults) as SearchResult[];
 
       const duration = Date.now() - startTime;
-      console.log(`[Bing] Extracted ${results.length} results in ${duration}ms`);
+      console.log(`[Bing] 已提取 ${results.length} 条结果，耗时 ${duration}ms`);
 
       return {
         query,
@@ -112,16 +112,16 @@ export class BingSearch {
         duration
       };
     } catch (error) {
-      console.error(`[Bing] Search failed:`, error);
-      throw new Error(`Bing search failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[Bing] 搜索失败:`, error);
+      throw new Error(`Bing 搜索失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
-   * Get detailed content from a search result URL
+   * 从搜索结果 URL 获取详细内容
    */
   async getResultContent(connectionId: string, url: string): Promise<string> {
-    console.log(`[Bing] Fetching content from: ${url}`);
+    console.log(`[Bing] 正在获取内容: ${url}`);
 
     const page = await this.playwrightManager.getPage(connectionId);
 
@@ -132,12 +132,12 @@ export class BingSearch {
       });
 
       const content = await page.textContent('body') || '';
-      console.log(`[Bing] Content retrieved (${content.length} chars)`);
+      console.log(`[Bing] 内容已获取 (${content.length} 个字符)`);
 
       return content;
     } catch (error) {
-      console.error(`[Bing] Failed to fetch content:`, error);
-      throw new Error(`Failed to fetch content: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[Bing] 获取内容失败:`, error);
+      throw new Error(`获取内容失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

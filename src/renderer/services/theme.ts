@@ -2,7 +2,7 @@ import { configService } from './config';
 
 type ThemeType = 'light' | 'dark' | 'system';
 
-// Cold modern color palette
+// 冷色调现代配色方案
 const COLORS = {
   light: {
     bg: '#F8F9FB',
@@ -48,7 +48,7 @@ class ThemeService {
         this.mediaQuery.addEventListener('change', this.mediaQueryListener);
       }
     } catch (error) {
-      console.error('Failed to initialize theme:', error);
+      console.error('主题初始化失败:', error);
       // 默认使用系统主题
       this.setTheme('system');
     }
@@ -64,12 +64,12 @@ class ThemeService {
       return;
     }
 
-    console.log(`Setting theme to: ${theme}`);
+    console.log(`设置主题为: ${theme}`);
     this.currentTheme = theme;
 
     if (theme === 'system') {
-      // 如果是系统主题，则根据系统设置应用
-      console.log(`System theme detected, using: ${effectiveTheme}`);
+      // 如果是系统主题,则根据系统设置应用
+      console.log(`检测到系统主题,使用: ${effectiveTheme}`);
     }
 
     // 直接应用指定主题
@@ -96,44 +96,44 @@ class ThemeService {
       return;
     }
 
-    console.log(`Applying theme: ${theme}`);
+    console.log(`应用主题: ${theme}`);
     this.appliedTheme = theme;
     const root = document.documentElement;
     const colors = COLORS[theme];
 
     if (theme === 'dark') {
-      // Apply dark theme to HTML element (for Tailwind)
+      // 为 HTML 元素应用暗色主题 (用于 Tailwind)
       root.classList.add('dark');
       root.classList.remove('light');
 
-      // Make sure theme is consistent across entire DOM
+      // 确保主题在整个 DOM 中保持一致
       document.body.classList.add('dark');
       document.body.classList.remove('light');
 
-      // Set background and text colors
+      // 设置背景和文本颜色
       root.style.backgroundColor = colors.bg;
       document.body.style.backgroundColor = colors.bg;
       document.body.style.color = colors.text;
     } else {
-      // Apply light theme to HTML element (for Tailwind)
+      // 为 HTML 元素应用亮色主题 (用于 Tailwind)
       root.classList.remove('dark');
       root.classList.add('light');
 
-      // Make sure theme is consistent across entire DOM
+      // 确保主题在整个 DOM 中保持一致
       document.body.classList.remove('dark');
       document.body.classList.add('light');
 
-      // Set background and text colors
+      // 设置背景和文本颜色
       root.style.backgroundColor = colors.bg;
       document.body.style.backgroundColor = colors.bg;
       document.body.style.color = colors.text;
     }
 
-    // Update CSS variables for color transition animations
+    // 更新 CSS 变量以实现颜色过渡动画
     root.style.setProperty('--theme-transition', 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease');
     document.body.style.transition = 'var(--theme-transition)';
 
-    // Ensure #root element also gets the theme
+    // 确保 #root 元素也应用主题
     const rootElement = document.getElementById('root');
     if (rootElement) {
       if (theme === 'dark') {

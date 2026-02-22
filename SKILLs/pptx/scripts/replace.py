@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Apply text replacements to PowerPoint presentation.
+"""将文本替换应用到 PowerPoint 演示文稿。
 
-Usage:
-    python replace.py <input.pptx> <replacements.json> <output.pptx>
+用法：
+    python replace.py <输入.pptx> <替换配置.json> <输出.pptx>
 
-The replacements JSON should have the structure output by inventory.py.
-ALL text shapes identified by inventory.py will have their text cleared
-unless "paragraphs" is specified in the replacements for that shape.
+替换配置 JSON 应使用 inventory.py 输出的结构。
+除非在替换配置中为该形状指定了 "paragraphs"，
+否则 inventory.py 识别的所有文本形状都将被清空文本。
 """
 
 import json
@@ -24,10 +24,10 @@ from pptx.util import Pt
 
 
 def clear_paragraph_bullets(paragraph):
-    """Clear bullet formatting from a paragraph."""
+    """清除段落的项目符号格式。"""
     pPr = paragraph._element.get_or_add_pPr()
 
-    # Remove existing bullet elements
+    # 移除现有的项目符号元素
     for child in list(pPr):
         if (
             child.tag.endswith("buChar")
@@ -41,45 +41,45 @@ def clear_paragraph_bullets(paragraph):
 
 
 def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
-    """Apply formatting properties to a paragraph."""
-    # Get the text but don't set it on paragraph directly yet
+    """将格式属性应用到段落。"""
+    # 获取文本但暂不直接设置到段落
     text = para_data.get("text", "")
 
-    # Get or create paragraph properties
+    # 获取或创建段落属性
     pPr = clear_paragraph_bullets(paragraph)
 
-    # Handle bullet formatting
+    # 处理项目符号格式
     if para_data.get("bullet", False):
         level = para_data.get("level", 0)
         paragraph.level = level
 
-        # Calculate font-proportional indentation
+        # 计算与字体成比例的缩进
         font_size = para_data.get("font_size", 18.0)
         level_indent_emu = int((font_size * (1.6 + level * 1.6)) * 12700)
         hanging_indent_emu = int(-font_size * 0.8 * 12700)
 
-        # Set indentation
+        # 设置缩进
         pPr.attrib["marL"] = str(level_indent_emu)
         pPr.attrib["indent"] = str(hanging_indent_emu)
 
-        # Add bullet character
+        # 添加项目符号字符
         buChar = OxmlElement("a:buChar")
         buChar.set("char", "•")
         pPr.append(buChar)
 
-        # Default to left alignment for bullets if not specified
+        # 如果未指定对齐方式，项目符号默认左对齐
         if "alignment" not in para_data:
             paragraph.alignment = PP_ALIGN.LEFT
     else:
-        # Remove indentation for non-bullet text
+        # 移除非项目符号文本的缩进
         pPr.attrib["marL"] = "0"
         pPr.attrib["indent"] = "0"
 
-        # Add buNone element
+        # 添加 buNone 元素
         buNone = OxmlElement("a:buNone")
         pPr.insert(0, buNone)
 
-    # Apply alignment
+    # 应用对齐方式
     if "alignment" in para_data:
         alignment_map = {
             "LEFT": PP_ALIGN.LEFT,
@@ -90,7 +90,7 @@ def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
         if para_data["alignment"] in alignment_map:
             paragraph.alignment = alignment_map[para_data["alignment"]]
 
-    # Apply spacing
+    # 应用间距
     if "space_before" in para_data:
         paragraph.space_before = Pt(para_data["space_before"])
     if "space_after" in para_data:
@@ -98,7 +98,7 @@ def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
     if "line_spacing" in para_data:
         paragraph.line_spacing = Pt(para_data["line_spacing"])
 
-    # Apply run-level formatting
+    # 应用运行级别格式
     if not paragraph.runs:
         run = paragraph.add_run()
         run.text = text
@@ -106,12 +106,12 @@ def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
         run = paragraph.runs[0]
         run.text = text
 
-    # Apply font properties
+    # 应用字体属性
     apply_font_properties(run, para_data)
 
 
 def apply_font_properties(run, para_data: Dict[str, Any]):
-    """Apply font properties to a text run."""
+    """将字体属性应用到文本运行。"""
     if "bold" in para_data:
         run.font.bold = para_data["bold"]
     if "italic" in para_data:
@@ -123,7 +123,7 @@ def apply_font_properties(run, para_data: Dict[str, Any]):
     if "font_name" in para_data:
         run.font.name = para_data["font_name"]
 
-    # Apply color - prefer RGB, fall back to theme_color
+    # 应用颜色 - 优先使用 RGB，回退到 theme_color
     if "color" in para_data:
         color_hex = para_data["color"].lstrip("#")
         if len(color_hex) == 6:
@@ -132,25 +132,25 @@ def apply_font_properties(run, para_data: Dict[str, Any]):
             b = int(color_hex[4:6], 16)
             run.font.color.rgb = RGBColor(r, g, b)
     elif "theme_color" in para_data:
-        # Get theme color by name (e.g., "DARK_1", "ACCENT_1")
+        # 通过名称获取主题颜色（例如 "DARK_1", "ACCENT_1"）
         theme_name = para_data["theme_color"]
         try:
             run.font.color.theme_color = getattr(MSO_THEME_COLOR, theme_name)
         except AttributeError:
-            print(f"  WARNING: Unknown theme color name '{theme_name}'")
+            print(f"  警告：未知的主题颜色名称 '{theme_name}'")
 
 
 def detect_frame_overflow(inventory: InventoryData) -> Dict[str, Dict[str, float]]:
-    """Detect text overflow in shapes (text exceeding shape bounds).
+    """检测形状中的文本溢出（文本超出形状边界）。
 
-    Returns dict of slide_key -> shape_key -> overflow_inches.
-    Only includes shapes that have text overflow.
+    返回 slide_key -> shape_key -> overflow_inches 的字典。
+    仅包含有文本溢出的形状。
     """
     overflow_map = {}
 
     for slide_key, shapes_dict in inventory.items():
         for shape_key, shape_data in shapes_dict.items():
-            # Check for frame overflow (text exceeding shape bounds)
+            # 检查框架溢出（文本超出形状边界）
             if shape_data.frame_overflow_bottom is not None:
                 if slide_key not in overflow_map:
                     overflow_map[slide_key] = {}
@@ -160,9 +160,9 @@ def detect_frame_overflow(inventory: InventoryData) -> Dict[str, Dict[str, float
 
 
 def validate_replacements(inventory: InventoryData, replacements: Dict) -> List[str]:
-    """Validate that all shapes in replacements exist in inventory.
+    """验证替换配置中的所有形状是否存在于清单中。
 
-    Returns list of error messages.
+    返回错误消息列表。
     """
     errors = []
 
@@ -170,20 +170,20 @@ def validate_replacements(inventory: InventoryData, replacements: Dict) -> List[
         if not slide_key.startswith("slide-"):
             continue
 
-        # Check if slide exists
+        # 检查幻灯片是否存在
         if slide_key not in inventory:
-            errors.append(f"Slide '{slide_key}' not found in inventory")
+            errors.append(f"清单中未找到幻灯片 '{slide_key}'")
             continue
 
-        # Check each shape
+        # 检查每个形状
         for shape_key in shapes_data.keys():
             if shape_key not in inventory[slide_key]:
-                # Find shapes without replacements defined and show their content
+                # 查找未定义替换的形状并显示其内容
                 unused_with_content = []
                 for k in inventory[slide_key].keys():
                     if k not in shapes_data:
                         shape_data = inventory[slide_key][k]
-                        # Get text from paragraphs as preview
+                        # 从段落获取文本作为预览
                         paragraphs = shape_data.paragraphs
                         if paragraphs and paragraphs[0].text:
                             first_text = paragraphs[0].text[:50]
@@ -194,58 +194,58 @@ def validate_replacements(inventory: InventoryData, replacements: Dict) -> List[
                             unused_with_content.append(k)
 
                 errors.append(
-                    f"Shape '{shape_key}' not found on '{slide_key}'. "
-                    f"Shapes without replacements: {', '.join(sorted(unused_with_content)) if unused_with_content else 'none'}"
+                    f"在 '{slide_key}' 上未找到形状 '{shape_key}'。"
+                    f"未定义替换的形状：{', '.join(sorted(unused_with_content)) if unused_with_content else '无'}"
                 )
 
     return errors
 
 
 def check_duplicate_keys(pairs):
-    """Check for duplicate keys when loading JSON."""
+    """加载 JSON 时检查重复键。"""
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"Duplicate key found in JSON: '{key}'")
+            raise ValueError(f"JSON 中发现重复键：'{key}'")
         result[key] = value
     return result
 
 
 def apply_replacements(pptx_file: str, json_file: str, output_file: str):
-    """Apply text replacements from JSON to PowerPoint presentation."""
+    """将 JSON 中的文本替换应用到 PowerPoint 演示文稿。"""
 
-    # Load presentation
+    # 加载演示文稿
     prs = Presentation(pptx_file)
 
-    # Get inventory of all text shapes (returns ShapeData objects)
-    # Pass prs to use same Presentation instance
+    # 获取所有文本形状的清单（返回 ShapeData 对象）
+    # 传递 prs 以使用相同的 Presentation 实例
     inventory = extract_text_inventory(Path(pptx_file), prs)
 
-    # Detect text overflow in original presentation
+    # 检测原始演示文稿中的文本溢出
     original_overflow = detect_frame_overflow(inventory)
 
-    # Load replacement data with duplicate key detection
+    # 加载替换数据并进行重复键检测
     with open(json_file, "r") as f:
         replacements = json.load(f, object_pairs_hook=check_duplicate_keys)
 
-    # Validate replacements
+    # 验证替换配置
     errors = validate_replacements(inventory, replacements)
     if errors:
-        print("ERROR: Invalid shapes in replacement JSON:")
+        print("错误：替换 JSON 中存在无效形状：")
         for error in errors:
             print(f"  - {error}")
-        print("\nPlease check the inventory and update your replacement JSON.")
+        print("\n请检查清单并更新您的替换 JSON。")
         print(
-            "You can regenerate the inventory with: python inventory.py <input.pptx> <output.json>"
+            "您可以使用以下命令重新生成清单：python inventory.py <输入.pptx> <输出.json>"
         )
-        raise ValueError(f"Found {len(errors)} validation error(s)")
+        raise ValueError(f"发现 {len(errors)} 个验证错误")
 
-    # Track statistics
+    # 跟踪统计信息
     shapes_processed = 0
     shapes_cleared = 0
     shapes_replaced = 0
 
-    # Process each slide from inventory
+    # 处理清单中的每张幻灯片
     for slide_key, shapes_dict in inventory.items():
         if not slide_key.startswith("slide-"):
             continue
@@ -253,33 +253,33 @@ def apply_replacements(pptx_file: str, json_file: str, output_file: str):
         slide_index = int(slide_key.split("-")[1])
 
         if slide_index >= len(prs.slides):
-            print(f"Warning: Slide {slide_index} not found")
+            print(f"警告：未找到幻灯片 {slide_index}")
             continue
 
-        # Process each shape from inventory
+        # 处理清单中的每个形状
         for shape_key, shape_data in shapes_dict.items():
             shapes_processed += 1
 
-            # Get the shape directly from ShapeData
+            # 直接从 ShapeData 获取形状
             shape = shape_data.shape
             if not shape:
-                print(f"Warning: {shape_key} has no shape reference")
+                print(f"警告：{shape_key} 没有形状引用")
                 continue
 
-            # ShapeData already validates text_frame in __init__
+            # ShapeData 已在 __init__ 中验证 text_frame
             text_frame = shape.text_frame  # type: ignore
 
             text_frame.clear()  # type: ignore
             shapes_cleared += 1
 
-            # Check for replacement paragraphs
+            # 检查替换段落
             replacement_shape_data = replacements.get(slide_key, {}).get(shape_key, {})
             if "paragraphs" not in replacement_shape_data:
                 continue
 
             shapes_replaced += 1
 
-            # Add replacement paragraphs
+            # 添加替换段落
             for i, para_data in enumerate(replacement_shape_data["paragraphs"]):
                 if i == 0:
                     p = text_frame.paragraphs[0]  # type: ignore
@@ -288,9 +288,9 @@ def apply_replacements(pptx_file: str, json_file: str, output_file: str):
 
                 apply_paragraph_properties(p, para_data)
 
-    # Check for issues after replacements
-    # Save to a temporary file and reload to avoid modifying the presentation during inventory
-    # (extract_text_inventory accesses font.color which adds empty <a:solidFill/> elements)
+    # 检查替换后的问题
+    # 保存到临时文件并重新加载，以避免在清单提取过程中修改演示文稿
+    # （extract_text_inventory 访问 font.color 会添加空的 <a:solidFill/> 元素）
     import tempfile
 
     with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as tmp:
@@ -301,60 +301,60 @@ def apply_replacements(pptx_file: str, json_file: str, output_file: str):
         updated_inventory = extract_text_inventory(tmp_path)
         updated_overflow = detect_frame_overflow(updated_inventory)
     finally:
-        tmp_path.unlink()  # Clean up temp file
+        tmp_path.unlink()  # 清理临时文件
 
-    # Check if any text overflow got worse
+    # 检查是否有文本溢出恶化
     overflow_errors = []
     for slide_key, shape_overflows in updated_overflow.items():
         for shape_key, new_overflow in shape_overflows.items():
-            # Get original overflow (0 if there was no overflow before)
+            # 获取原始溢出（如果之前没有溢出则为 0）
             original = original_overflow.get(slide_key, {}).get(shape_key, 0.0)
 
-            # Error if overflow increased
-            if new_overflow > original + 0.01:  # Small tolerance for rounding
+            # 如果溢出增加则报错
+            if new_overflow > original + 0.01:  # 小容差用于舍入
                 increase = new_overflow - original
                 overflow_errors.append(
-                    f'{slide_key}/{shape_key}: overflow worsened by {increase:.2f}" '
-                    f'(was {original:.2f}", now {new_overflow:.2f}")'
+                    f'{slide_key}/{shape_key}：溢出恶化了 {increase:.2f}" '
+                    f'（原来 {original:.2f}"，现在 {new_overflow:.2f}"）'
                 )
 
-    # Collect warnings from updated shapes
+    # 收集更新后形状的警告
     warnings = []
     for slide_key, shapes_dict in updated_inventory.items():
         for shape_key, shape_data in shapes_dict.items():
             if shape_data.warnings:
                 for warning in shape_data.warnings:
-                    warnings.append(f"{slide_key}/{shape_key}: {warning}")
+                    warnings.append(f"{slide_key}/{shape_key}：{warning}")
 
-    # Fail if there are any issues
+    # 如果存在任何问题则失败
     if overflow_errors or warnings:
-        print("\nERROR: Issues detected in replacement output:")
+        print("\n错误：替换输出中检测到问题：")
         if overflow_errors:
-            print("\nText overflow worsened:")
+            print("\n文本溢出恶化：")
             for error in overflow_errors:
                 print(f"  - {error}")
         if warnings:
-            print("\nFormatting warnings:")
+            print("\n格式警告：")
             for warning in warnings:
                 print(f"  - {warning}")
-        print("\nPlease fix these issues before saving.")
+        print("\n请在保存前修复这些问题。")
         raise ValueError(
-            f"Found {len(overflow_errors)} overflow error(s) and {len(warnings)} warning(s)"
+            f"发现 {len(overflow_errors)} 个溢出错误和 {len(warnings)} 个警告"
         )
 
-    # Save the presentation
+    # 保存演示文稿
     prs.save(output_file)
 
-    # Report results
-    print(f"Saved updated presentation to: {output_file}")
-    print(f"Processed {len(prs.slides)} slides")
-    print(f"  - Shapes processed: {shapes_processed}")
-    print(f"  - Shapes cleared: {shapes_cleared}")
-    print(f"  - Shapes replaced: {shapes_replaced}")
+    # 报告结果
+    print(f"已保存更新的演示文稿到：{output_file}")
+    print(f"处理了 {len(prs.slides)} 张幻灯片")
+    print(f"  - 处理的形状：{shapes_processed}")
+    print(f"  - 清空的形状：{shapes_cleared}")
+    print(f"  - 替换的形状：{shapes_replaced}")
 
 
 def main():
-    """Main entry point for command-line usage."""
+    """命令行使用的主入口点。"""
     if len(sys.argv) != 4:
         print(__doc__)
         sys.exit(1)
@@ -364,17 +364,17 @@ def main():
     output_pptx = Path(sys.argv[3])
 
     if not input_pptx.exists():
-        print(f"Error: Input file '{input_pptx}' not found")
+        print(f"错误：未找到输入文件 '{input_pptx}'")
         sys.exit(1)
 
     if not replacements_json.exists():
-        print(f"Error: Replacements JSON file '{replacements_json}' not found")
+        print(f"错误：未找到替换 JSON 文件 '{replacements_json}'")
         sys.exit(1)
 
     try:
         apply_replacements(str(input_pptx), str(replacements_json), str(output_pptx))
     except Exception as e:
-        print(f"Error applying replacements: {e}")
+        print(f"应用替换时出错：{e}")
         import traceback
 
         traceback.print_exc()

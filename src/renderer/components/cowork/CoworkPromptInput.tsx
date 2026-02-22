@@ -13,33 +13,53 @@ import { setSkills, toggleActiveSkill } from '../../store/slices/skillSlice';
 import { Skill } from '../../types/skill';
 import { getCompactFolderName } from '../../utils/path';
 
+/**
+ * 协作附件类型定义
+ */
 type CoworkAttachment = {
+  /** 文件路径 */
   path: string;
+  /** 文件名 */
   name: string;
 };
 
 const INPUT_FILE_LABEL = '输入文件';
 
+/**
+ * 从文件路径中提取文件名
+ * @param path 文件路径
+ * @returns 文件名
+ */
 const getFileNameFromPath = (path: string): string => {
   const parts = path.split(/[/\\]/);
   return parts[parts.length - 1] || path;
 };
 
+/**
+ * 从技能路径中提取技能目录
+ * @param skillPath 技能路径
+ * @returns 技能目录路径
+ */
 const getSkillDirectoryFromPath = (skillPath: string): string => {
   const normalized = skillPath.trim().replace(/\\/g, '/');
   return normalized.replace(/\/SKILL\.md$/i, '') || normalized;
 };
 
+/**
+ * 构建内联技能提示
+ * @param skill 技能对象
+ * @returns 格式化的技能提示字符串
+ */
 const buildInlinedSkillPrompt = (skill: Skill): string => {
   const skillDirectory = getSkillDirectoryFromPath(skill.skillPath);
   return [
-    `## Skill: ${skill.name}`,
+    `## 技能: ${skill.name}`,
     '<skill_context>',
     `  <location>${skill.skillPath}</location>`,
     `  <directory>${skillDirectory}</directory>`,
     '  <path_rules>',
-    '    Resolve relative file references from this skill against <directory>.',
-    '    Do not assume skills are under the current workspace directory.',
+    '    相对于 <directory> 解析此技能中的相对文件引用。',
+    '    不要假设技能位于当前工作区目录下。',
     '  </path_rules>',
     '</skill_context>',
     '',
@@ -47,6 +67,9 @@ const buildInlinedSkillPrompt = (skill: Skill): string => {
   ].join('\n');
 };
 
+/**
+ * 协作提示输入组件的引用接口
+ */
 export interface CoworkPromptInputRef {
   /** 设置输入框值 */
   setValue: (value: string) => void;
@@ -54,17 +77,31 @@ export interface CoworkPromptInputRef {
   focus: () => void;
 }
 
+/**
+ * 协作提示输入组件的属性接口
+ */
 interface CoworkPromptInputProps {
+  /** 提交回调函数 */
   onSubmit: (prompt: string, skillPrompt?: string) => void;
+  /** 停止回调函数 */
   onStop?: () => void;
+  /** 是否正在流式传输 */
   isStreaming?: boolean;
+  /** 占位符文本 */
   placeholder?: string;
+  /** 是否禁用 */
   disabled?: boolean;
+  /** 输入框尺寸 */
   size?: 'normal' | 'large';
+  /** 工作目录 */
   workingDirectory?: string;
+  /** 工作目录变更回调 */
   onWorkingDirectoryChange?: (dir: string) => void;
+  /** 是否显示文件夹选择器 */
   showFolderSelector?: boolean;
+  /** 是否显示模型选择器 */
   showModelSelector?: boolean;
+  /** 管理技能回调 */
   onManageSkills?: () => void;
 }
 
@@ -74,7 +111,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
       onSubmit,
       onStop,
       isStreaming = false,
-      placeholder = 'Enter your task...',
+      placeholder = '请输入您的任务...',
       disabled = false,
       size = 'normal',
       workingDirectory = '',
@@ -119,7 +156,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   const minHeight = isLarge ? 60 : 24;
   const maxHeight = isLarge ? 200 : 200;
 
-  // Load skills on mount
+  // 挂载时加载技能列表
   useEffect(() => {
     const loadSkills = async () => {
       const loadedSkills = await skillService.loadSkills();
@@ -128,6 +165,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     loadSkills();
   }, [dispatch]);
 
+  // 监听技能变更事件
   useEffect(() => {
     const unsubscribe = skillService.onSkillsChanged(async () => {
       const loadedSkills = await skillService.loadSkills();
@@ -138,7 +176,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     };
   }, [dispatch]);
 
-  // Auto-resize textarea
+  // 自动调整文本框高度
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -165,18 +203,24 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     };
   }, []);
 
+  // 当工作目录变化时，隐藏文件夹必选警告
   useEffect(() => {
     if (workingDirectory?.trim()) {
       setShowFolderRequiredWarning(false);
     }
   }, [workingDirectory]);
 
+  // 同步草稿提示到 Redux 状态
   useEffect(() => {
     if (value !== draftPrompt) {
       dispatch(setDraftPrompt(value));
     }
   }, [value, draftPrompt, dispatch]);
 
+  /**
+   * 处理提交操作
+   * 验证输入并构建最终提示，包括附件和技能提示
+   */
   const handleSubmit = useCallback(() => {
     if (showFolderSelector && !workingDirectory?.trim()) {
       setShowFolderRequiredWarning(true);
@@ -187,7 +231,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     if ((!trimmedValue && attachments.length === 0) || isStreaming || disabled) return;
     setShowFolderRequiredWarning(false);
 
-    // Get active skills prompts and combine them
+    // 获取已激活技能的提示并合并
     const activeSkills = activeSkillIds
       .map(id => skills.find(s => s.id === id))
       .filter((s): s is Skill => s !== undefined);
@@ -208,18 +252,29 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     setAttachments([]);
   }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, showFolderSelector, workingDirectory, dispatch]);
 
+  /**
+   * 选择技能处理函数
+   * @param skill 选中的技能
+   */
   const handleSelectSkill = useCallback((skill: Skill) => {
     dispatch(toggleActiveSkill(skill.id));
   }, [dispatch]);
 
+  /**
+   * 管理技能处理函数
+   */
   const handleManageSkills = useCallback(() => {
     if (onManageSkills) {
       onManageSkills();
     }
   }, [onManageSkills]);
 
+  /**
+   * 处理键盘按下事件
+   * Enter 键提交，Shift+Enter 换行
+   */
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter to submit, Shift+Enter for new line
+    // 处理中文输入法状态
     const isComposing = event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
     if (event.key === 'Enter' && !event.shiftKey && !isComposing && !isStreaming && !disabled) {
       event.preventDefault();
@@ -227,6 +282,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     }
   };
 
+  /**
+   * 停止按钮点击处理函数
+   */
   const handleStopClick = () => {
     if (onStop) {
       onStop();
@@ -241,17 +299,31 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     ? `w-full resize-none bg-transparent px-4 pt-2.5 pb-2 dark:text-claude-darkText text-claude-text placeholder:dark:text-claude-darkTextSecondary/60 placeholder:text-claude-textSecondary/60 focus:outline-none text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
     : 'flex-1 resize-none bg-transparent dark:text-claude-darkText text-claude-text placeholder:dark:text-claude-darkTextSecondary placeholder:text-claude-textSecondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
+  /**
+   * 截断路径显示
+   * @param path 文件路径
+   * @param maxLength 最大长度
+   * @returns 截断后的路径
+   */
   const truncatePath = (path: string, maxLength = 30): string => {
     if (!path) return i18nService.t('noFolderSelected');
     return getCompactFolderName(path, maxLength) || i18nService.t('noFolderSelected');
   };
 
+  /**
+   * 文件夹选择处理函数
+   * @param path 选中的文件夹路径
+   */
   const handleFolderSelect = (path: string) => {
     if (onWorkingDirectoryChange) {
       onWorkingDirectoryChange(path);
     }
   };
 
+  /**
+   * 添加附件
+   * @param path 文件路径
+   */
   const addAttachment = useCallback((path: string) => {
     if (!path) return;
     setAttachments((prev) => {
@@ -262,23 +334,33 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     });
   }, []);
 
+  /**
+   * 将文件转换为 Base64 编码
+   * @param file 要转换的文件对象
+   * @returns Base64 编码的字符串
+   */
   const fileToBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result;
         if (typeof result !== 'string') {
-          reject(new Error('Failed to read file'));
+          reject(new Error('读取文件失败'));
           return;
         }
         const commaIndex = result.indexOf(',');
         resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
       };
-      reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+      reader.onerror = () => reject(reader.error ?? new Error('读取文件失败'));
       reader.readAsDataURL(file);
     });
   }, []);
 
+  /**
+   * 获取原生文件路径
+   * @param file 文件对象
+   * @returns 原生文件路径或 null
+   */
   const getNativeFilePath = useCallback((file: File): string | null => {
     const maybePath = (file as File & { path?: string }).path;
     if (typeof maybePath === 'string' && maybePath.trim()) {
@@ -287,6 +369,11 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     return null;
   }, []);
 
+  /**
+   * 保存内联文件到临时目录
+   * @param file 要保存的文件对象
+   * @returns 保存后的文件路径或 null
+   */
   const saveInlineFile = useCallback(async (file: File): Promise<string | null> => {
     try {
       const dataBase64 = await fileToBase64(file);
@@ -304,11 +391,15 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
       }
       return null;
     } catch (error) {
-      console.error('Failed to save inline file:', error);
+      console.error('保存内联文件失败:', error);
       return null;
     }
   }, [fileToBase64, workingDirectory]);
 
+  /**
+   * 处理传入的文件列表
+   * @param fileList 文件列表
+   */
   const handleIncomingFiles = useCallback(async (fileList: FileList | File[]) => {
     if (disabled || isStreaming) return;
     const files = Array.from(fileList ?? []);
@@ -328,6 +419,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     }
   }, [addAttachment, disabled, getNativeFilePath, isStreaming, saveInlineFile]);
 
+  /**
+   * 处理添加文件按钮点击
+   */
   const handleAddFile = useCallback(async () => {
     try {
       const result = await window.electron.dialog.selectFile({
@@ -337,20 +431,32 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
         addAttachment(result.path);
       }
     } catch (error) {
-      console.error('Failed to select file:', error);
+      console.error('选择文件失败:', error);
     }
   }, [addAttachment]);
 
+  /**
+   * 移除附件
+   * @param path 要移除的附件路径
+   */
   const handleRemoveAttachment = useCallback((path: string) => {
     setAttachments((prev) => prev.filter((attachment) => attachment.path !== path));
   }, []);
 
+  /**
+   * 检查数据传输对象是否包含文件
+   * @param dataTransfer 数据传输对象
+   * @returns 是否包含文件
+   */
   const hasFileTransfer = (dataTransfer: DataTransfer | null): boolean => {
     if (!dataTransfer) return false;
     if (dataTransfer.files.length > 0) return true;
     return Array.from(dataTransfer.types).includes('Files');
   };
 
+  /**
+   * 处理拖拽进入事件
+   */
   const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
     if (!hasFileTransfer(event.dataTransfer)) return;
     event.preventDefault();
@@ -361,6 +467,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     }
   };
 
+  /**
+   * 处理拖拽悬停事件
+   */
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     if (!hasFileTransfer(event.dataTransfer)) return;
     event.preventDefault();
@@ -368,6 +477,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     event.dataTransfer.dropEffect = disabled || isStreaming ? 'none' : 'copy';
   };
 
+  /**
+   * 处理拖拽离开事件
+   */
   const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
     if (!hasFileTransfer(event.dataTransfer)) return;
     event.preventDefault();
@@ -378,6 +490,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     }
   };
 
+  /**
+   * 处理文件放置事件
+   */
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     if (!hasFileTransfer(event.dataTransfer)) return;
     event.preventDefault();
@@ -388,6 +503,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     void handleIncomingFiles(event.dataTransfer.files);
   };
 
+  /**
+   * 处理粘贴事件
+   */
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     if (disabled || isStreaming) return;
     const files = Array.from(event.clipboardData?.files ?? []);
@@ -468,7 +586,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                           {truncatePath(workingDirectory)}
                         </span>
                       </button>
-                      {/* Tooltip - hidden when folder menu is open */}
+                      {/* 工具提示 - 当文件夹菜单打开时隐藏 */}
                       {!showFolderMenu && (
                         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3.5 py-2.5 text-[13px] leading-relaxed rounded-xl shadow-xl dark:bg-claude-darkBg bg-claude-bg dark:text-claude-darkText text-claude-text dark:border-claude-darkBorder border-claude-border border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 max-w-[400px] break-all whitespace-nowrap">
                           {truncatePath(workingDirectory, 120)}
@@ -506,7 +624,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                     type="button"
                     onClick={handleStopClick}
                     className="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
-                    aria-label="Stop"
+                    aria-label="停止"
                   >
                     <StopIcon className="h-5 w-5" />
                   </button>
@@ -516,7 +634,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                     onClick={handleSubmit}
                     disabled={!canSubmit}
                     className="p-2 rounded-xl bg-claude-accent hover:bg-claude-accentHover text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Send"
+                    aria-label="发送"
                   >
                     <PaperAirplaneIcon className="h-5 w-5" />
                   </button>
@@ -556,7 +674,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 type="button"
                 onClick={handleStopClick}
                 className="flex-shrink-0 p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
-                aria-label="Stop"
+                aria-label="停止"
               >
                 <StopIcon className="h-4 w-4" />
               </button>
@@ -566,7 +684,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className="flex-shrink-0 p-2 rounded-lg bg-claude-accent hover:bg-claude-accentHover text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Send"
+                aria-label="发送"
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
               </button>

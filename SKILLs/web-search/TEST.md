@@ -1,39 +1,39 @@
-# End-to-End Test Guide
+# 端到端测试指南
 
-## Testing the Complete Integration
+## 测试完整集成
 
-This guide walks through testing the entire Web Search Skill integration with LobsterAI.
+本指南将引导您完成 Web Search Skill 与 LobsterAI 完整集成的测试过程。
 
-## Prerequisites
+## 前置条件
 
-1. LobsterAI built and ready to run
-2. Google Chrome installed
-3. Internet connection available
+1. LobsterAI 已构建并准备运行
+2. 已安装 Google Chrome
+3. 网络连接可用
 
-## Test 1: Service Auto-Start
+## 测试 1：服务自动启动
 
-**Objective:** Verify that the Bridge Server starts automatically with LobsterAI.
+**目标：** 验证 Bridge Server 随 LobsterAI 自动启动。
 
-**Steps:**
+**步骤：**
 
-1. Start LobsterAI in development mode:
+1. 以开发模式启动 LobsterAI：
    ```bash
    npm run electron:dev
    ```
 
-2. Check the console output for:
+2. 检查控制台输出是否包含：
    ```
    [SkillServices] Starting skill services...
    [SkillServices] Starting Web Search Bridge Server...
    [SkillServices] Web Search Bridge Server started (PID: XXXXX)
    ```
 
-3. Verify the server is running:
+3. 验证服务器正在运行：
    ```bash
    curl http://127.0.0.1:8923/api/health
    ```
 
-   Expected response:
+   预期响应：
    ```json
    {
      "success": true,
@@ -45,302 +45,302 @@ This guide walks through testing the entire Web Search Skill integration with Lo
    }
    ```
 
-**Expected Result:** ✅ Bridge Server starts automatically within 3 seconds of LobsterAI launch.
+**预期结果：** ✅ Bridge Server 在 LobsterAI 启动后 3 秒内自动启动。
 
-## Test 2: CLI Search from Terminal
+## 测试 2：从终端执行 CLI 搜索
 
-**Objective:** Test the search functionality directly from command line.
+**目标：** 直接从命令行测试搜索功能。
 
-**Steps:**
+**步骤：**
 
-1. Open a terminal while LobsterAI is running
+1. 在 LobsterAI 运行时打开一个终端
 
-2. Execute a search:
+2. 执行搜索：
    ```bash
    bash SKILLs/web-search/scripts/search.sh "React 19 features" 5
    ```
 
-3. Verify output contains:
-   - Search query
-   - Result count
-   - Duration in ms
-   - Markdown-formatted results with titles, URLs, and snippets
+3. 验证输出包含：
+   - 搜索查询
+   - 结果数量
+   - 持续时间（毫秒）
+   - Markdown 格式的结果，包含标题、URL 和摘要
 
-**Expected Result:** ✅ Search completes in < 3 seconds, returns 5 results.
+**预期结果：** ✅ 搜索在 3 秒内完成，返回 5 个结果。
 
-## Test 3: Cowork Session Integration
+## 测试 3：Cowork 会话集成
 
-**Objective:** Test Claude's ability to use the skill in a Cowork session.
+**目标：** 测试 Claude 在 Cowork 会话中使用该技能的能力。
 
-**Steps:**
+**步骤：**
 
-1. Start LobsterAI
-2. Create a new Cowork session
-3. Send the following message:
+1. 启动 LobsterAI
+2. 创建一个新的 Cowork 会话
+3. 发送以下消息：
 
    ```
    Search for the latest information about Next.js 14 new features.
    ```
 
-4. Observe:
-   - Claude should recognize the need for real-time information
-   - Claude should execute: `bash SKILLs/web-search/scripts/search.sh "Next.js 14 new features" 5`
-   - Search results should appear in the tool execution output
-   - Claude should synthesize information from the results
-   - Claude should provide a summary with source citations
+4. 观察：
+   - Claude 应识别需要实时信息
+   - Claude 应执行：`bash SKILLs/web-search/scripts/search.sh "Next.js 14 new features" 5`
+   - 搜索结果应出现在工具执行输出中
+   - Claude 应综合结果中的信息
+   - Claude 应提供带有来源引用的摘要
 
-**Expected Result:** ✅ Claude uses web-search skill automatically, provides current information with sources.
+**预期结果：** ✅ Claude 自动使用 web-search 技能，提供带有来源的当前信息。
 
-## Test 4: Multiple Consecutive Searches
+## 测试 4：多次连续搜索
 
-**Objective:** Verify connection caching and performance optimization.
+**目标：** 验证连接缓存和性能优化。
 
-**Steps:**
+**步骤：**
 
-1. In a Cowork session, ask:
+1. 在 Cowork 会话中，询问：
    ```
    1. Search for "TypeScript 5.0 features"
    2. Search for "React Server Components guide"
    3. Search for "Vite 5.0 changes"
    ```
 
-2. Observe:
-   - First search: ~2-3 seconds (includes browser launch)
-   - Second search: ~1 second (reuses connection)
-   - Third search: ~1 second (reuses connection)
+2. 观察：
+   - 第一次搜索：约 2-3 秒（包含浏览器启动）
+   - 第二次搜索：约 1 秒（复用连接）
+   - 第三次搜索：约 1 秒（复用连接）
 
-**Expected Result:** ✅ Subsequent searches are faster due to connection caching.
+**预期结果：** ✅ 由于连接缓存，后续搜索速度更快。
 
-## Test 5: Service Cleanup on Exit
+## 测试 5：退出时服务清理
 
-**Objective:** Verify graceful shutdown of services when LobsterAI quits.
+**目标：** 验证 LobsterAI 退出时服务的优雅关闭。
 
-**Steps:**
+**步骤：**
 
-1. With LobsterAI running and searches completed, quit the application
-2. Check console output for:
+1. 在 LobsterAI 运行并完成搜索后，退出应用程序
+2. 检查控制台输出是否包含：
    ```
    [SkillServices] Stopping skill services...
    [SkillServices] Stopping Web Search Bridge Server...
    [SkillServices] Web Search Bridge Server stopped
    ```
 
-3. Verify server is stopped:
+3. 验证服务器已停止：
    ```bash
    curl http://127.0.0.1:8923/api/health
    ```
 
-   Expected: Connection refused
+   预期：连接被拒绝
 
-4. Check no orphaned processes:
+4. 检查是否有孤立进程：
    ```bash
    ps aux | grep "web-search"
    ```
 
-**Expected Result:** ✅ All services stop cleanly, no orphaned processes.
+**预期结果：** ✅ 所有服务干净地停止，无孤立进程。
 
-## Test 6: Error Handling - Server Not Running
+## 测试 6：错误处理 - 服务器未运行
 
-**Objective:** Test behavior when Bridge Server is manually stopped.
+**目标：** 测试 Bridge Server 被手动停止时的行为。
 
-**Steps:**
+**步骤：**
 
-1. Start LobsterAI
-2. Manually stop the Bridge Server:
+1. 启动 LobsterAI
+2. 手动停止 Bridge Server：
    ```bash
    bash SKILLs/web-search/scripts/stop-server.sh
    ```
 
-3. In Cowork session, ask Claude to search
-4. Observe error message:
+3. 在 Cowork 会话中，要求 Claude 进行搜索
+4. 观察错误消息：
    ```
    ✗ Bridge Server is not running
      Please start the server first:
      bash SKILLs/web-search/scripts/start-server.sh
    ```
 
-5. Manually restart:
+5. 手动重启：
    ```bash
    bash SKILLs/web-search/scripts/start-server.sh
    ```
 
-6. Retry search
+6. 重试搜索
 
-**Expected Result:** ✅ Clear error message, easy recovery path.
+**预期结果：** ✅ 清晰的错误消息，易于恢复。
 
-## Test 7: Browser Visibility
+## 测试 7：浏览器可见性
 
-**Objective:** Verify all browser operations are visible and transparent.
+**目标：** 验证所有浏览器操作可见且透明。
 
-**Steps:**
+**步骤：**
 
-1. Start LobsterAI (ensure headless is false in config)
-2. Execute a search via CLI or Cowork
-3. Observe:
-   - Chrome window appears
-   - Navigates to Bing search page
-   - Search query visible in URL bar
-   - Results page loads visibly
+1. 启动 LobsterAI（确保配置中 headless 为 false）
+2. 通过 CLI 或 Cowork 执行搜索
+3. 观察：
+   - Chrome 窗口出现
+   - 导航到 Bing 搜索页面
+   - 搜索查询在地址栏中可见
+   - 结果页面可见地加载
 
-**Expected Result:** ✅ All browser operations visible to user, transparent behavior.
+**预期结果：** ✅ 所有浏览器操作对用户可见，行为透明。
 
-## Test 8: Cross-Platform Compatibility
+## 测试 8：跨平台兼容性
 
-**Objective:** Verify skill works across different platforms.
+**目标：** 验证技能在不同平台上正常工作。
 
-**Platform-Specific Steps:**
+**平台特定步骤：**
 
 ### macOS
 ```bash
-# Verify Chrome path detection
+# 验证 Chrome 路径检测
 bash SKILLs/web-search/scripts/search.sh "test" 1
 
-# Should find Chrome at: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# 应在以下位置找到 Chrome：/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 ```
 
 ### Linux
 ```bash
-# Verify Chrome/Chromium detection
+# 验证 Chrome/Chromium 检测
 bash SKILLs/web-search/scripts/search.sh "test" 1
 
-# Should find at: /usr/bin/google-chrome or /usr/bin/chromium
+# 应在以下位置找到：/usr/bin/google-chrome 或 /usr/bin/chromium
 ```
 
 ### Windows
 ```bash
-# Verify Chrome detection
+# 验证 Chrome 检测
 bash SKILLs/web-search/scripts/search.sh "test" 1
 
-# Should find at: C:\Program Files\Google\Chrome\Application\chrome.exe
+# 应在以下位置找到：C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
 
-**Expected Result:** ✅ Chrome detection works on all platforms.
+**预期结果：** ✅ Chrome 检测在所有平台上正常工作。
 
-## Test 9: Concurrent Searches
+## 测试 9：并发搜索
 
-**Objective:** Test multiple searches happening in parallel.
+**目标：** 测试多个搜索并行执行。
 
-**Steps:**
+**步骤：**
 
-1. Open two terminal windows
-2. Execute searches simultaneously:
-   - Terminal 1: `bash scripts/search.sh "React" 3`
-   - Terminal 2: `bash scripts/search.sh "Vue" 3`
+1. 打开两个终端窗口
+2. 同时执行搜索：
+   - 终端 1：`bash scripts/search.sh "React" 3`
+   - 终端 2：`bash scripts/search.sh "Vue" 3`
 
-3. Both should complete successfully
+3. 两者都应成功完成
 
-**Expected Result:** ✅ Multiple searches can run concurrently.
+**预期结果：** ✅ 多个搜索可以并发运行。
 
-## Test 10: Result Quality
+## 测试 10：结果质量
 
-**Objective:** Verify search results are relevant and well-formatted.
+**目标：** 验证搜索结果相关且格式良好。
 
-**Steps:**
+**步骤：**
 
-1. Search for a specific topic:
+1. 搜索特定主题：
    ```bash
    bash SKILLs/web-search/scripts/search.sh "Playwright documentation" 5
    ```
 
-2. Verify results include:
-   - Official Playwright documentation (playwright.dev)
-   - Recent tutorials and guides
-   - Relevant Stack Overflow or GitHub discussions
+2. 验证结果包含：
+   - 官方 Playwright 文档（playwright.dev）
+   - 最近的教程和指南
+   - 相关的 Stack Overflow 或 GitHub 讨论
 
-3. Check Markdown formatting:
-   - Headers for each result
-   - Clickable URLs
-   - Clean snippets
+3. 检查 Markdown 格式：
+   - 每个结果的标题
+   - 可点击的 URL
+   - 整洁的摘要
 
-**Expected Result:** ✅ High-quality, relevant results with proper formatting.
+**预期结果：** ✅ 高质量、相关的结果，格式正确。
 
-## Performance Benchmarks
+## 性能基准
 
-| Operation | Target | Acceptable |
+| 操作 | 目标 | 可接受 |
 |-----------|--------|------------|
-| Server startup | < 2s | < 3s |
-| Browser launch | < 3s | < 5s |
-| First search | < 3s | < 5s |
-| Subsequent search | < 1s | < 2s |
-| Server shutdown | < 2s | < 3s |
+| 服务器启动 | < 2s | < 3s |
+| 浏览器启动 | < 3s | < 5s |
+| 首次搜索 | < 3s | < 5s |
+| 后续搜索 | < 1s | < 2s |
+| 服务器关闭 | < 2s | < 3s |
 
-## Common Issues and Solutions
+## 常见问题及解决方案
 
-### Issue 1: Server Won't Start
+### 问题 1：服务器无法启动
 
-**Symptoms:** No PID file created, health check fails
+**症状：** 未创建 PID 文件，健康检查失败
 
-**Debug:**
+**调试：**
 ```bash
 cat SKILLs/web-search/.server.log
 npm run build --prefix SKILLs/web-search
 ```
 
-### Issue 2: Chrome Not Found
+### 问题 2：找不到 Chrome
 
-**Symptoms:** "Chrome not found" error
+**症状：** "Chrome not found" 错误
 
-**Solution:**
-- macOS: Install from https://www.google.com/chrome/
-- Linux: `sudo apt install chromium-browser`
-- Windows: Install Chrome
+**解决方案：**
+- macOS：从 https://www.google.com/chrome/ 安装
+- Linux：`sudo apt install chromium-browser`
+- Windows：安装 Chrome
 
-### Issue 3: Port Already in Use
+### 问题 3：端口已被占用
 
-**Symptoms:** "Address already in use" error
+**症状：** "Address already in use" 错误
 
-**Solution:**
+**解决方案：**
 ```bash
 lsof -i :8923
 kill -9 <PID>
 bash SKILLs/web-search/scripts/start-server.sh
 ```
 
-### Issue 4: Stale Connection
+### 问题 4：连接过期
 
-**Symptoms:** "Connection not found" error
+**症状：** "Connection not found" 错误
 
-**Solution:**
+**解决方案：**
 ```bash
 rm SKILLs/web-search/.connection
 ```
 
-## Success Criteria
+## 成功标准
 
-All tests pass when:
+所有测试通过的条件：
 
-- ✅ Server auto-starts with LobsterAI
-- ✅ Searches complete in < 3 seconds
-- ✅ Claude uses skill automatically when appropriate
-- ✅ Connection caching improves performance
-- ✅ Services cleanup gracefully on exit
-- ✅ Error messages are clear and actionable
-- ✅ Browser operations are visible
-- ✅ Works on macOS, Linux, Windows
-- ✅ Concurrent searches supported
-- ✅ Results are relevant and well-formatted
+- ✅ 服务器随 LobsterAI 自动启动
+- ✅ 搜索在 3 秒内完成
+- ✅ Claude 在适当时自动使用技能
+- ✅ 连接缓存提升性能
+- ✅ 退出时服务优雅清理
+- ✅ 错误消息清晰且可操作
+- ✅ 浏览器操作可见
+- ✅ 在 macOS、Linux、Windows 上正常工作
+- ✅ 支持并发搜索
+- ✅ 结果相关且格式良好
 
-## Final Checklist
+## 最终检查清单
 
-Before considering the integration complete:
+在认为集成完成之前：
 
-- [ ] All 10 tests pass
-- [ ] Performance benchmarks met
-- [ ] No console errors or warnings
-- [ ] Documentation is complete
-- [ ] Code is compiled without errors
-- [ ] Skills config includes web-search
-- [ ] SKILL.md is comprehensive
-- [ ] README.md is accurate
-- [ ] Examples work as documented
-- [ ] Service manager integrates cleanly
+- [ ] 所有 10 个测试通过
+- [ ] 满足性能基准
+- [ ] 无控制台错误或警告
+- [ ] 文档完整
+- [ ] 代码编译无错误
+- [ ] Skills 配置包含 web-search
+- [ ] SKILL.md 内容全面
+- [ ] README.md 准确
+- [ ] 示例按文档说明工作
+- [ ] 服务管理器干净集成
 
-## Next Steps
+## 后续步骤
 
-After all tests pass:
+所有测试通过后：
 
-1. Create commit with all changes
-2. Test in production build
-3. Document any platform-specific quirks
-4. Gather user feedback
-5. Consider Phase 2 enhancements (Google search, caching, etc.)
+1. 创建包含所有更改的提交
+2. 在生产构建中测试
+3. 记录任何平台特定的特性
+4. 收集用户反馈
+5. 考虑第二阶段增强功能（Google 搜索、缓存等）

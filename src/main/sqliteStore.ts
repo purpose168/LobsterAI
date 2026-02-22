@@ -14,16 +14,16 @@ type ChangePayload<T = unknown> = {
 
 const USER_MEMORIES_MIGRATION_KEY = 'userMemories.migration.v1.completed';
 
-// Get the path to sql.js WASM file
+// 获取 sql.js WASM 文件的路径
 function getWasmPath(): string {
   if (app.isPackaged) {
-    // In production, the wasm file is in the unpacked resources
+    // 在生产环境中，wasm 文件位于解压的资源目录中
     return path.join(
       process.resourcesPath,
       'app.asar.unpacked/node_modules/sql.js/dist/sql-wasm.wasm'
     );
   }
-  // In development, use node_modules directly
+  // 在开发环境中，直接使用 node_modules 目录
   return path.join(app.getAppPath(), 'node_modules/sql.js/dist/sql-wasm.wasm');
 }
 
@@ -42,7 +42,7 @@ export class SqliteStore {
     const basePath = userDataPath ?? app.getPath('userData');
     const dbPath = path.join(basePath, DB_FILENAME);
 
-    // Initialize SQL.js with WASM file path (cached promise for reuse)
+    // 使用 WASM 文件路径初始化 SQL.js（缓存 Promise 以便复用）
     if (!SqliteStore.sqlPromise) {
       const wasmPath = getWasmPath();
       SqliteStore.sqlPromise = initSqlJs({
@@ -51,7 +51,7 @@ export class SqliteStore {
     }
     const SQL = await SqliteStore.sqlPromise;
 
-    // Load existing database or create new one
+    // 加载现有数据库或创建新数据库
     let db: Database;
     if (fs.existsSync(dbPath)) {
       const buffer = fs.readFileSync(dbPath);
@@ -74,7 +74,7 @@ export class SqliteStore {
       );
     `);
 
-    // Create cowork tables
+    // 创建协作工作表
     this.db.run(`
       CREATE TABLE IF NOT EXISTS cowork_sessions (
         id TEXT PRIMARY KEY,
@@ -159,7 +159,7 @@ export class SqliteStore {
       ON user_memory_sources(memory_id, is_active);
     `);
 
-    // Create scheduled tasks tables
+    // 创建计划任务表
     this.db.run(`
       CREATE TABLE IF NOT EXISTS scheduled_tasks (
         id TEXT PRIMARY KEY,
@@ -210,9 +210,9 @@ export class SqliteStore {
         ON scheduled_task_runs(task_id, started_at DESC);
     `);
 
-    // Migrations - safely add columns if they don't exist
+    // 数据库迁移 - 安全地添加不存在的列
     try {
-      // Check if execution_mode column exists
+      // 检查 execution_mode 列是否存在
       const colsResult = this.db.exec("PRAGMA table_info(cowork_sessions);");
       const columns = colsResult[0]?.values.map((row) => row[1]) || [];
 
@@ -231,7 +231,7 @@ export class SqliteStore {
         this.save();
       }
 
-      // Migration: Add sequence column to cowork_messages
+      // 迁移：为 cowork_messages 表添加 sequence 列
       const msgColsResult = this.db.exec("PRAGMA table_info(cowork_messages);");
       const msgColumns = msgColsResult[0]?.values.map((row) => row[1]) || [];
 
@@ -254,13 +254,13 @@ export class SqliteStore {
         this.save();
       }
     } catch {
-      // Column already exists or migration not needed.
+      // 列已存在或无需迁移
     }
 
     try {
       this.db.run('UPDATE cowork_sessions SET pinned = 0 WHERE pinned IS NULL;');
     } catch {
-      // Column might not exist yet.
+      // 列可能尚不存在
     }
 
     try {
@@ -271,10 +271,10 @@ export class SqliteStore {
         WHERE key = 'executionMode' AND value = 'container';
       `);
     } catch (error) {
-      console.warn('Failed to migrate cowork execution mode:', error);
+      console.warn('迁移协作执行模式失败:', error);
     }
 
-    // Migration: Add expires_at and notify_platforms_json columns to scheduled_tasks
+    // 迁移：为 scheduled_tasks 表添加 expires_at 和 notify_platforms_json 列
     try {
       const stColsResult = this.db.exec("PRAGMA table_info(scheduled_tasks);");
       if (stColsResult[0]) {
@@ -291,7 +291,7 @@ export class SqliteStore {
         }
       }
     } catch {
-      // Migration not needed or table doesn't exist yet.
+      // 无需迁移或表尚不存在
     }
 
     this.migrateLegacyMemoryFileToUserMemories();
@@ -321,7 +321,7 @@ export class SqliteStore {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      console.warn(`Failed to parse store value for ${key}`, error);
+      console.warn(`解析 ${key} 的存储值失败`, error);
       return undefined;
     }
   }
@@ -347,12 +347,12 @@ export class SqliteStore {
     this.emitter.emit('change', { key, newValue: undefined, oldValue } as ChangePayload);
   }
 
-  // Expose database for cowork operations
+  // 暴露数据库供协作操作使用
   getDatabase(): Database {
     return this.db;
   }
 
-  // Expose save method for external use (e.g., CoworkStore)
+  // 暴露保存方法供外部使用（例如 CoworkStore）
   getSaveFunction(): () => void {
     return () => this.save();
   }
@@ -371,7 +371,7 @@ export class SqliteStore {
           return fs.readFileSync(candidate, 'utf8');
         }
       } catch {
-        // Skip unreadable candidates.
+        // 跳过无法读取的候选文件
       }
     }
     return '';
@@ -453,7 +453,7 @@ export class SqliteStore {
       this.db.run('COMMIT;');
     } catch (error) {
       this.db.run('ROLLBACK;');
-      console.warn('Failed to migrate legacy MEMORY.md entries:', error);
+      console.warn('迁移旧版 MEMORY.md 条目失败:', error);
     }
 
     this.set(USER_MEMORIES_MIGRATION_KEY, '1');
@@ -486,13 +486,13 @@ export class SqliteStore {
         });
         this.db.run('COMMIT;');
         this.save();
-        console.info(`Migrated ${entries.length} entries from electron-store.`);
+        console.info(`已从 electron-store 迁移 ${entries.length} 个条目`);
       } catch (error) {
         this.db.run('ROLLBACK;');
         throw error;
       }
     } catch (error) {
-      console.warn('Failed to migrate electron-store data:', error);
+      console.warn('迁移 electron-store 数据失败:', error);
     }
   }
 }

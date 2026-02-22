@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Excel Formula Recalculation Script
-Recalculates all formulas in an Excel file using LibreOffice
+Excel 公式重算脚本
+使用 LibreOffice 重新计算 Excel 文件中的所有公式
 """
 
 import json
@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 
 
 def setup_libreoffice_macro():
-    """Setup LibreOffice macro for recalculation if not already configured"""
+    """设置 LibreOffice 宏用于重算（如果尚未配置）"""
     if platform.system() == 'Darwin':
         macro_dir = os.path.expanduser('~/Library/Application Support/LibreOffice/4/user/basic/Standard')
     else:
@@ -52,22 +52,22 @@ def setup_libreoffice_macro():
 
 def recalc(filename, timeout=30):
     """
-    Recalculate formulas in Excel file and report any errors
+    重新计算 Excel 文件中的公式并报告任何错误
     
-    Args:
-        filename: Path to Excel file
-        timeout: Maximum time to wait for recalculation (seconds)
+    参数:
+        filename: Excel 文件路径
+        timeout: 等待重算的最长时间（秒）
     
-    Returns:
-        dict with error locations and counts
+    返回:
+        包含错误位置和计数的字典
     """
     if not Path(filename).exists():
-        return {'error': f'File {filename} does not exist'}
+        return {'error': f'文件 {filename} 不存在'}
     
     abs_path = str(Path(filename).absolute())
     
     if not setup_libreoffice_macro():
-        return {'error': 'Failed to setup LibreOffice macro'}
+        return {'error': '设置 LibreOffice 宏失败'}
     
     cmd = [
         'soffice', '--headless', '--norestore',
@@ -75,11 +75,11 @@ def recalc(filename, timeout=30):
         abs_path
     ]
     
-    # Handle timeout command differences between Linux and macOS
+    # 处理 Linux 和 macOS 之间的超时命令差异
     if platform.system() != 'Windows':
         timeout_cmd = 'timeout' if platform.system() == 'Linux' else None
         if platform.system() == 'Darwin':
-            # Check if gtimeout is available on macOS
+            # 检查 macOS 上是否有 gtimeout 可用
             try:
                 subprocess.run(['gtimeout', '--version'], capture_output=True, timeout=1, check=False)
                 timeout_cmd = 'gtimeout'
@@ -91,14 +91,14 @@ def recalc(filename, timeout=30):
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     
-    if result.returncode != 0 and result.returncode != 124:  # 124 is timeout exit code
-        error_msg = result.stderr or 'Unknown error during recalculation'
+    if result.returncode != 0 and result.returncode != 124:  # 124 是超时退出代码
+        error_msg = result.stderr or '重算过程中发生未知错误'
         if 'Module1' in error_msg or 'RecalculateAndSave' not in error_msg:
-            return {'error': 'LibreOffice macro not configured properly'}
+            return {'error': 'LibreOffice 宏未正确配置'}
         else:
             return {'error': error_msg}
     
-    # Check for Excel errors in the recalculated file - scan ALL cells
+    # 检查重算后的文件中的 Excel 错误 - 扫描所有单元格
     try:
         wb = load_workbook(filename, data_only=True)
         
@@ -108,7 +108,7 @@ def recalc(filename, timeout=30):
         
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
-            # Check ALL rows and columns - no limits
+            # 检查所有行和列 - 无限制
             for row in ws.iter_rows():
                 for cell in row:
                     if cell.value is not None and isinstance(cell.value, str):
@@ -121,14 +121,14 @@ def recalc(filename, timeout=30):
         
         wb.close()
         
-        # Build result summary
+        # 构建结果摘要
         result = {
             'status': 'success' if total_errors == 0 else 'errors_found',
             'total_errors': total_errors,
             'error_summary': {}
         }
         
-        # Add non-empty error categories
+        # 添加非空的错误类别
         for err_type, locations in error_details.items():
             if locations:
                 result['error_summary'][err_type] = {
@@ -157,13 +157,13 @@ def recalc(filename, timeout=30):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python recalc.py <excel_file> [timeout_seconds]")
-        print("\nRecalculates all formulas in an Excel file using LibreOffice")
-        print("\nReturns JSON with error details:")
-        print("  - status: 'success' or 'errors_found'")
-        print("  - total_errors: Total number of Excel errors found")
-        print("  - total_formulas: Number of formulas in the file")
-        print("  - error_summary: Breakdown by error type with locations")
+        print("用法: python recalc.py <excel文件> [超时秒数]")
+        print("\n使用 LibreOffice 重新计算 Excel 文件中的所有公式")
+        print("\n返回包含错误详细信息的 JSON:")
+        print("  - status: 'success' 或 'errors_found'")
+        print("  - total_errors: 发现的 Excel 错误总数")
+        print("  - total_formulas: 文件中的公式数量")
+        print("  - error_summary: 按错误类型及其位置的详细分类")
         print("    - #VALUE!, #DIV/0!, #REF!, #NAME?, #NULL!, #NUM!, #N/A")
         sys.exit(1)
     

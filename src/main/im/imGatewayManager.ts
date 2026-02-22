@@ -1,6 +1,6 @@
 /**
- * IM Gateway Manager
- * Unified manager for DingTalk, Feishu and Telegram gateways
+ * IM 网关管理器
+ * 钉钉、飞书、Telegram 和 Discord 网关的统一管理器
  */
 
 import { EventEmitter } from 'events';
@@ -26,27 +26,45 @@ import type { Database } from 'sql.js';
 import type { CoworkRunner } from '../libs/coworkRunner';
 import type { CoworkStore } from '../coworkStore';
 
+// 连通性测试超时时间（毫秒）
 const CONNECTIVITY_TIMEOUT_MS = 10_000;
+// 入站活动警告阈值（毫秒）- 2分钟后开始检查入站消息
 const INBOUND_ACTIVITY_WARN_AFTER_MS = 2 * 60 * 1000;
 
+/**
+ * IM 网关管理器选项接口
+ */
 export interface IMGatewayManagerOptions {
+  /** Cowork 协作运行器实例 */
   coworkRunner?: CoworkRunner;
+  /** Cowork 协作存储实例 */
   coworkStore?: CoworkStore;
 }
 
 export class IMGatewayManager extends EventEmitter {
+  /** 钉钉网关实例 */
   private dingtalkGateway: DingTalkGateway;
+  /** 飞书网关实例 */
   private feishuGateway: FeishuGateway;
+  /** Telegram 网关实例 */
   private telegramGateway: TelegramGateway;
+  /** Discord 网关实例 */
   private discordGateway: DiscordGateway;
+  /** IM 存储实例 */
   private imStore: IMStore;
+  /** 聊天处理器实例 */
   private chatHandler: IMChatHandler | null = null;
+  /** Cowork 协作处理器实例 */
   private coworkHandler: IMCoworkHandler | null = null;
+  /** 获取 LLM 配置的函数 */
   private getLLMConfig: (() => Promise<any>) | null = null;
+  /** 获取技能提示的函数 */
   private getSkillsPrompt: (() => Promise<string | null>) | null = null;
 
-  // Cowork dependencies
+  // Cowork 协作依赖项
+  /** Cowork 协作运行器实例 */
   private coworkRunner: CoworkRunner | null = null;
+  /** Cowork 协作存储实例 */
   private coworkStore: CoworkStore | null = null;
 
   constructor(db: Database, saveDb: () => void, options?: IMGatewayManagerOptions) {
@@ -58,21 +76,21 @@ export class IMGatewayManager extends EventEmitter {
     this.telegramGateway = new TelegramGateway();
     this.discordGateway = new DiscordGateway();
 
-    // Store Cowork dependencies if provided
+    // 如果提供了 Cowork 协作依赖项，则存储它们
     if (options?.coworkRunner && options?.coworkStore) {
       this.coworkRunner = options.coworkRunner;
       this.coworkStore = options.coworkStore;
     }
 
-    // Forward gateway events
+    // 转发网关事件
     this.setupGatewayEventForwarding();
   }
 
   /**
-   * Set up event forwarding from gateways
+   * 设置网关事件转发
    */
   private setupGatewayEventForwarding(): void {
-    // DingTalk events
+    // 钉钉事件
     this.dingtalkGateway.on('connected', () => {
       this.emit('statusChange', this.getStatus());
     });
@@ -87,7 +105,7 @@ export class IMGatewayManager extends EventEmitter {
       this.emit('message', message);
     });
 
-    // Feishu events
+    // 飞书事件
     this.feishuGateway.on('connected', () => {
       this.emit('statusChange', this.getStatus());
     });
@@ -102,7 +120,7 @@ export class IMGatewayManager extends EventEmitter {
       this.emit('message', message);
     });
 
-    // Telegram events
+    // Telegram 事件
     this.telegramGateway.on('connected', () => {
       this.emit('statusChange', this.getStatus());
     });
@@ -117,7 +135,7 @@ export class IMGatewayManager extends EventEmitter {
       this.emit('message', message);
     });
 
-    // Discord events
+    // Discord 事件
     this.discordGateway.on('status', () => {
       this.emit('statusChange', this.getStatus());
     });
@@ -137,49 +155,54 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Reconnect all disconnected gateways
-   * Called when network is restored via IPC event
+   * 重新连接所有已断开的网关
+   * 通过 IPC 事件在网络恢复时调用
    */
   reconnectAllDisconnected(): void {
-    console.log('[IMGatewayManager] Reconnecting all disconnected gateways...');
+    console.log('[IMGatewayManager] 正在重新连接所有已断开的网关...');
 
     if (this.dingtalkGateway && !this.dingtalkGateway.isConnected()) {
-      console.log('[IMGatewayManager] Reconnecting DingTalk...');
+      console.log('[IMGatewayManager] 正在重新连接钉钉...');
       this.dingtalkGateway.reconnectIfNeeded();
     }
 
     if (this.feishuGateway && !this.feishuGateway.isConnected()) {
-      console.log('[IMGatewayManager] Reconnecting Feishu...');
+      console.log('[IMGatewayManager] 正在重新连接飞书...');
       this.feishuGateway.reconnectIfNeeded();
     }
 
     if (this.telegramGateway && !this.telegramGateway.isConnected()) {
-      console.log('[IMGatewayManager] Reconnecting Telegram...');
+      console.log('[IMGatewayManager] 正在重新连接 Telegram...');
       this.telegramGateway.reconnectIfNeeded();
     }
 
     if (this.discordGateway && !this.discordGateway.isConnected()) {
-      console.log('[IMGatewayManager] Reconnecting Discord...');
+      console.log('[IMGatewayManager] 正在重新连接 Discord...');
       this.discordGateway.reconnectIfNeeded();
     }
   }
 
   /**
-   * Initialize the manager with LLM and skills providers
+   * 使用 LLM 和技能提供程序初始化管理器
+   * @param options - 初始化选项
+   * @param options.getLLMConfig - 获取 LLM 配置的函数
+   * @param options.getSkillsPrompt - 获取技能提示的函数（可选）
    */
   initialize(options: {
+    /** 获取 LLM 配置的函数 */
     getLLMConfig: () => Promise<any>;
+    /** 获取技能提示的函数（可选） */
     getSkillsPrompt?: () => Promise<string | null>;
   }): void {
     this.getLLMConfig = options.getLLMConfig;
     this.getSkillsPrompt = options.getSkillsPrompt ?? null;
 
-    // Set up message handlers for gateways
+    // 为网关设置消息处理器
     this.setupMessageHandlers();
   }
 
   /**
-   * Set up message handlers for both gateways
+   * 为两个网关设置消息处理器
    */
   private setupMessageHandlers(): void {
     const messageHandler = async (
@@ -189,18 +212,18 @@ export class IMGatewayManager extends EventEmitter {
       try {
         let response: string;
 
-        // Always use Cowork mode if handler is available
+        // 如果处理器可用，始终使用 Cowork 协作模式
         if (this.coworkHandler) {
-          console.log('[IMGatewayManager] Using Cowork mode for message processing');
+          console.log('[IMGatewayManager] 使用 Cowork 协作模式处理消息');
           response = await this.coworkHandler.processMessage(message);
         } else {
-          // Fallback to regular chat handler
+          // 回退到常规聊天处理器
           if (!this.chatHandler) {
             this.updateChatHandler();
           }
 
           if (!this.chatHandler) {
-            throw new Error('Chat handler not available');
+            throw new Error('聊天处理器不可用');
           }
 
           response = await this.chatHandler.processMessage(message);
@@ -208,12 +231,12 @@ export class IMGatewayManager extends EventEmitter {
 
         await replyFn(response);
       } catch (error: any) {
-        console.error(`[IMGatewayManager] Error processing message: ${error.message}`);
-        // Send error message to user
+        console.error(`[IMGatewayManager] 处理消息时出错: ${error.message}`);
+        // 向用户发送错误消息
         try {
           await replyFn(`处理消息时出错: ${error.message}`);
         } catch (replyError) {
-          console.error(`[IMGatewayManager] Failed to send error reply: ${replyError}`);
+          console.error(`[IMGatewayManager] 发送错误回复失败: ${replyError}`);
         }
       }
     };
@@ -225,11 +248,11 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Update chat handler with current settings
+   * 使用当前设置更新聊天处理器
    */
   private updateChatHandler(): void {
     if (!this.getLLMConfig) {
-      console.warn('[IMGatewayManager] LLM config provider not set');
+      console.warn('[IMGatewayManager] LLM 配置提供程序未设置');
       return;
     }
 
@@ -241,16 +264,16 @@ export class IMGatewayManager extends EventEmitter {
       imSettings,
     });
 
-    // Update or create Cowork handler if dependencies are available
+    // 如果依赖项可用，更新或创建 Cowork 协作处理器
     this.updateCoworkHandler();
   }
 
   /**
-   * Update or create Cowork handler
-   * Always creates handler if dependencies are available (Cowork mode is always enabled for IM)
+   * 更新或创建 Cowork 协作处理器
+   * 如果依赖项可用，始终创建处理器（IM 的 Cowork 协作模式始终启用）
    */
   private updateCoworkHandler(): void {
-    // Always create Cowork handler if we have the required dependencies
+    // 如果拥有所需依赖项，始终创建 Cowork 协作处理器
     if (this.coworkRunner && this.coworkStore && !this.coworkHandler) {
       this.coworkHandler = new IMCoworkHandler({
         coworkRunner: this.coworkRunner,
@@ -258,35 +281,35 @@ export class IMGatewayManager extends EventEmitter {
         imStore: this.imStore,
         getSkillsPrompt: this.getSkillsPrompt || undefined,
       });
-      console.log('[IMGatewayManager] Cowork handler created');
+      console.log('[IMGatewayManager] Cowork 协作处理器已创建');
     }
   }
 
-  // ==================== Configuration ====================
+  // ==================== 配置 ====================
 
   /**
-   * Get current configuration
+   * 获取当前配置
    */
   getConfig(): IMGatewayConfig {
     return this.imStore.getConfig();
   }
 
   /**
-   * Update configuration
+   * 更新配置
    */
   setConfig(config: Partial<IMGatewayConfig>): void {
     this.imStore.setConfig(config);
 
-    // Update chat handler if settings changed
+    // 如果设置发生变化，更新聊天处理器
     if (config.settings) {
       this.updateChatHandler();
     }
   }
 
-  // ==================== Status ====================
+  // ==================== 状态 ====================
 
   /**
-   * Get current status of all gateways
+   * 获取所有网关的当前状态
    */
   getStatus(): IMGatewayStatus {
     return {
@@ -298,7 +321,7 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Test platform connectivity and readiness for conversation.
+   * 测试平台连通性和对话就绪状态。
    */
   async testGateway(
     platform: IMPlatform,
@@ -486,15 +509,15 @@ export class IMGatewayManager extends EventEmitter {
     };
   }
 
-  // ==================== Gateway Control ====================
+  // ==================== 网关控制 ====================
 
   /**
-   * Start a specific gateway
+   * 启动特定网关
    */
   async startGateway(platform: IMPlatform): Promise<void> {
     const config = this.getConfig();
 
-    // Ensure chat handler is ready
+    // 确保聊天处理器已就绪
     this.updateChatHandler();
 
     if (platform === 'dingtalk') {
@@ -509,7 +532,7 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Stop a specific gateway
+   * 停止特定网关
    */
   async stopGateway(platform: IMPlatform): Promise<void> {
     if (platform === 'dingtalk') {
@@ -524,7 +547,7 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Start all enabled gateways
+   * 启动所有已启用的网关
    */
   async startAllEnabled(): Promise<void> {
     const config = this.getConfig();
@@ -533,7 +556,7 @@ export class IMGatewayManager extends EventEmitter {
       try {
         await this.startGateway('dingtalk');
       } catch (error: any) {
-        console.error(`[IMGatewayManager] Failed to start DingTalk: ${error.message}`);
+        console.error(`[IMGatewayManager] 启动钉钉失败: ${error.message}`);
       }
     }
 
@@ -541,7 +564,7 @@ export class IMGatewayManager extends EventEmitter {
       try {
         await this.startGateway('feishu');
       } catch (error: any) {
-        console.error(`[IMGatewayManager] Failed to start Feishu: ${error.message}`);
+        console.error(`[IMGatewayManager] 启动飞书失败: ${error.message}`);
       }
     }
 
@@ -549,7 +572,7 @@ export class IMGatewayManager extends EventEmitter {
       try {
         await this.startGateway('telegram');
       } catch (error: any) {
-        console.error(`[IMGatewayManager] Failed to start Telegram: ${error.message}`);
+        console.error(`[IMGatewayManager] 启动 Telegram 失败: ${error.message}`);
       }
     }
 
@@ -557,13 +580,13 @@ export class IMGatewayManager extends EventEmitter {
       try {
         await this.startGateway('discord');
       } catch (error: any) {
-        console.error(`[IMGatewayManager] Failed to start Discord: ${error.message}`);
+        console.error(`[IMGatewayManager] 启动 Discord 失败: ${error.message}`);
       }
     }
   }
 
   /**
-   * Stop all gateways
+   * 停止所有网关
    */
   async stopAll(): Promise<void> {
     await Promise.all([
@@ -575,14 +598,14 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Check if any gateway is connected
+   * 检查是否有任何网关已连接
    */
   isAnyConnected(): boolean {
     return this.dingtalkGateway.isConnected() || this.feishuGateway.isConnected() || this.telegramGateway.isConnected() || this.discordGateway.isConnected();
   }
 
   /**
-   * Check if a specific gateway is connected
+   * 检查特定网关是否已连接
    */
   isConnected(platform: IMPlatform): boolean {
     if (platform === 'dingtalk') {
@@ -598,13 +621,13 @@ export class IMGatewayManager extends EventEmitter {
   }
 
   /**
-   * Send a notification message through a specific platform.
-   * Uses platform-specific broadcast mechanisms.
-   * Returns true if successfully sent, false if platform not connected.
+   * 通过特定平台发送通知消息。
+   * 使用平台特定的广播机制。
+   * 如果成功发送则返回 true，如果平台未连接则返回 false。
    */
   async sendNotification(platform: IMPlatform, text: string): Promise<boolean> {
     if (!this.isConnected(platform)) {
-      console.warn(`[IMGatewayManager] Cannot send notification: ${platform} is not connected`);
+      console.warn(`[IMGatewayManager] 无法发送通知: ${platform} 未连接`);
       return false;
     }
 
@@ -620,11 +643,16 @@ export class IMGatewayManager extends EventEmitter {
       }
       return true;
     } catch (error: any) {
-      console.error(`[IMGatewayManager] Failed to send notification via ${platform}:`, error.message);
+      console.error(`[IMGatewayManager] 通过 ${platform} 发送通知失败:`, error.message);
       return false;
     }
   }
 
+  /**
+   * 构建合并后的配置
+   * @param configOverride - 配置覆盖项
+   * @returns 合并后的完整配置
+   */
   private buildMergedConfig(configOverride?: Partial<IMGatewayConfig>): IMGatewayConfig {
     const current = this.getConfig();
     if (!configOverride) {
@@ -641,6 +669,12 @@ export class IMGatewayManager extends EventEmitter {
     };
   }
 
+  /**
+   * 获取缺失的凭证字段
+   * @param platform - IM 平台
+   * @param config - 网关配置
+   * @returns 缺失的凭证字段名称数组
+   */
   private getMissingCredentials(platform: IMPlatform, config: IMGatewayConfig): string[] {
     if (platform === 'dingtalk') {
       const fields: string[] = [];
@@ -660,6 +694,12 @@ export class IMGatewayManager extends EventEmitter {
     return config.discord.botToken ? [] : ['botToken'];
   }
 
+  /**
+   * 运行鉴权探测
+   * @param platform - IM 平台
+   * @param config - 网关配置
+   * @returns 鉴权成功的消息
+   */
   private async runAuthProbe(platform: IMPlatform, config: IMGatewayConfig): Promise<string> {
     if (platform === 'dingtalk') {
       await getOapiAccessToken(config.dingtalk.clientId, config.dingtalk.clientSecret);
@@ -709,12 +749,25 @@ export class IMGatewayManager extends EventEmitter {
     return `Discord 鉴权通过（Bot: ${username}）。`;
   }
 
+  /**
+   * 解析飞书域名
+   * @param domain - 域名配置
+   * @param Lark - Lark SDK 实例
+   * @returns 解析后的域名
+   */
   private resolveFeishuDomain(domain: string, Lark: any): any {
     if (domain === 'lark') return Lark.Domain.Lark;
     if (domain === 'feishu') return Lark.Domain.Feishu;
     return domain.replace(/\/+$/, '');
   }
 
+  /**
+   * 为 Promise 添加超时限制
+   * @param promise - 要执行的 Promise
+   * @param timeoutMs - 超时时间（毫秒）
+   * @param timeoutError - 超时错误消息
+   * @returns 带超时限制的 Promise
+   */
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError: string): Promise<T> {
     let timeoutId: NodeJS.Timeout | null = null;
     const timeoutPromise = new Promise<T>((_resolve, reject) => {
@@ -727,6 +780,12 @@ export class IMGatewayManager extends EventEmitter {
     });
   }
 
+  /**
+   * 获取网关启动时间（毫秒）
+   * @param platform - IM 平台
+   * @param status - 网关状态
+   * @returns 启动时间戳（毫秒），如果未启动则返回 null
+   */
   private getStartedAtMs(platform: IMPlatform, status: IMGatewayStatus): number | null {
     if (platform === 'feishu') {
       return status.feishu.startedAt ? Date.parse(status.feishu.startedAt) : null;
@@ -736,6 +795,12 @@ export class IMGatewayManager extends EventEmitter {
     return status.discord.startedAt;
   }
 
+  /**
+   * 获取最后入站消息时间
+   * @param platform - IM 平台
+   * @param status - 网关状态
+   * @returns 最后入站消息时间戳（毫秒），如果没有则返回 null
+   */
   private getLastInboundAt(platform: IMPlatform, status: IMGatewayStatus): number | null {
     if (platform === 'dingtalk') return status.dingtalk.lastInboundAt;
     if (platform === 'feishu') return status.feishu.lastInboundAt;
@@ -743,6 +808,12 @@ export class IMGatewayManager extends EventEmitter {
     return status.discord.lastInboundAt;
   }
 
+  /**
+   * 获取最后出站消息时间
+   * @param platform - IM 平台
+   * @param status - 网关状态
+   * @returns 最后出站消息时间戳（毫秒），如果没有则返回 null
+   */
   private getLastOutboundAt(platform: IMPlatform, status: IMGatewayStatus): number | null {
     if (platform === 'dingtalk') return status.dingtalk.lastOutboundAt;
     if (platform === 'feishu') return status.feishu.lastOutboundAt;
@@ -750,6 +821,12 @@ export class IMGatewayManager extends EventEmitter {
     return status.discord.lastOutboundAt;
   }
 
+  /**
+   * 获取最后的错误信息
+   * @param platform - IM 平台
+   * @param status - 网关状态
+   * @returns 最后的错误信息，如果没有则返回 null
+   */
   private getLastError(platform: IMPlatform, status: IMGatewayStatus): string | null {
     if (platform === 'dingtalk') return status.dingtalk.lastError;
     if (platform === 'feishu') return status.feishu.error;
@@ -757,6 +834,11 @@ export class IMGatewayManager extends EventEmitter {
     return status.discord.lastError;
   }
 
+  /**
+   * 计算连通性测试结果判定
+   * @param checks - 连通性检查项列表
+   * @returns 判定结果：'fail'（失败）、'warn'（警告）或 'pass'（通过）
+   */
   private calculateVerdict(checks: IMConnectivityCheck[]): IMConnectivityVerdict {
     if (checks.some((check) => check.level === 'fail')) {
       return 'fail';

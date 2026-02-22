@@ -1,5 +1,5 @@
 /**
- * Browser Launcher - Manages Chrome browser lifecycle
+ * 浏览器启动器 - 管理 Chrome 浏览器生命周期
  */
 
 import { spawn, ChildProcess } from 'child_process';
@@ -16,14 +16,14 @@ export interface BrowserInstance {
 }
 
 /**
- * Detect Chromium-based browser executable path across platforms
+ * 跨平台检测基于 Chromium 的浏览器可执行文件路径
  */
 export function getChromePath(): string {
   const platform = process.platform;
   const paths: string[] = [];
 
   if (platform === 'darwin') {
-    // macOS
+    // macOS 系统
     paths.push(
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       '/Applications/Chromium.app/Contents/MacOS/Chromium',
@@ -31,7 +31,7 @@ export function getChromePath(): string {
       join(process.env.HOME || '', 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
     );
   } else if (platform === 'win32') {
-    // Windows
+    // Windows 系统
     const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
     const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     paths.push(
@@ -43,7 +43,7 @@ export function getChromePath(): string {
       join(process.env.LOCALAPPDATA || '', 'Microsoft\\Edge\\Application\\msedge.exe')
     );
   } else {
-    // Linux
+    // Linux 系统
     paths.push(
       '/usr/bin/google-chrome',
       '/usr/bin/google-chrome-stable',
@@ -62,7 +62,7 @@ export function getChromePath(): string {
   }
 
   throw new Error(
-    'No Chromium-based browser found (Chrome/Edge/Chromium). Please install one and retry.'
+    '未找到基于 Chromium 的浏览器（Chrome/Edge/Chromium）。请安装其中之一后重试。'
   );
 }
 
@@ -84,16 +84,16 @@ function resolveRuntimeChromeFlags(configFlags: string[] = []): string[] {
 
   if (process.platform === 'linux') {
     if (!isDirectoryWritable('/dev/shm')) {
-      console.warn('[Browser] /dev/shm is unavailable, enabling --disable-dev-shm-usage');
+      console.warn('[浏览器] /dev/shm 不可用，启用 --disable-dev-shm-usage');
       runtimeFlags.push('--disable-dev-shm-usage');
     }
 
     if (!isDirectoryWritable('/dev/mqueue')) {
-      console.warn('[Browser] /dev/mqueue is unavailable in this environment');
+      console.warn('[浏览器] 当前环境中 /dev/mqueue 不可用');
     }
 
     if (typeof process.getuid === 'function' && process.getuid() === 0) {
-      console.warn('[Browser] Running as root, enabling --no-sandbox');
+      console.warn('[浏览器] 以 root 用户运行，启用 --no-sandbox');
       runtimeFlags.push('--no-sandbox');
     }
   }
@@ -115,12 +115,12 @@ function resolveHeadlessMode(configHeadless: boolean): boolean {
     return false;
   }
 
-  console.warn('[Browser] No Linux display detected, forcing headless mode');
+  console.warn('[浏览器] 未检测到 Linux 显示环境，强制使用无头模式');
   return true;
 }
 
 /**
- * Wait for CDP port to become available
+ * 等待 CDP 端口变为可用状态
  */
 async function waitForCDP(port: number, browserProcess: ChildProcess, timeoutMs: number = 10000): Promise<void> {
   const startTime = Date.now();
@@ -130,7 +130,7 @@ async function waitForCDP(port: number, browserProcess: ChildProcess, timeoutMs:
     if (browserProcess.exitCode !== null || browserProcess.signalCode !== null) {
       const exitCode = browserProcess.exitCode ?? 'null';
       const signal = browserProcess.signalCode ?? 'none';
-      throw new Error(`Chrome process exited before CDP was ready (exitCode=${exitCode}, signal=${signal})`);
+      throw new Error(`Chrome 进程在 CDP 准备就绪前退出（退出码=${exitCode}，信号=${signal}）`);
     }
 
     attempts++;
@@ -139,24 +139,24 @@ async function waitForCDP(port: number, browserProcess: ChildProcess, timeoutMs:
         signal: AbortSignal.timeout(2000)
       });
       if (response.ok) {
-        console.log(`[Browser] CDP ready after ${attempts} attempts (${Date.now() - startTime}ms)`);
+        console.log(`[浏览器] CDP 在 ${attempts} 次尝试后准备就绪（耗时 ${Date.now() - startTime}毫秒）`);
         return;
       }
-      console.log(`[Browser] CDP attempt ${attempts}: response not OK (status ${response.status})`);
+      console.log(`[浏览器] CDP 第 ${attempts} 次尝试：响应不正常（状态码 ${response.status}）`);
     } catch {
-      // Port not ready yet, continue waiting
+      // 端口尚未就绪，继续等待
       if (attempts % 5 === 0) {
-        console.log(`[Browser] CDP attempt ${attempts}: still waiting... (${Date.now() - startTime}ms elapsed)`);
+        console.log(`[浏览器] CDP 第 ${attempts} 次尝试：仍在等待...（已耗时 ${Date.now() - startTime}毫秒）`);
       }
     }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  throw new Error(`CDP port ${port} not ready after ${timeoutMs}ms (${attempts} attempts)`);
+  throw new Error(`CDP 端口 ${port} 在 ${timeoutMs}毫秒后仍未就绪（共尝试 ${attempts} 次）`);
 }
 
 /**
- * Launch Chrome browser with CDP enabled
+ * 启动启用 CDP 的 Chrome 浏览器
  */
 export async function launchBrowser(config: BrowserConfig): Promise<BrowserInstance> {
   const chromePath = config.chromePath || getChromePath();
@@ -164,17 +164,17 @@ export async function launchBrowser(config: BrowserConfig): Promise<BrowserInsta
   const runtimeChromeFlags = resolveRuntimeChromeFlags(config.chromeFlags || []);
   const runtimeHeadless = resolveHeadlessMode(config.headless);
 
-  // Create a temporary user data directory if not provided
+  // 如果未提供用户数据目录，则创建临时用户数据目录
   const userDataDir = config.userDataDir || join(tmpdir(), `chrome-cdp-${Date.now()}`);
   if (!existsSync(userDataDir)) {
     mkdirSync(userDataDir, { recursive: true });
   }
 
-  // Build Chrome arguments
+  // 构建 Chrome 启动参数
   const args = [
     `--remote-debugging-port=${cdpPort}`,
     '--remote-debugging-address=127.0.0.1',
-    `--user-data-dir=${userDataDir}`, // Always use isolated user data dir
+    `--user-data-dir=${userDataDir}`, // 始终使用隔离的用户数据目录
     ...runtimeChromeFlags
   ];
 
@@ -182,29 +182,29 @@ export async function launchBrowser(config: BrowserConfig): Promise<BrowserInsta
     args.push('--headless=new');
   }
 
-  console.log(`[Browser] Launching Chrome at: ${chromePath}`);
-  console.log(`[Browser] CDP port: ${cdpPort}`);
-  console.log(`[Browser] User data dir: ${userDataDir}`);
-  console.log(`[Browser] Headless: ${runtimeHeadless}`);
-  console.log(`[Browser] Flags: ${runtimeChromeFlags.join(' ') || '(none)'}`);
+  console.log(`[浏览器] 正在启动 Chrome，路径：${chromePath}`);
+  console.log(`[浏览器] CDP 端口：${cdpPort}`);
+  console.log(`[浏览器] 用户数据目录：${userDataDir}`);
+  console.log(`[浏览器] 无头模式：${runtimeHeadless}`);
+  console.log(`[浏览器] 启动标志：${runtimeChromeFlags.join(' ') || '（无）'}`);
 
-  // Spawn Chrome process
+  // 启动 Chrome 进程
   const browserProcess = spawn(chromePath, args, {
     detached: false,
-    stdio: ['ignore', 'pipe', 'pipe'] // Capture stdout and stderr
+    stdio: ['ignore', 'pipe', 'pipe'] // 捕获标准输出和标准错误
   });
   const recentStderr: string[] = [];
 
-  // Log Chrome output for debugging
+  // 记录 Chrome 输出以便调试
   if (browserProcess.stdout) {
     browserProcess.stdout.on('data', (data) => {
-      console.log(`[Browser stdout] ${data.toString().trim()}`);
+      console.log(`[浏览器标准输出] ${data.toString().trim()}`);
     });
   }
   if (browserProcess.stderr) {
     browserProcess.stderr.on('data', (data) => {
       const message = data.toString().trim();
-      console.log(`[Browser stderr] ${message}`);
+      console.log(`[浏览器标准错误] ${message}`);
       if (!message) {
         return;
       }
@@ -219,21 +219,21 @@ export async function launchBrowser(config: BrowserConfig): Promise<BrowserInsta
   }
 
   if (!browserProcess.pid) {
-    throw new Error('Failed to start Chrome process');
+    throw new Error('启动 Chrome 进程失败');
   }
 
-  console.log(`[Browser] Chrome started with PID: ${browserProcess.pid}`);
+  console.log(`[浏览器] Chrome 已启动，进程ID：${browserProcess.pid}`);
 
-  // Wait for CDP to be ready
+  // 等待 CDP 准备就绪
   try {
-    await waitForCDP(cdpPort, browserProcess, 20000); // Increased timeout to 20 seconds
-    console.log(`[Browser] CDP ready on port ${cdpPort}`);
+    await waitForCDP(cdpPort, browserProcess, 20000); // 超时时间增加到 20 秒
+    console.log(`[浏览器] CDP 在端口 ${cdpPort} 上准备就绪`);
   } catch (error) {
     browserProcess.kill();
     const baseMessage = error instanceof Error ? error.message : String(error);
     if (recentStderr.length > 0) {
       const tail = recentStderr.slice(-5).join(' | ');
-      throw new Error(`${baseMessage}. Recent browser stderr: ${tail}`);
+      throw new Error(`${baseMessage}。最近的浏览器标准错误：${tail}`);
     }
     throw error;
   }
@@ -247,18 +247,18 @@ export async function launchBrowser(config: BrowserConfig): Promise<BrowserInsta
 }
 
 /**
- * Close browser instance
+ * 关闭浏览器实例
  */
 export async function closeBrowser(instance: BrowserInstance): Promise<void> {
   if (instance.process && !instance.process.killed) {
-    console.log(`[Browser] Closing browser (PID: ${instance.pid})`);
+    console.log(`[浏览器] 正在关闭浏览器（进程ID：${instance.pid}）`);
     instance.process.kill('SIGTERM');
 
-    // Wait for graceful shutdown
+    // 等待优雅关闭
     await new Promise<void>(resolve => {
       const timeout = setTimeout(() => {
         if (!instance.process.killed) {
-          console.log(`[Browser] Force killing browser (PID: ${instance.pid})`);
+          console.log(`[浏览器] 强制终止浏览器（进程ID：${instance.pid}）`);
           instance.process.kill('SIGKILL');
         }
         resolve();
@@ -270,12 +270,12 @@ export async function closeBrowser(instance: BrowserInstance): Promise<void> {
       });
     });
 
-    console.log(`[Browser] Browser closed`);
+    console.log(`[浏览器] 浏览器已关闭`);
   }
 }
 
 /**
- * Check if browser is running
+ * 检查浏览器是否正在运行
  */
 export function isBrowserRunning(instance: BrowserInstance | null): boolean {
   if (!instance) {

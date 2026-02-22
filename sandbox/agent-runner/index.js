@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+// ============================================================================
+// 模块依赖导入
+// ============================================================================
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -9,42 +12,75 @@ const { randomUUID } = require('crypto');
 const { setTimeout: sleep } = require('timers/promises');
 const { z } = require('zod');
 
+// ============================================================================
+// 常量定义
+// ============================================================================
+
+// IPC（进程间通信）根目录路径
 const IPC_ROOT = '/workspace/ipc';
+// 日志文件路径
 const LOG_PATH = '/tmp/agentd.log';
+// 请求目录路径
 const REQUESTS_DIR = path.join(IPC_ROOT, 'requests');
+// 响应目录路径
 const RESPONSES_DIR = path.join(IPC_ROOT, 'responses');
+// 流数据目录路径
 const STREAMS_DIR = path.join(IPC_ROOT, 'streams');
+// 心跳文件路径
 const HEARTBEAT_PATH = path.join(IPC_ROOT, 'heartbeat');
 
+// 轮询间隔（毫秒）
 const POLL_INTERVAL_MS = 300;
+// 心跳间隔（毫秒）
 const HEARTBEAT_INTERVAL_MS = 5000;
+// 控制台设备路径列表
 const CONSOLE_PATHS = ['/dev/console', '/dev/ttyAMA0', '/dev/ttyS0'];
 
-// Virtio-serial device paths (checked in order)
+// Virtio-serial 设备路径（按顺序检查）
 const SERIAL_DEVICE_PATHS = ['/dev/virtio-ports/ipc.0', '/dev/vport0p1'];
 
 // ---------------------------------------------------------------------------
-// File sync constants (guest -> host file transfer over virtio-serial)
+// 文件同步常量（通过 virtio-serial 实现客户机到主机的文件传输）
 // ---------------------------------------------------------------------------
+// 工作区项目目录
 const WORKSPACE_PROJECT = '/workspace/project';
-const FILE_SYNC_CHUNK_SIZE = 512 * 1024;        // 512 KB per chunk
-const FILE_SYNC_MAX_SIZE = 100 * 1024 * 1024;   // 100 MB max file size
-const FILE_SYNC_INTERVAL_MS = 1000;              // scan interval
+// 文件同步块大小：512 KB
+const FILE_SYNC_CHUNK_SIZE = 512 * 1024;
+// 文件同步最大文件大小：100 MB
+const FILE_SYNC_MAX_SIZE = 100 * 1024 * 1024;
+// 文件同步扫描间隔（毫秒）
+const FILE_SYNC_INTERVAL_MS = 1000;
+// 文件同步忽略的目录和文件
 const FILE_SYNC_IGNORE = ['.git', 'node_modules', '__pycache__', '.DS_Store', 'Thumbs.db'];
+// 工具路径搜索忽略的目录
 const TOOL_PATH_SEARCH_IGNORE = new Set(['.git', 'node_modules', '.cowork-temp', '__pycache__']);
+// 临时工作区前缀
 const TMP_WORKSPACE_PREFIX = '/tmp/workspace/';
+// 临时工作区技能前缀
 const TMP_WORKSPACE_SKILLS_PREFIX = '/tmp/workspace/skills/';
+// 技能标记
 const SKILLS_MARKER = '/skills/';
+// 权限响应超时时间（毫秒）
 const PERMISSION_RESPONSE_TIMEOUT_MS = 60_000;
+// 删除工具名称集合
 const DELETE_TOOL_NAMES = new Set(['delete', 'remove', 'unlink', 'rmdir']);
+// 被阻止的内置 Web 工具集合
 const BLOCKED_BUILTIN_WEB_TOOLS = new Set(['websearch', 'webfetch']);
+// 工具输入路径键名正则表达式
 const TOOL_INPUT_PATH_KEY_RE = /(^|_)(path|paths|file|files|dir|dirs|directory|directories|cwd|target|targets|source|sources|output|outputs|dest|destination)$/i;
+// 删除命令正则表达式
 const DELETE_COMMAND_RE = /\b(rm|rmdir|unlink|del|erase|remove-item)\b/i;
+// find 删除命令正则表达式
 const FIND_DELETE_COMMAND_RE = /\bfind\b[\s\S]*\s-delete\b/i;
+// git clean 命令正则表达式
 const GIT_CLEAN_COMMAND_RE = /\bgit\s+clean\b/i;
+// 安全审批允许选项
 const SAFETY_APPROVAL_ALLOW_OPTION = '允许本次操作';
+// 安全审批拒绝选项
 const SAFETY_APPROVAL_DENY_OPTION = '拒绝本次操作';
+// 提示中显示的最大策略路径数量
 const MAX_POLICY_PATHS_IN_PROMPT = 3;
+// 路径敏感的工具名称集合
 const PATH_SENSITIVE_TOOL_NAMES = new Set([
   'read',
   'write',
@@ -61,11 +97,15 @@ const PATH_SENSITIVE_TOOL_NAMES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// IPC mode: 'file' (9p shared fs) or 'serial' (virtio-serial on Windows)
+// IPC 模式：'file'（9p 共享文件系统）或 'serial'（Windows 上的 virtio-serial）
 // ---------------------------------------------------------------------------
 let ipcMode = 'file';
 let serialFd = null;
 
+/**
+ * 向控制台追加消息
+ * @param {string} message - 要追加的消息
+ */
 function appendConsole(message) {
   const line = `[agentd] ${message}\n`;
   for (const consolePath of CONSOLE_PATHS) {
@@ -73,36 +113,49 @@ function appendConsole(message) {
       fs.appendFileSync(consolePath, line);
       return;
     } catch (error) {
-      // Try next console path.
+      // 尝试下一个控制台路径
     }
   }
 }
 
+/**
+ * 确保目录存在，如果不存在则创建
+ * @param {string} dirPath - 目录路径
+ */
 function ensureDir(dirPath) {
   try {
     fs.mkdirSync(dirPath, { recursive: true });
   } catch (error) {
-    console.error('Failed to ensure directory:', dirPath, error);
+    console.error('创建目录失败:', dirPath, error);
   }
 }
 
+/**
+ * 追加日志消息到日志文件
+ * @param {string} message - 日志消息
+ */
 function appendLog(message) {
   const line = `[${new Date().toISOString()}] ${message}\n`;
   try {
     fs.appendFileSync(LOG_PATH, line);
   } catch (error) {
-    // Best-effort logging.
+    // 尽力而为的日志记录
   }
   appendConsole(message);
   if (ipcMode === 'file' && isMounted(IPC_ROOT)) {
     try {
       fs.appendFileSync(path.join(IPC_ROOT, 'agentd.log'), line);
     } catch (error) {
-      // Best-effort logging.
+      // 尽力而为的日志记录
     }
   }
 }
 
+/**
+ * 安全地读取 JSON 文件
+ * @param {string} filePath - 文件路径
+ * @returns {Object|null} 解析后的 JSON 对象，失败时返回 null
+ */
 function safeReadJson(filePath) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -112,6 +165,10 @@ function safeReadJson(filePath) {
   }
 }
 
+/**
+ * 获取 Claude SDK 版本
+ * @returns {string} SDK 版本号，未知时返回 'unknown'
+ */
 function getClaudeSdkVersion() {
   try {
     return require('@anthropic-ai/claude-agent-sdk/package.json')?.version || 'unknown';
@@ -120,6 +177,10 @@ function getClaudeSdkVersion() {
   }
 }
 
+/**
+ * 构建后备 MCP 服务器工厂函数
+ * @returns {Function|null} MCP 服务器工厂函数，失败时返回 null
+ */
 function buildFallbackMcpServerFactory() {
   try {
     const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
@@ -154,6 +215,11 @@ function buildFallbackMcpServerFactory() {
   }
 }
 
+/**
+ * 检查文件是否存在
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 文件存在返回 true，否则返回 false
+ */
 function fileExists(targetPath) {
   try {
     return fs.existsSync(targetPath);
@@ -162,6 +228,11 @@ function fileExists(targetPath) {
   }
 }
 
+/**
+ * 判断是否应该尝试上传后备路径
+ * @param {string} filePath - 文件路径
+ * @returns {boolean} 需要尝试上传返回 true，否则返回 false
+ */
 function shouldTryUploadFallback(filePath) {
   if (typeof filePath !== 'string') return false;
   const normalized = filePath.replace(/\\/g, '/');
@@ -169,6 +240,11 @@ function shouldTryUploadFallback(filePath) {
   return !fileExists(filePath);
 }
 
+/**
+ * 检查路径是否为目录
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 是目录返回 true，否则返回 false
+ */
 function isDirectory(targetPath) {
   if (!targetPath || !path.isAbsolute(targetPath)) return false;
   try {
@@ -178,6 +254,12 @@ function isDirectory(targetPath) {
   }
 }
 
+/**
+ * 构建路径搜索根目录列表
+ * @param {string} cwd - 当前工作目录
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {string[]} 路径搜索根目录数组
+ */
 function buildPathSearchRoots(cwd, requestEnv) {
   const roots = new Set();
   const pushRoot = (targetPath) => {
@@ -200,6 +282,11 @@ function buildPathSearchRoots(cwd, requestEnv) {
   return Array.from(roots);
 }
 
+/**
+ * 规范化路径字符串
+ * @param {string} rawPath - 原始路径字符串
+ * @returns {string|null} 规范化后的路径，无效时返回 null
+ */
 function normalizePathString(rawPath) {
   if (typeof rawPath !== 'string') return null;
   const trimmed = rawPath.trim();
@@ -219,6 +306,13 @@ function normalizePathString(rawPath) {
   return normalized;
 }
 
+/**
+ * 将主机工作区路径映射到客户机路径
+ * @param {string} filePath - 文件路径
+ * @param {string} cwd - 当前工作目录
+ * @param {string} hostWorkspaceRoot - 主机工作区根目录
+ * @returns {string|null} 映射后的路径，无效时返回 null
+ */
 function mapHostWorkspacePathToGuest(filePath, cwd, hostWorkspaceRoot) {
   if (!filePath || !cwd || !hostWorkspaceRoot) return null;
   const normalizedPath = normalizePathString(filePath);
@@ -239,6 +333,13 @@ function mapHostWorkspacePathToGuest(filePath, cwd, hostWorkspaceRoot) {
   return path.posix.join(guestRoot, relative);
 }
 
+/**
+ * 根据基本名称查找文件
+ * @param {string} rootDir - 根目录
+ * @param {string} baseName - 基本文件名
+ * @param {number} maxMatches - 最大匹配数量
+ * @returns {string[]} 匹配的文件路径数组
+ */
 function findFilesByBaseName(rootDir, baseName, maxMatches = 2) {
   if (!rootDir || !baseName) return [];
   const matches = [];
@@ -272,6 +373,13 @@ function findFilesByBaseName(rootDir, baseName, maxMatches = 2) {
   return matches;
 }
 
+/**
+ * 解析后备路径
+ * @param {string} filePath - 文件路径
+ * @param {string[]} searchRoots - 搜索根目录列表
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {string|null} 解析后的路径，未找到时返回 null
+ */
 function resolveFallbackPath(filePath, searchRoots, requestEnv) {
   if (!shouldTryUploadFallback(filePath)) return null;
   const normalized = filePath.replace(/\\/g, '/');
@@ -329,6 +437,11 @@ function resolveFallbackPath(filePath, searchRoots, requestEnv) {
   return null;
 }
 
+/**
+ * 从环境变量解析技能根目录
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {string|null} 技能根目录路径，无效时返回 null
+ */
 function resolveSkillsRootFromEnv(requestEnv) {
   if (!requestEnv || typeof requestEnv !== 'object') return null;
   const skillsRoot = typeof requestEnv.SKILLS_ROOT === 'string'
@@ -340,6 +453,12 @@ function resolveSkillsRootFromEnv(requestEnv) {
   return skillsRoot;
 }
 
+/**
+ * 解析主机技能路径
+ * @param {string} filePath - 文件路径
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {string|null} 解析后的路径，无效时返回 null
+ */
 function resolveHostSkillPath(filePath, requestEnv) {
   if (typeof filePath !== 'string' || !filePath.trim()) return null;
   const skillsRoot = resolveSkillsRootFromEnv(requestEnv);
@@ -357,6 +476,15 @@ function resolveHostSkillPath(filePath, requestEnv) {
   return candidate;
 }
 
+/**
+ * 规范化工具输入路径
+ * @param {string} toolName - 工具名称
+ * @param {Object} toolInput - 工具输入参数
+ * @param {string} cwd - 当前工作目录
+ * @param {Object} requestEnv - 请求环境变量
+ * @param {string} hostWorkspaceRoot - 主机工作区根目录
+ * @returns {Object} 规范化后的工具输入参数
+ */
 function normalizeToolInputPaths(toolName, toolInput, cwd, requestEnv, hostWorkspaceRoot) {
   if (!toolInput || typeof toolInput !== 'object') return toolInput;
 
@@ -367,19 +495,19 @@ function normalizeToolInputPaths(toolName, toolInput, cwd, requestEnv, hostWorks
     if (typeof value !== 'string' || !value.trim()) return;
     const mappedWorkspacePath = mapHostWorkspacePathToGuest(value, cwd, hostWorkspaceRoot);
     if (mappedWorkspacePath && mappedWorkspacePath !== value) {
-      appendLog(`Rewrote ${toolName}.${field} host workspace path: ${value} -> ${mappedWorkspacePath}`);
+      appendLog(`重写 ${toolName}.${field} 主机工作区路径: ${value} -> ${mappedWorkspacePath}`);
       input[field] = mappedWorkspacePath;
       return;
     }
     const skillPath = resolveHostSkillPath(value, requestEnv);
     if (skillPath && skillPath !== value) {
-      appendLog(`Rewrote ${toolName}.${field} from host skill path: ${value} -> ${skillPath}`);
+      appendLog(`重写 ${toolName}.${field} 主机技能路径: ${value} -> ${skillPath}`);
       input[field] = skillPath;
       return;
     }
     const fallback = resolveFallbackPath(value, searchRoots, requestEnv);
     if (!fallback) return;
-    appendLog(`Rewrote ${toolName}.${field}: ${value} -> ${fallback}`);
+    appendLog(`重写 ${toolName}.${field}: ${value} -> ${fallback}`);
     input[field] = fallback;
   };
 
@@ -390,22 +518,43 @@ function normalizeToolInputPaths(toolName, toolInput, cwd, requestEnv, hostWorks
   return input;
 }
 
+/**
+ * 检查目标路径是否在基础路径内
+ * @param {string} basePath - 基础路径
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 在基础路径内返回 true，否则返回 false
+ */
 function isPathWithin(basePath, targetPath) {
   const normalizedBase = path.resolve(basePath);
   const normalizedTarget = path.resolve(targetPath);
   return normalizedTarget === normalizedBase || normalizedTarget.startsWith(`${normalizedBase}${path.sep}`);
 }
 
+/**
+ * 从工具输入中提取命令
+ * @param {Object} toolInput - 工具输入参数
+ * @returns {string} 提取的命令字符串
+ */
 function extractToolCommand(toolInput) {
   const commandLike = toolInput.command ?? toolInput.cmd ?? toolInput.script;
   return typeof commandLike === 'string' ? commandLike : '';
 }
 
+/**
+ * 将命令字符串分词
+ * @param {string} command - 命令字符串
+ * @returns {string[]} 分词后的数组
+ */
 function tokenizeCommand(command) {
   const matches = command.match(/"[^"]*"|'[^']*'|`[^`]*`|[^\s]+/g);
   return matches || [];
 }
 
+/**
+ * 从命令中提取类路径标记
+ * @param {string} command - 命令字符串
+ * @returns {string[]} 类路径标记数组
+ */
 function extractPathLikeTokensFromCommand(command) {
   if (!command.trim()) return [];
   const tokens = tokenizeCommand(command);
@@ -436,6 +585,11 @@ function extractPathLikeTokensFromCommand(command) {
   return pathTokens;
 }
 
+/**
+ * 判断字符串是否可能是路径
+ * @param {string} value - 待判断的字符串
+ * @returns {boolean} 可能是路径返回 true，否则返回 false
+ */
 function isLikelyPathString(value) {
   if (!value || value.length > 1024) return false;
   if (value.includes('\n')) return false;
@@ -458,6 +612,13 @@ function isLikelyPathString(value) {
   );
 }
 
+/**
+ * 从工具输入中收集路径候选
+ * @param {string} toolName - 工具名称
+ * @param {*} value - 值
+ * @param {string} keyHint - 键名提示
+ * @param {Set} outSet - 输出集合
+ */
 function collectPathCandidatesFromInput(toolName, value, keyHint, outSet) {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -489,6 +650,12 @@ function collectPathCandidatesFromInput(toolName, value, keyHint, outSet) {
   }
 }
 
+/**
+ * 解析路径候选
+ * @param {string} candidate - 路径候选
+ * @param {string} cwd - 当前工作目录
+ * @returns {string|null} 解析后的路径，无效时返回 null
+ */
 function resolvePathCandidate(candidate, cwd) {
   if (!candidate) return null;
   const trimmed = String(candidate).trim();
@@ -529,6 +696,15 @@ function resolvePathCandidate(candidate, cwd) {
   }
 }
 
+/**
+ * 获取工作区外的路径列表
+ * @param {string} toolName - 工具名称
+ * @param {Object} toolInput - 工具输入参数
+ * @param {string} cwd - 当前工作目录
+ * @param {string} workspaceRoot - 工作区根目录
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {string[]} 工作区外的路径数组
+ */
 function getOutsideWorkspacePaths(toolName, toolInput, cwd, workspaceRoot, requestEnv) {
   const candidates = new Set();
   collectPathCandidatesFromInput(toolName, toolInput, null, candidates);
@@ -556,6 +732,12 @@ function getOutsideWorkspacePaths(toolName, toolInput, cwd, workspaceRoot, reque
   return Array.from(outside);
 }
 
+/**
+ * 判断是否为删除操作
+ * @param {string} toolName - 工具名称
+ * @param {Object} toolInput - 工具输入参数
+ * @returns {boolean} 是删除操作返回 true，否则返回 false
+ */
 function isDeleteOperation(toolName, toolInput) {
   const normalizedName = String(toolName || '').toLowerCase();
   if (DELETE_TOOL_NAMES.has(normalizedName)) {
@@ -575,6 +757,11 @@ function isDeleteOperation(toolName, toolInput) {
     || GIT_CLEAN_COMMAND_RE.test(command);
 }
 
+/**
+ * 判断是否为被阻止的内置 Web 工具
+ * @param {string} toolName - 工具名称
+ * @returns {boolean} 被阻止返回 true，否则返回 false
+ */
 function isBlockedBuiltinWebTool(toolName) {
   const normalized = String(toolName || '').trim().toLowerCase();
   if (!normalized) return false;
@@ -595,12 +782,25 @@ function isBlockedBuiltinWebTool(toolName) {
   return false;
 }
 
+/**
+ * 截断命令预览
+ * @param {string} command - 命令字符串
+ * @param {number} maxLength - 最大长度
+ * @returns {string} 截断后的命令预览
+ */
 function truncateCommandPreview(command, maxLength = 120) {
   const compact = command.replace(/\s+/g, ' ').trim();
   if (compact.length <= maxLength) return compact;
   return `${compact.slice(0, maxLength)}...`;
 }
 
+/**
+ * 构建安全确认问题输入
+ * @param {string} question - 问题文本
+ * @param {string} requestedToolName - 请求的工具名称
+ * @param {Object} requestedToolInput - 请求的工具输入参数
+ * @returns {Object} 问题输入对象
+ */
 function buildSafetyQuestionInput(question, requestedToolName, requestedToolInput) {
   return {
     questions: [
@@ -627,6 +827,12 @@ function buildSafetyQuestionInput(question, requestedToolName, requestedToolInpu
   };
 }
 
+/**
+ * 判断是否为安全审批结果
+ * @param {Object} result - 结果对象
+ * @param {string} question - 问题文本
+ * @returns {boolean} 是安全审批返回 true，否则返回 false
+ */
 function isSafetyApproval(result, question) {
   if (!result || result.behavior === 'deny') {
     return false;
@@ -649,6 +855,11 @@ function isSafetyApproval(result, question) {
     .includes(SAFETY_APPROVAL_ALLOW_OPTION);
 }
 
+/**
+ * 请求安全审批
+ * @param {Object} params - 参数对象
+ * @returns {Promise<boolean>} 审批通过返回 true，否则返回 false
+ */
 async function requestSafetyApproval({
   emit,
   signal,
@@ -672,6 +883,11 @@ async function requestSafetyApproval({
   return isSafetyApproval(result, question);
 }
 
+/**
+ * 强制执行工具安全策略
+ * @param {Object} params - 参数对象
+ * @returns {Promise<Object|null>} 策略结果对象，允许时返回 null
+ */
 async function enforceToolSafetyPolicy({
   emit,
   signal,
@@ -695,7 +911,7 @@ async function enforceToolSafetyPolicy({
       requestedToolInput: toolInput,
     });
     if (!approved) {
-      return { behavior: 'deny', message: 'Delete operation denied by user.' };
+      return { behavior: 'deny', message: '删除操作已被用户拒绝。' };
     }
   }
 
@@ -717,12 +933,17 @@ async function enforceToolSafetyPolicy({
     requestedToolInput: toolInput,
   });
   if (!approved) {
-    return { behavior: 'deny', message: 'Operation outside selected folder denied by user.' };
+    return { behavior: 'deny', message: '所选文件夹外的操作已被用户拒绝。' };
   }
 
   return null;
 }
 
+/**
+ * 检查路径是否已挂载
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 已挂载返回 true，否则返回 false
+ */
 function isMounted(targetPath) {
   try {
     const mounts = fs.readFileSync('/proc/mounts', 'utf8');
@@ -731,11 +952,16 @@ function isMounted(targetPath) {
       return parts.length >= 2 && parts[1] === targetPath;
     });
   } catch (error) {
-    console.error('Failed to read /proc/mounts:', error);
+    console.error('读取 /proc/mounts 失败:', error);
     return false;
   }
 }
 
+/**
+ * 检查路径是否可写
+ * @param {string} targetPath - 目标路径
+ * @returns {boolean} 可写返回 true，否则返回 false
+ */
 function isPathWritable(targetPath) {
   if (!targetPath || !path.isAbsolute(targetPath)) return false;
   const probePath = path.join(
@@ -747,18 +973,24 @@ function isPathWritable(targetPath) {
     fs.unlinkSync(probePath);
     return true;
   } catch (error) {
-    appendLog(`Workspace write probe failed at ${targetPath}: ${error instanceof Error ? error.message : String(error)}`);
+    appendLog(`工作区写入探测失败于 ${targetPath}: ${error instanceof Error ? error.message : String(error)}`);
     try {
       if (fs.existsSync(probePath)) {
         fs.unlinkSync(probePath);
       }
     } catch {
-      // Best effort cleanup.
+      // 尽力清理
     }
     return false;
   }
 }
 
+/**
+ * 确保挂载点已挂载
+ * @param {string} tag - 挂载标签
+ * @param {string} guestPath - 客户机路径
+ * @returns {Object} 挂载状态对象
+ */
 function ensureMount(tag, guestPath) {
   const mountState = {
     tag,
@@ -767,54 +999,63 @@ function ensureMount(tag, guestPath) {
     error: null,
   };
   if (!tag || !guestPath) {
-    mountState.error = 'Invalid mount config';
+    mountState.error = '无效的挂载配置';
     return mountState;
   }
   ensureDir(guestPath);
   if (isMounted(guestPath)) {
-    appendLog(`${guestPath} already mounted`);
+    appendLog(`${guestPath} 已挂载`);
     mountState.mounted = true;
     return mountState;
   }
 
   tryModprobe(['9p', '9pnet', '9pnet_virtio']);
 
-  appendLog(`Mounting ${tag} -> ${guestPath}`);
+  appendLog(`正在挂载 ${tag} -> ${guestPath}`);
   const mountResult = spawnSync(
     'mount',
     ['-t', '9p', '-o', 'trans=virtio,version=9p2000.L,msize=65536', tag, guestPath],
     { stdio: 'pipe' }
   );
   if (mountResult.status !== 0) {
-    const message = mountResult.stderr?.toString() || mountResult.stdout?.toString() || 'Unknown mount error';
-    console.error(`Failed to mount ${tag} -> ${guestPath}:`, message.trim());
-    appendLog(`Failed to mount ${tag} -> ${guestPath}: ${message.trim()}`);
+    const message = mountResult.stderr?.toString() || mountResult.stdout?.toString() || '未知挂载错误';
+    console.error(`挂载失败 ${tag} -> ${guestPath}:`, message.trim());
+    appendLog(`挂载失败 ${tag} -> ${guestPath}: ${message.trim()}`);
     mountState.error = message.trim();
   } else {
     const mounted = isMounted(guestPath);
     if (!mounted) {
-      const message = `Mount command for ${tag} reported success but ${guestPath} is not mounted`;
+      const message = `${tag} 的挂载命令报告成功，但 ${guestPath} 未挂载`;
       appendLog(message);
       mountState.error = message;
     } else {
-      appendLog(`Successfully mounted ${tag} -> ${guestPath}`);
+      appendLog(`成功挂载 ${tag} -> ${guestPath}`);
       mountState.mounted = true;
     }
   }
   return mountState;
 }
 
+/**
+ * 尝试加载内核模块
+ * @param {string[]} modules - 模块名称数组
+ */
 function tryModprobe(modules) {
   if (!Array.isArray(modules)) return;
   for (const name of modules) {
     if (!name) continue;
     const result = spawnSync('modprobe', [name], { stdio: 'ignore' });
     if (result.status === 0) {
-      appendLog(`Loaded kernel module: ${name}`);
+      appendLog(`已加载内核模块: ${name}`);
     }
   }
 }
 
+/**
+ * 确保所有挂载点已挂载
+ * @param {Object} mounts - 挂载配置对象
+ * @returns {Object[]} 挂载结果数组
+ */
 function ensureMounts(mounts) {
   const results = [];
   if (!mounts || typeof mounts !== 'object') return results;
@@ -829,6 +1070,13 @@ function ensureMounts(mounts) {
   return results;
 }
 
+/**
+ * 验证工作区挂载
+ * @param {Object} requestMounts - 请求挂载配置
+ * @param {Object[]} mountResults - 挂载结果数组
+ * @param {string} requestCwd - 请求的当前工作目录
+ * @param {string} workspaceRoot - 工作区根目录
+ */
 function validateWorkspaceMount(requestMounts, mountResults, requestCwd, workspaceRoot) {
   if (ipcMode !== 'file') return;
   if (!requestMounts || typeof requestMounts !== 'object') return;
@@ -854,22 +1102,25 @@ function validateWorkspaceMount(requestMounts, mountResults, requestCwd, workspa
   const mounted = matchedResult ? matchedResult.mounted : isMounted(workspaceMount.guestPath);
   if (!mounted) {
     throw new Error(
-      `Sandbox workspace mount unavailable (${workspaceMount.tag} -> ${workspaceMount.guestPath}). `
-      + 'Files would be written inside the VM and not persist to the selected folder.'
+      `沙箱工作区挂载不可用（${workspaceMount.tag} -> ${workspaceMount.guestPath}）。`
+      + '文件将写入虚拟机内部，不会持久化到所选文件夹。'
     );
   }
 
   if (!isPathWritable(requestCwd)) {
     throw new Error(
-      `Sandbox workspace path is not writable: ${requestCwd}. `
-      + 'Files would not persist to the selected folder.'
+      `沙箱工作区路径不可写: ${requestCwd}。`
+      + '文件将不会持久化到所选文件夹。'
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Heartbeat
+// 心跳功能
 // ---------------------------------------------------------------------------
+/**
+ * 更新心跳状态
+ */
 function updateHeartbeat() {
   const data = {
     timestamp: Date.now(),
@@ -880,20 +1131,25 @@ function updateHeartbeat() {
 
   if (ipcMode === 'serial') {
     serialWrite({ type: 'heartbeat', ...data });
-    appendLog(`Heartbeat (serial): ${JSON.stringify(data)}`);
+    appendLog(`心跳 (串口): ${JSON.stringify(data)}`);
   } else {
     try {
       fs.writeFileSync(HEARTBEAT_PATH, JSON.stringify(data));
-      appendLog(`Heartbeat updated: ${JSON.stringify(data)}`);
+      appendLog(`心跳已更新: ${JSON.stringify(data)}`);
     } catch (error) {
-      appendLog(`Failed to update heartbeat: ${error.message}`);
+      appendLog(`更新心跳失败: ${error.message}`);
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Stream writers – file mode vs serial mode
+// 流写入器 – 文件模式与串口模式
 // ---------------------------------------------------------------------------
+/**
+ * 创建流写入器
+ * @param {string} requestId - 请求 ID
+ * @returns {Object} 流写入器对象
+ */
 function createStreamWriter(requestId) {
   if (ipcMode === 'serial') {
     return {
@@ -911,7 +1167,7 @@ function createStreamWriter(requestId) {
   try {
     fs.closeSync(fs.openSync(streamPath, 'a'));
   } catch (error) {
-    console.error('Failed to touch stream file:', streamPath, error);
+    console.error('创建流文件失败:', streamPath, error);
   }
   const stream = fs.createWriteStream(streamPath, { flags: 'a' });
   return {
@@ -921,13 +1177,18 @@ function createStreamWriter(requestId) {
       try {
         stream.write(`${JSON.stringify(payload)}\n`);
       } catch (error) {
-        console.error('Failed to write stream payload:', error);
+        console.error('写入流数据失败:', error);
       }
     },
     close: () => stream.end(),
   };
 }
 
+/**
+ * 构建环境变量对象
+ * @param {Object} requestEnv - 请求环境变量
+ * @returns {Object} 环境变量对象
+ */
 function buildEnv(requestEnv) {
   const env = { ...process.env };
   if (requestEnv && typeof requestEnv === 'object') {
@@ -947,23 +1208,29 @@ function buildEnv(requestEnv) {
   env.TMPDIR = '/tmp';
   env.TMP = '/tmp';
   env.TEMP = '/tmp';
-  // Claude CLI requires bash
+  // Claude CLI 需要 bash
   env.SHELL = env.SHELL || '/bin/bash';
   env.PATH = env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
-  // Ensure USER is set
+  // 确保 USER 已设置
   env.USER = env.USER || 'root';
   env.LOGNAME = env.LOGNAME || 'root';
   return env;
 }
 
 // ---------------------------------------------------------------------------
-// Permission response – file mode vs serial mode
+// 权限响应 – 文件模式与串口模式
 // ---------------------------------------------------------------------------
 
-// Pending serial permission responses: requestId → { resolve }
+// 待处理的串口权限响应: requestId → { resolve }
 const pendingSerialPermissions = new Map();
 const pendingSerialHostToolResponses = new Map();
 
+/**
+ * 等待权限响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 权限响应对象
+ */
 function waitForPermissionResponse(requestId, signal) {
   if (ipcMode === 'serial') {
     return waitForSerialPermissionResponse(requestId, signal);
@@ -971,16 +1238,22 @@ function waitForPermissionResponse(requestId, signal) {
   return waitForFilePermissionResponse(requestId, signal);
 }
 
+/**
+ * 等待文件权限响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 权限响应对象
+ */
 async function waitForFilePermissionResponse(requestId, signal) {
   ensureDir(RESPONSES_DIR);
   const responsePath = path.join(RESPONSES_DIR, `${requestId}.json`);
   const startAt = Date.now();
   while (true) {
     if (signal?.aborted) {
-      return { behavior: 'deny', message: 'Session aborted' };
+      return { behavior: 'deny', message: '会话已中止' };
     }
     if (Date.now() - startAt >= PERMISSION_RESPONSE_TIMEOUT_MS) {
-      return { behavior: 'deny', message: 'Permission request timed out after 60s' };
+      return { behavior: 'deny', message: '权限请求在 60 秒后超时' };
     }
     if (fs.existsSync(responsePath)) {
       const payload = safeReadJson(responsePath);
@@ -988,7 +1261,7 @@ async function waitForFilePermissionResponse(requestId, signal) {
         try {
           fs.unlinkSync(responsePath);
         } catch (error) {
-          console.error('Failed to delete permission response:', error);
+          console.error('删除权限响应文件失败:', error);
         }
         return payload;
       }
@@ -997,6 +1270,12 @@ async function waitForFilePermissionResponse(requestId, signal) {
   }
 }
 
+/**
+ * 等待串口权限响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 权限响应对象
+ */
 function waitForSerialPermissionResponse(requestId, signal) {
   return new Promise((resolve) => {
     let settled = false;
@@ -1022,17 +1301,17 @@ function waitForSerialPermissionResponse(requestId, signal) {
     };
 
     onAbort = () => {
-      finalize({ behavior: 'deny', message: 'Session aborted' });
+      finalize({ behavior: 'deny', message: '会话已中止' });
     };
 
     if (signal?.aborted) {
-      finalize({ behavior: 'deny', message: 'Session aborted' });
+      finalize({ behavior: 'deny', message: '会话已中止' });
       return;
     }
     pendingSerialPermissions.set(requestId, { resolve: finalize });
 
     timeoutId = setTimeout(() => {
-      finalize({ behavior: 'deny', message: 'Permission request timed out after 60s' });
+      finalize({ behavior: 'deny', message: '权限请求在 60 秒后超时' });
     }, PERMISSION_RESPONSE_TIMEOUT_MS);
 
     if (signal) {
@@ -1041,6 +1320,12 @@ function waitForSerialPermissionResponse(requestId, signal) {
   });
 }
 
+/**
+ * 等待主机工具响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 主机工具响应对象
+ */
 function waitForHostToolResponse(requestId, signal) {
   if (ipcMode === 'serial') {
     return waitForSerialHostToolResponse(requestId, signal);
@@ -1048,16 +1333,22 @@ function waitForHostToolResponse(requestId, signal) {
   return waitForFileHostToolResponse(requestId, signal);
 }
 
+/**
+ * 等待文件主机工具响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 主机工具响应对象
+ */
 async function waitForFileHostToolResponse(requestId, signal) {
   ensureDir(RESPONSES_DIR);
   const responsePath = path.join(RESPONSES_DIR, `${requestId}.host-tool.json`);
   const startAt = Date.now();
   while (true) {
     if (signal?.aborted) {
-      return { success: false, error: 'Session aborted' };
+      return { success: false, error: '会话已中止' };
     }
     if (Date.now() - startAt >= PERMISSION_RESPONSE_TIMEOUT_MS) {
-      return { success: false, error: 'Host tool request timed out after 60s' };
+      return { success: false, error: '主机工具请求在 60 秒后超时' };
     }
     if (fs.existsSync(responsePath)) {
       const payload = safeReadJson(responsePath);
@@ -1065,7 +1356,7 @@ async function waitForFileHostToolResponse(requestId, signal) {
         try {
           fs.unlinkSync(responsePath);
         } catch (error) {
-          console.error('Failed to delete host tool response:', error);
+          console.error('删除主机工具响应文件失败:', error);
         }
         return payload;
       }
@@ -1074,6 +1365,12 @@ async function waitForFileHostToolResponse(requestId, signal) {
   }
 }
 
+/**
+ * 等待串口主机工具响应
+ * @param {string} requestId - 请求 ID
+ * @param {AbortSignal} signal - 中止信号
+ * @returns {Promise<Object>} 主机工具响应对象
+ */
 function waitForSerialHostToolResponse(requestId, signal) {
   return new Promise((resolve) => {
     let settled = false;
@@ -1099,18 +1396,18 @@ function waitForSerialHostToolResponse(requestId, signal) {
     };
 
     onAbort = () => {
-      finalize({ success: false, error: 'Session aborted' });
+      finalize({ success: false, error: '会话已中止' });
     };
 
     if (signal?.aborted) {
-      finalize({ success: false, error: 'Session aborted' });
+      finalize({ success: false, error: '会话已中止' });
       return;
     }
 
     pendingSerialHostToolResponses.set(requestId, { resolve: finalize });
 
     timeoutId = setTimeout(() => {
-      finalize({ success: false, error: 'Host tool request timed out after 60s' });
+      finalize({ success: false, error: '主机工具请求在 60 秒后超时' });
     }, PERMISSION_RESPONSE_TIMEOUT_MS);
 
     if (signal) {
@@ -1120,8 +1417,14 @@ function waitForSerialHostToolResponse(requestId, signal) {
 }
 
 // ---------------------------------------------------------------------------
-// Request handler (shared by both modes)
+// 请求处理器（两种模式共用）
 // ---------------------------------------------------------------------------
+/**
+ * 处理请求
+ * @param {string} requestId - 请求 ID
+ * @param {Object} request - 请求对象
+ * @param {string} requestPath - 请求文件路径
+ */
 async function handleRequest(requestId, request, requestPath) {
   const writer = createStreamWriter(requestId);
   const emit = writer.emit;
@@ -1154,7 +1457,7 @@ async function handleRequest(requestId, request, requestPath) {
   };
 
   try {
-    appendLog(`Handling request ${requestId}`);
+    appendLog(`正在处理请求 ${requestId}`);
     const mountResults = ensureMounts(request.mounts);
     validateWorkspaceMount(request.mounts, mountResults, requestCwd, workspaceRoot);
 
@@ -1162,9 +1465,9 @@ async function handleRequest(requestId, request, requestPath) {
     const sdkVersion = getClaudeSdkVersion();
     const query = sdk.query;
     if (typeof query !== 'function') {
-      throw new Error('Claude Agent SDK query function not available');
+      throw new Error('Claude Agent SDK 查询函数不可用');
     }
-    appendLog(`Loaded Claude SDK version: ${sdkVersion}`);
+    appendLog(`已加载 Claude SDK 版本: ${sdkVersion}`);
 
     const options = {
       cwd: requestCwd,
@@ -1175,12 +1478,12 @@ async function handleRequest(requestId, request, requestPath) {
       stderr: (data) => {
         const line = typeof data === 'string' ? data.trim() : '';
         if (line) {
-          appendLog(`claude stderr: ${line}`);
+          appendLog(`claude 标准错误输出: ${line}`);
         }
       },
       canUseTool: async (toolName, toolInput, { signal }) => {
         if (signal?.aborted) {
-          return { behavior: 'deny', message: 'Session aborted' };
+          return { behavior: 'deny', message: '会话已中止' };
         }
 
         const resolvedName = String(toolName ?? 'unknown');
@@ -1197,10 +1500,10 @@ async function handleRequest(requestId, request, requestPath) {
         );
 
         if (isBlockedBuiltinWebTool(resolvedName)) {
-          appendLog(`Blocked tool by policy: ${resolvedName}`);
+          appendLog(`策略阻止的工具: ${resolvedName}`);
           return {
             behavior: 'deny',
-            message: 'Tool blocked by app policy: WebSearch/WebFetch are disabled in this environment.',
+            message: '工具被应用策略阻止: WebSearch/WebFetch 在此环境中已禁用。',
           };
         }
 
@@ -1235,17 +1538,17 @@ async function handleRequest(requestId, request, requestPath) {
 
         const result = await waitForPermissionResponse(permissionRequestId, signal);
         if (signal?.aborted) {
-          return { behavior: 'deny', message: 'Session aborted' };
+          return { behavior: 'deny', message: '会话已中止' };
         }
 
         if (result.behavior === 'deny') {
-          return result.message ? result : { behavior: 'deny', message: 'Permission denied' };
+          return result.message ? result : { behavior: 'deny', message: '权限被拒绝' };
         }
 
         const updatedInput = result.updatedInput ?? normalizedInput;
         const hasAnswers = updatedInput && typeof updatedInput === 'object' && 'answers' in updatedInput;
         if (!hasAnswers) {
-          return { behavior: 'deny', message: 'No answers provided' };
+          return { behavior: 'deny', message: '未提供答案' };
         }
 
         return { behavior: 'allow', updatedInput };
@@ -1262,16 +1565,16 @@ async function handleRequest(requestId, request, requestPath) {
       createSdkMcpServer = buildFallbackMcpServerFactory();
       if (createSdkMcpServer) {
         appendLog(
-          `Claude SDK is missing createSdkMcpServer export (version=${sdkVersion}). `
-          + 'Using fallback MCP server factory from @modelcontextprotocol/sdk.'
+          `Claude SDK 缺少 createSdkMcpServer 导出（版本=${sdkVersion}）。`
+          + '使用来自 @modelcontextprotocol/sdk 的后备 MCP 服务器工厂。'
         );
       }
     }
 
     if (typeof sdk.tool !== 'function') {
       appendLog(
-        `Claude SDK is missing tool export (version=${sdkVersion}). `
-        + 'Using fallback tool definition wrapper.'
+        `Claude SDK 缺少 tool 导出（版本=${sdkVersion}）。`
+        + '使用后备工具定义包装器。'
       );
     }
 
@@ -1283,7 +1586,7 @@ async function handleRequest(requestId, request, requestPath) {
       const memoryTools = [
         tool(
           'conversation_search',
-          'Search prior conversations by query and return Claude-style <chat> blocks.',
+          '根据查询搜索历史对话并返回 Claude 风格的 <chat> 块。',
           {
             query: z.string().min(1),
             max_results: z.number().int().min(1).max(10).optional(),
@@ -1305,7 +1608,7 @@ async function handleRequest(requestId, request, requestPath) {
         ),
         tool(
           'recent_chats',
-          'List recent chats and return Claude-style <chat> blocks.',
+          '列出最近的聊天并返回 Claude 风格的 <chat> 块。',
           {
             n: z.number().int().min(1).max(20).optional(),
             sort_order: z.enum(['asc', 'desc']).optional(),
@@ -1330,7 +1633,7 @@ async function handleRequest(requestId, request, requestPath) {
         memoryTools.push(
           tool(
             'memory_user_edits',
-            'Manage user memories. action=list|add|update|delete.',
+            '管理用户记忆。操作类型: list|add|update|delete。',
             {
               action: z.enum(['list', 'add', 'update', 'delete']),
               id: z.string().optional(),
@@ -1365,8 +1668,8 @@ async function handleRequest(requestId, request, requestPath) {
       };
     } else {
       appendLog(
-        `Host memory/history tools are disabled because MCP helper is unavailable `
-        + `(sdkVersion=${sdkVersion}, exports=${Object.keys(sdk || {}).sort().join(',')}).`
+        `主机记忆/历史工具已禁用，因为 MCP 辅助程序不可用 `
+        + `(sdkVersion=${sdkVersion}, exports=${Object.keys(sdk || {}).sort().join(',')})。`
       );
     }
 
@@ -1382,10 +1685,10 @@ async function handleRequest(requestId, request, requestPath) {
       emit({ type: 'sdk_event', event });
     }
 
-    // After SDK query completes, force sync all files to host (serial mode only)
+    // SDK 查询完成后，强制将所有文件同步到主机（仅串口模式）
     forceFullSync();
   } catch (error) {
-    appendLog(`Request ${requestId} failed: ${error instanceof Error ? error.message : String(error)}`);
+    appendLog(`请求 ${requestId} 失败: ${error instanceof Error ? error.message : String(error)}`);
     emit({
       type: 'sdk_event',
       event: {
@@ -1400,15 +1703,18 @@ async function handleRequest(requestId, request, requestPath) {
       try {
         fs.unlinkSync(requestPath);
       } catch (error) {
-        console.error('Failed to delete request file:', error);
+        console.error('删除请求文件失败:', error);
       }
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// File-based IPC (9p) — original polling loop
+// 基于文件的 IPC（9p）— 原始轮询循环
 // ---------------------------------------------------------------------------
+/**
+ * 轮询请求
+ */
 async function pollRequests() {
   ensureDir('/workspace');
   ensureMount('ipc', IPC_ROOT);
@@ -1416,8 +1722,8 @@ async function pollRequests() {
   ensureDir(STREAMS_DIR);
   ensureDir(RESPONSES_DIR);
 
-  // Write initial heartbeat and start heartbeat interval
-  appendLog('Agent runner started, polling for requests...');
+  // 写入初始心跳并启动心跳间隔
+  appendLog('代理运行器已启动，正在轮询请求...');
   updateHeartbeat();
   setInterval(updateHeartbeat, HEARTBEAT_INTERVAL_MS);
 
@@ -1428,7 +1734,7 @@ async function pollRequests() {
     try {
       files = fs.readdirSync(REQUESTS_DIR).filter((file) => file.endsWith('.json'));
     } catch (error) {
-      console.error('Failed to read requests directory:', error);
+      console.error('读取请求目录失败:', error);
       await sleep(POLL_INTERVAL_MS);
       continue;
     }
@@ -1452,81 +1758,98 @@ async function pollRequests() {
 }
 
 // ---------------------------------------------------------------------------
-// Serial IPC (virtio-serial) — used on Windows host
+// 串口 IPC（virtio-serial）— 用于 Windows 主机
 // ---------------------------------------------------------------------------
+/**
+ * 通过串口写入数据
+ * @param {Object} data - 要写入的数据对象
+ */
 function serialWrite(data) {
   if (serialFd === null) return;
   try {
     const line = JSON.stringify(data) + '\n';
     fs.writeSync(serialFd, line);
   } catch (error) {
-    appendLog(`Serial write error: ${error.message}`);
+    appendLog(`串口写入错误: ${error.message}`);
   }
 }
 
+/**
+ * 查找串口设备
+ * @returns {string|null} 串口设备路径，未找到时返回 null
+ */
 function findSerialDevice() {
   for (const devPath of SERIAL_DEVICE_PATHS) {
     try {
       if (fs.existsSync(devPath)) {
         return devPath;
       }
-    } catch { /* ignore */ }
+    } catch { /* 忽略 */ }
   }
   return null;
 }
 
 // ---------------------------------------------------------------------------
-// File sync — guest -> host file transfer over virtio-serial
+// 文件同步 — 通过 virtio-serial 实现客户机到主机的文件传输
 // ---------------------------------------------------------------------------
 
-// Track known file states for change detection: relativePath -> { mtimeMs, size }
+// 跟踪已知文件状态以进行变更检测: relativePath -> { mtimeMs, size }
 const fileSyncKnown = new Map();
 
+/**
+ * 判断路径是否应被忽略
+ * @param {string} filePath - 文件路径
+ * @returns {boolean} 应忽略返回 true，否则返回 false
+ */
 function shouldIgnorePath(filePath) {
   const relative = path.relative(WORKSPACE_PROJECT, filePath);
   const parts = relative.split(path.sep);
   return parts.some((part) => FILE_SYNC_IGNORE.includes(part));
 }
 
+/**
+ * 同步文件到主机
+ * @param {string} absPath - 文件绝对路径
+ */
 function syncFile(absPath) {
   if (shouldIgnorePath(absPath)) return;
 
   const relativePath = path.relative(WORKSPACE_PROJECT, absPath);
 
-  // Security: reject paths that escape the workspace
+  // 安全检查：拒绝逃逸工作区的路径
   if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-    appendLog(`File sync: rejected path outside workspace: ${relativePath}`);
+    appendLog(`文件同步: 拒绝工作区外的路径: ${relativePath}`);
     return;
   }
 
-  // Resolve symlinks and verify real path stays within workspace
+  // 解析符号链接并验证真实路径在工作区内
   try {
     const realPath = fs.realpathSync(absPath);
     if (!realPath.startsWith(WORKSPACE_PROJECT)) {
-      appendLog(`File sync: skipping symlink outside workspace: ${absPath} -> ${realPath}`);
+      appendLog(`文件同步: 跳过工作区外的符号链接: ${absPath} -> ${realPath}`);
       return;
     }
-  } catch { /* proceed with original path if realpath fails */ }
+  } catch { /* 如果 realpath 失败，继续使用原始路径 */ }
 
   let stat;
   try {
     stat = fs.statSync(absPath);
   } catch {
-    return; // file may have been deleted between detection and read
+    return; // 文件可能在检测和读取之间被删除
   }
 
-  if (stat.isDirectory()) return; // directories are created implicitly
+  if (stat.isDirectory()) return; // 目录是隐式创建的
 
   if (stat.size > FILE_SYNC_MAX_SIZE) {
-    appendLog(`File sync: skipping oversized file (${stat.size} bytes): ${relativePath}`);
+    appendLog(`文件同步: 跳过超大文件（${stat.size} 字节）: ${relativePath}`);
     return;
   }
 
-  // Use forward slashes for cross-platform path consistency
+  // 使用正斜杠以实现跨平台路径一致性
   const syncPath = relativePath.split(path.sep).join('/');
 
   if (stat.size <= FILE_SYNC_CHUNK_SIZE) {
-    // Single-message transfer
+    // 单消息传输
     try {
       const data = fs.readFileSync(absPath);
       serialWrite({
@@ -1536,10 +1859,10 @@ function syncFile(absPath) {
         size: stat.size,
       });
     } catch (error) {
-      appendLog(`File sync: failed to read ${relativePath}: ${error.message}`);
+      appendLog(`文件同步: 读取 ${relativePath} 失败: ${error.message}`);
     }
   } else {
-    // Chunked transfer for large files
+    // 大文件分块传输
     const transferId = randomUUID();
     const totalChunks = Math.ceil(stat.size / FILE_SYNC_CHUNK_SIZE);
     let fd;
@@ -1559,7 +1882,7 @@ function syncFile(absPath) {
         });
       }
     } catch (error) {
-      appendLog(`File sync: chunked transfer failed for ${relativePath}: ${error.message}`);
+      appendLog(`文件同步: ${relativePath} 分块传输失败: ${error.message}`);
       return;
     } finally {
       if (fd !== undefined) fs.closeSync(fd);
@@ -1572,9 +1895,13 @@ function syncFile(absPath) {
     });
   }
 
-  appendLog(`File sync: sent ${relativePath} (${stat.size} bytes)`);
+  appendLog(`文件同步: 已发送 ${relativePath}（${stat.size} 字节）`);
 }
 
+/**
+ * 扫描并同步目录
+ * @param {string} dir - 目录路径
+ */
 function scanAndSyncDir(dir) {
   let entries;
   try {
@@ -1596,15 +1923,18 @@ function scanAndSyncDir(dir) {
           fileSyncKnown.set(relativePath, { mtimeMs: stat.mtimeMs, size: stat.size });
           syncFile(fullPath);
         }
-      } catch { /* file may have disappeared */ }
+      } catch { /* 文件可能已消失 */ }
     }
   }
 }
 
+/**
+ * 启动文件同步监视器
+ */
 function startFileSyncWatcher() {
   if (ipcMode !== 'serial') return;
   ensureDir(WORKSPACE_PROJECT);
-  appendLog('File sync: starting periodic watcher');
+  appendLog('文件同步: 启动定期监视器');
   setInterval(() => {
     if (fs.existsSync(WORKSPACE_PROJECT)) {
       scanAndSyncDir(WORKSPACE_PROJECT);
@@ -1613,38 +1943,48 @@ function startFileSyncWatcher() {
 }
 
 /**
- * Force a full sync of all files in /workspace/project/.
- * Called after each request completes to ensure nothing is missed.
+ * 强制完整同步 /workspace/project/ 中的所有文件。
+ * 在每次请求完成后调用，确保不会遗漏任何内容。
  */
 function forceFullSync() {
   if (ipcMode !== 'serial') return;
   if (!fs.existsSync(WORKSPACE_PROJECT)) return;
-  appendLog('File sync: running forced full scan');
-  // Clear known files to force re-sync of everything
+  appendLog('文件同步: 运行强制完整扫描');
+  // 清除已知文件以强制重新同步所有内容
   fileSyncKnown.clear();
   scanAndSyncDir(WORKSPACE_PROJECT);
 }
 
 // ---------------------------------------------------------------------------
-// Host → guest file push (skill files transfer for Windows sandbox)
+// 主机 → 客户机文件推送（Windows 沙箱的技能文件传输）
 // ---------------------------------------------------------------------------
 const pendingPushTransfers = new Map();
 
+/**
+ * 处理推送文件
+ * @param {string} basePath - 基础路径
+ * @param {string} relativePath - 相对路径
+ * @param {string} base64Data - Base64 编码的数据
+ */
 function handlePushFile(basePath, relativePath, base64Data) {
   const fullPath = path.join(basePath, relativePath);
   try {
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, Buffer.from(base64Data, 'base64'));
-    // Mark file as executable if it looks like a script
+    // 如果文件看起来像脚本，则标记为可执行
     if (/\.(sh|bash)$/.test(relativePath)) {
-      try { fs.chmodSync(fullPath, 0o755); } catch { /* best effort */ }
+      try { fs.chmodSync(fullPath, 0o755); } catch { /* 尽力而为 */ }
     }
-    appendLog(`Push file received: ${relativePath} -> ${fullPath}`);
+    appendLog(`收到推送文件: ${relativePath} -> ${fullPath}`);
   } catch (error) {
-    appendLog(`Push file error for ${relativePath}: ${error.message}`);
+    appendLog(`推送文件错误 ${relativePath}: ${error.message}`);
   }
 }
 
+/**
+ * 处理推送文件分块
+ * @param {Object} msg - 消息对象
+ */
 function handlePushFileChunk(msg) {
   const transferId = String(msg.transferId ?? '');
   const relativePath = String(msg.path ?? '');
@@ -1672,6 +2012,10 @@ function handlePushFileChunk(msg) {
   }
 }
 
+/**
+ * 处理推送文件完成
+ * @param {Object} msg - 消息对象
+ */
 function handlePushFileComplete(msg) {
   const transferId = String(msg.transferId ?? '');
   if (!transferId) return;
@@ -1681,15 +2025,19 @@ function handlePushFileComplete(msg) {
     assemblePushFile(transferId);
   }
 
-  // Clean up incomplete transfers after timeout
+  // 超时后清理不完整的传输
   setTimeout(() => {
     if (pendingPushTransfers.has(transferId)) {
-      appendLog(`Push file: cleaning up incomplete transfer ${transferId}`);
+      appendLog(`推送文件: 清理不完整的传输 ${transferId}`);
       pendingPushTransfers.delete(transferId);
     }
   }, 30000);
 }
 
+/**
+ * 组装推送文件
+ * @param {string} transferId - 传输 ID
+ */
 function assemblePushFile(transferId) {
   const transfer = pendingPushTransfers.get(transferId);
   if (!transfer) return;
@@ -1702,7 +2050,7 @@ function assemblePushFile(transferId) {
     for (let i = 0; i < transfer.totalChunks; i++) {
       const chunk = transfer.chunks.get(i);
       if (!chunk) {
-        appendLog(`Push file: missing chunk ${i} for transfer ${transferId}`);
+        appendLog(`推送文件: 传输 ${transferId} 缺少分块 ${i}`);
         pendingPushTransfers.delete(transferId);
         return;
       }
@@ -1711,29 +2059,33 @@ function assemblePushFile(transferId) {
 
     fs.writeFileSync(fullPath, Buffer.concat(buffers));
     if (/\.(sh|bash)$/.test(transfer.path)) {
-      try { fs.chmodSync(fullPath, 0o755); } catch { /* best effort */ }
+      try { fs.chmodSync(fullPath, 0o755); } catch { /* 尽力而为 */ }
     }
-    appendLog(`Push file (chunked) received: ${transfer.path} -> ${fullPath}`);
+    appendLog(`收到推送文件（分块）: ${transfer.path} -> ${fullPath}`);
   } catch (error) {
-    appendLog(`Push file (chunked) error for ${transfer.path}: ${error.message}`);
+    appendLog(`推送文件（分块）错误 ${transfer.path}: ${error.message}`);
   } finally {
     pendingPushTransfers.delete(transferId);
   }
 }
 
+/**
+ * 串口 IPC 模式
+ * @param {string} serialPath - 串口设备路径
+ */
 async function serialIpcMode(serialPath) {
-  appendLog(`Using virtio-serial IPC: ${serialPath}`);
+  appendLog(`使用 virtio-serial IPC: ${serialPath}`);
   ipcMode = 'serial';
   serialFd = fs.openSync(serialPath, 'r+');
 
-  // Start heartbeat
+  // 启动心跳
   updateHeartbeat();
   setInterval(updateHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-  // Start file sync watcher for guest -> host file transfer
+  // 启动文件同步监视器，用于客户机到主机的文件传输
   startFileSyncWatcher();
 
-  // Read incoming messages (requests, permission responses) from host
+  // 从主机读取传入消息（请求、权限响应）
   const readStream = fs.createReadStream(null, { fd: serialFd, autoClose: false });
   const rl = readline.createInterface({ input: readStream });
 
@@ -1747,9 +2099,9 @@ async function serialIpcMode(serialPath) {
     }
 
     if (msg.type === 'request' && msg.requestId && msg.data) {
-      appendLog(`Serial request received: ${msg.requestId}`);
+      appendLog(`收到串口请求: ${msg.requestId}`);
       handleRequest(msg.requestId, msg.data, null).catch((err) => {
-        appendLog(`Serial request ${msg.requestId} failed: ${err.message}`);
+        appendLog(`串口请求 ${msg.requestId} 失败: ${err.message}`);
       });
     }
 
@@ -1757,7 +2109,7 @@ async function serialIpcMode(serialPath) {
       const pending = pendingSerialPermissions.get(msg.requestId);
       if (pending) {
         pendingSerialPermissions.delete(msg.requestId);
-        pending.resolve(msg.result || { behavior: 'deny', message: 'Empty response' });
+        pending.resolve(msg.result || { behavior: 'deny', message: '空响应' });
       }
     }
 
@@ -1769,7 +2121,7 @@ async function serialIpcMode(serialPath) {
       }
     }
 
-    // Host → guest file push (used to transfer skill files on Windows)
+    // 主机 → 客户机文件推送（用于在 Windows 上传输技能文件）
     if (msg.type === 'push_file' && msg.basePath && msg.path && msg.data) {
       handlePushFile(msg.basePath, msg.path, msg.data);
     }
@@ -1784,33 +2136,36 @@ async function serialIpcMode(serialPath) {
   });
 
   rl.on('close', () => {
-    appendLog('Serial readline closed');
+    appendLog('串口读取行已关闭');
   });
 
-  // Keep the process running
+  // 保持进程运行
   await new Promise(() => {});
 }
 
 // ---------------------------------------------------------------------------
-// Main entry point
+// 主入口点
 // ---------------------------------------------------------------------------
+/**
+ * 主函数
+ */
 async function main() {
   ensureDir('/workspace');
 
-  // Try 9p mount first
+  // 首先尝试 9p 挂载
   ensureMount('ipc', IPC_ROOT);
 
   if (isMounted(IPC_ROOT)) {
-    appendLog('IPC mounted via 9p, using file-based IPC');
+    appendLog('IPC 已通过 9p 挂载，使用基于文件的 IPC');
     await pollRequests();
     return;
   }
 
-  // 9p not available — check for virtio-serial device
-  appendLog('9p mount failed, checking for virtio-serial device...');
+  // 9p 不可用 — 检查 virtio-serial 设备
+  appendLog('9p 挂载失败，正在检查 virtio-serial 设备...');
   tryModprobe(['virtio_console']);
 
-  // Wait briefly for the device to appear after module load
+  // 模块加载后短暂等待设备出现
   for (let i = 0; i < 10; i++) {
     const serialPath = findSerialDevice();
     if (serialPath) {
@@ -1820,13 +2175,13 @@ async function main() {
     await sleep(500);
   }
 
-  // Neither IPC mechanism available — fall back to file polling anyway
-  // (the heartbeat will report ipcMounted=false)
-  appendLog('No virtio-serial device found, falling back to file-based IPC');
+  // 两种 IPC 机制都不可用 — 回退到文件轮询
+  // （心跳将报告 ipcMounted=false）
+  appendLog('未找到 virtio-serial 设备，回退到基于文件的 IPC');
   await pollRequests();
 }
 
 main().catch((error) => {
-  console.error('Agent runner crashed:', error);
+  console.error('代理运行器崩溃:', error);
   process.exit(1);
 });

@@ -109,7 +109,7 @@ contextBridge.exposeInMainWorld('electron', {
   getRecentCwds: (limit?: number) =>
     ipcRenderer.invoke('get-recent-cwds', limit),
   cowork: {
-    // Session management
+    // 会话管理
     startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; activeSkillIds?: string[] }) =>
       ipcRenderer.invoke('cowork:session:start', options),
     continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; activeSkillIds?: string[] }) =>
@@ -133,11 +133,11 @@ contextBridge.exposeInMainWorld('electron', {
     saveResultImage: (options: { pngBase64: string; defaultFileName?: string }) =>
       ipcRenderer.invoke('cowork:session:saveResultImage', options),
 
-    // Permission handling
+    // 权限处理
     respondToPermission: (options: { requestId: string; result: any }) =>
       ipcRenderer.invoke('cowork:permission:respond', options),
 
-    // Configuration
+    // 配置
     getConfig: () =>
       ipcRenderer.invoke('cowork:config:get'),
     setConfig: (config: {
@@ -185,7 +185,7 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('cowork:sandbox:downloadProgress', handler);
       return () => ipcRenderer.removeListener('cowork:sandbox:downloadProgress', handler);
     },
-    // Stream event listeners
+    // 流事件监听器
     onStreamMessage: (callback: (data: { sessionId: string; message: any }) => void) => {
       const handler = (_event: any, data: { sessionId: string; message: any }) => callback(data);
       ipcRenderer.on('cowork:stream:message', handler);
@@ -237,11 +237,11 @@ contextBridge.exposeInMainWorld('electron', {
     openFolder: () => ipcRenderer.invoke('log:openFolder'),
   },
   im: {
-    // Configuration
+    // 配置
     getConfig: () => ipcRenderer.invoke('im:config:get'),
     setConfig: (config: any) => ipcRenderer.invoke('im:config:set', config),
 
-    // Gateway control
+    // 网关控制
     startGateway: (platform: 'dingtalk' | 'feishu' | 'telegram' | 'discord') => ipcRenderer.invoke('im:gateway:start', platform),
     stopGateway: (platform: 'dingtalk' | 'feishu' | 'telegram' | 'discord') => ipcRenderer.invoke('im:gateway:stop', platform),
     testGateway: (
@@ -249,10 +249,10 @@ contextBridge.exposeInMainWorld('electron', {
       configOverride?: any
     ) => ipcRenderer.invoke('im:gateway:test', platform, configOverride),
 
-    // Status
+    // 状态
     getStatus: () => ipcRenderer.invoke('im:status:get'),
 
-    // Event listeners
+    // 事件监听器
     onStatusChange: (callback: (status: any) => void) => {
       const handler = (_event: any, status: any) => callback(status);
       ipcRenderer.on('im:status:change', handler);
@@ -265,7 +265,7 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
   scheduledTasks: {
-    // Task CRUD
+    // 任务增删改查
     list: () => ipcRenderer.invoke('scheduledTask:list'),
     get: (id: string) => ipcRenderer.invoke('scheduledTask:get', id),
     create: (input: any) => ipcRenderer.invoke('scheduledTask:create', input),
@@ -273,18 +273,18 @@ contextBridge.exposeInMainWorld('electron', {
     delete: (id: string) => ipcRenderer.invoke('scheduledTask:delete', id),
     toggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scheduledTask:toggle', id, enabled),
 
-    // Execution
+    // 执行
     runManually: (id: string) => ipcRenderer.invoke('scheduledTask:runManually', id),
     stop: (id: string) => ipcRenderer.invoke('scheduledTask:stop', id),
 
-    // Run history
+    // 运行历史
     listRuns: (taskId: string, limit?: number, offset?: number) =>
       ipcRenderer.invoke('scheduledTask:listRuns', taskId, limit, offset),
     countRuns: (taskId: string) => ipcRenderer.invoke('scheduledTask:countRuns', taskId),
     listAllRuns: (limit?: number, offset?: number) =>
       ipcRenderer.invoke('scheduledTask:listAllRuns', limit, offset),
 
-    // Stream event listeners
+    // 流事件监听器
     onStatusUpdate: (callback: (data: any) => void) => {
       const handler = (_event: any, data: any) => callback(data);
       ipcRenderer.on('scheduledTask:statusUpdate', handler);

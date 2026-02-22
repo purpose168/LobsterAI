@@ -1,36 +1,33 @@
-# Sandbox Runtime (macOS)
+# 沙箱运行时 (macOS)
 
-This folder contains helper scripts to build the **runtime package** used by
-Cowork's built-in VM sandbox. The runtime is the host-side QEMU binary plus its
-dependent dylibs and data files. It is **not** included in the VM image.
+此文件夹包含用于构建 Cowork 内置虚拟机沙箱所使用的**运行时包**的辅助脚本。运行时是主机端的 QEMU 二进制文件及其依赖的动态库 (dylibs) 和数据文件。它**不**包含在虚拟机镜像中。
 
-## Requirements
+## 环境要求
 
 - macOS
 - Homebrew
 - QEMU: `brew install qemu`
 - dylibbundler: `brew install dylibbundler`
 
-## Build
+## 构建
 
 ```bash
-# build for the current machine architecture
+# 为当前机器架构构建
 bash sandbox/runtime/build-runtime-macos.sh
 
-# or specify architecture
+# 或指定架构
 ARCH=arm64 bash sandbox/runtime/build-runtime-macos.sh
 ARCH=x64   bash sandbox/runtime/build-runtime-macos.sh
 ```
 
-### Notes
+### 注意事项
 
-- It is recommended to build on the matching architecture.
-- On Apple Silicon, to build `x64`, install x86 Homebrew under `/usr/local`
-  and set `BREW_PREFIX=/usr/local`.
+- 建议在匹配的架构上进行构建。
+- 在 Apple Silicon 上构建 `x64` 版本时，需要在 `/usr/local` 下安装 x86 版本的 Homebrew，并设置 `BREW_PREFIX=/usr/local`。
 
-## Output
+## 输出
 
-Files are written to:
+文件将输出到：
 
 ```
 sandbox/runtime/out/
@@ -39,17 +36,16 @@ sandbox/runtime/out/
   runtime-darwin-*.tar.gz.sha256
 ```
 
-## Use In App
+## 在应用中使用
 
-Upload the tarballs to your CDN and configure one of the following:
+将压缩包上传到您的 CDN，并配置以下选项之一：
 
-- `COWORK_SANDBOX_RUNTIME_URL` (single file URL), or
+- `COWORK_SANDBOX_RUNTIME_URL`（单个文件 URL），或
 - `COWORK_SANDBOX_BASE_URL` + `COWORK_SANDBOX_RUNTIME_VERSION`
 
-When using the base URL, the app expects:
+使用基础 URL 时，应用期望的文件路径为：
 
 ```
 ${BASE_URL}/${VERSION}/runtime-darwin-arm64.tar.gz
 ${BASE_URL}/${VERSION}/runtime-darwin-x64.tar.gz
 ```
-

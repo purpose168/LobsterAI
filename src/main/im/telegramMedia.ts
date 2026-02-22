@@ -1,5 +1,5 @@
 /**
- * Telegram Media Download Utilities
+ * Telegram 媒体下载工具函数
  * Telegram 媒体下载工具函数
  */
 import * as fs from 'fs';
@@ -80,13 +80,13 @@ export async function downloadTelegramFile(
     const file = await ctx.api.getFile(fileId);
 
     if (!file.file_path) {
-      console.warn('[Telegram Media] No file_path returned');
+      console.warn('[Telegram Media] 未返回文件路径');
       return null;
     }
 
     // 2. 检查文件大小
     if (file.file_size && file.file_size > MAX_FILE_SIZE) {
-      console.warn(`[Telegram Media] File too large: ${(file.file_size / 1024 / 1024).toFixed(1)}MB (limit: 20MB)`);
+      console.warn(`[Telegram Media] 文件过大: ${(file.file_size / 1024 / 1024).toFixed(1)}MB (限制: 20MB)`);
       return null;
     }
 
@@ -107,20 +107,20 @@ export async function downloadTelegramFile(
 
     const response = await fetch(downloadUrl);
     if (!response.ok) {
-      throw new Error(`Download failed: HTTP ${response.status}`);
+      throw new Error(`下载失败: HTTP ${response.status}`);
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     fs.writeFileSync(localPath, buffer);
 
-    console.log(`[Telegram Media] Downloaded: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);
+    console.log(`[Telegram Media] 已下载: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)`);
 
     return {
       localPath,
       fileSize: buffer.length,
     };
   } catch (error: any) {
-    console.error(`[Telegram Media] Download failed: ${error.message}`);
+    console.error(`[Telegram Media] 下载失败: ${error.message}`);
     return null;
   }
 }
@@ -254,7 +254,7 @@ export async function extractMediaFromMessage(
         });
       }
     } else {
-      console.log('[Telegram Media] Skipping animated/video sticker');
+      console.log('[Telegram Media] 跳过动画/视频贴纸');
     }
   }
 
@@ -288,14 +288,14 @@ export function cleanupOldMediaFiles(maxAgeDays: number = 7): void {
           cleanedCount++;
         }
       } catch (err: any) {
-        console.warn(`[Telegram Media] Failed to check/delete file ${file}: ${err.message}`);
+        console.warn(`[Telegram Media] 检查/删除文件失败 ${file}: ${err.message}`);
       }
     }
 
     if (cleanedCount > 0) {
-      console.log(`[Telegram Media] Cleaned up ${cleanedCount} old files`);
+      console.log(`[Telegram Media] 已清理 ${cleanedCount} 个过期文件`);
     }
   } catch (error: any) {
-    console.warn(`[Telegram Media] Cleanup error: ${error.message}`);
+    console.warn(`[Telegram Media] 清理错误: ${error.message}`);
   }
 }

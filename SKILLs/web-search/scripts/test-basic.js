@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Basic test script for Playwright manager and browser launcher
+ * Playwright 管理器和浏览器启动器的基础测试脚本
  */
 
 const { launchBrowser, closeBrowser } = require('../dist/server/playwright/browser');
@@ -8,67 +8,67 @@ const { PlaywrightManager } = require('../dist/server/playwright/manager');
 const { defaultConfig } = require('../dist/server/config');
 
 async function testBasicFunctionality() {
-  console.log('\n=== Web Search Skill - Basic Functionality Test ===\n');
+  console.log('\n=== 网页搜索技能 - 基础功能测试 ===\n');
 
   let browserInstance = null;
   let connectionId = null;
   const manager = new PlaywrightManager();
 
   try {
-    // Step 1: Launch browser
-    console.log('Step 1: Launching browser...');
+    // 步骤 1: 启动浏览器
+    console.log('步骤 1: 正在启动浏览器...');
     browserInstance = await launchBrowser(defaultConfig.browser);
-    console.log('✓ Browser launched successfully\n');
+    console.log('✓ 浏览器启动成功\n');
 
-    // Step 2: Connect via Playwright
-    console.log('Step 2: Connecting via Playwright...');
+    // 步骤 2: 通过 Playwright 连接
+    console.log('步骤 2: 正在通过 Playwright 连接...');
     connectionId = await manager.connectToCDP(browserInstance.cdpPort);
-    console.log(`✓ Connected successfully (ID: ${connectionId})\n`);
+    console.log(`✓ 连接成功 (ID: ${connectionId})\n`);
 
-    // Step 3: Get page
-    console.log('Step 3: Getting page...');
+    // 步骤 3: 获取页面
+    console.log('步骤 3: 正在获取页面...');
     const page = await manager.getPage(connectionId);
-    console.log(`✓ Page obtained: ${page.url()}\n`);
+    console.log(`✓ 页面获取成功: ${page.url()}\n`);
 
-    // Step 4: Navigate to a test URL
-    console.log('Step 4: Navigating to example.com...');
+    // 步骤 4: 导航到测试 URL
+    console.log('步骤 4: 正在导航到 example.com...');
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
-    console.log(`✓ Navigation complete: ${page.url()}\n`);
+    console.log(`✓ 导航完成: ${page.url()}\n`);
 
-    // Step 5: Get page title
-    console.log('Step 5: Getting page title...');
+    // 步骤 5: 获取页面标题
+    console.log('步骤 5: 正在获取页面标题...');
     const title = await page.title();
-    console.log(`✓ Page title: "${title}"\n`);
+    console.log(`✓ 页面标题: "${title}"\n`);
 
-    // Step 6: Take screenshot
-    console.log('Step 6: Taking screenshot...');
+    // 步骤 6: 截取屏幕截图
+    console.log('步骤 6: 正在截取屏幕截图...');
     const screenshot = await page.screenshot({ type: 'png' });
-    console.log(`✓ Screenshot captured (${screenshot.length} bytes)\n`);
+    console.log(`✓ 屏幕截图已捕获 (${screenshot.length} 字节)\n`);
 
-    // Step 7: Get text content
-    console.log('Step 7: Getting text content...');
+    // 步骤 7: 获取文本内容
+    console.log('步骤 7: 正在获取文本内容...');
     const text = await page.textContent('body');
-    console.log(`✓ Text content: ${text?.substring(0, 100)}...\n`);
+    console.log(`✓ 文本内容: ${text?.substring(0, 100)}...\n`);
 
-    console.log('=== All tests passed! ===\n');
+    console.log('=== 所有测试通过! ===\n');
   } catch (error) {
-    console.error('\n❌ Test failed:', error);
+    console.error('\n❌ 测试失败:', error);
     process.exit(1);
   } finally {
-    // Cleanup
-    console.log('Cleaning up...');
+    // 清理工作
+    console.log('正在清理...');
     if (connectionId) {
       await manager.disconnect(connectionId);
     }
     if (browserInstance) {
       await closeBrowser(browserInstance);
     }
-    console.log('✓ Cleanup complete\n');
+    console.log('✓ 清理完成\n');
   }
 }
 
-// Run test
+// 运行测试
 testBasicFunctionality().catch(error => {
-  console.error('Fatal error:', error);
+  console.error('致命错误:', error);
   process.exit(1);
 });

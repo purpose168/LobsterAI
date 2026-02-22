@@ -1220,7 +1220,9 @@ const translations: Record<LanguageType, Record<string, string>> = {
 };
 
 class I18nService {
+  // 当前语言设置
   private currentLanguage: LanguageType = 'zh';
+  // 语言变更监听器集合
   private listeners = new Set<() => void>();
   
   constructor() {
@@ -1243,7 +1245,7 @@ class I18nService {
 
         if (hasCustomLanguage) {
           // 旧用户已手动设置过语言(非默认值),保留他们的设置
-          console.log(`[i18n] Legacy user detected with custom language: ${config.language}`);
+          console.log(`[i18n] 检测到旧版本用户使用自定义语言: ${config.language}`);
           this.currentLanguage = config.language;
           configService.updateConfig({
             ...config,
@@ -1255,7 +1257,7 @@ class I18nService {
             const systemLocale = await window.electron.appInfo.getSystemLocale();
             const defaultLanguage = this.inferLanguageFromLocale(systemLocale);
 
-            console.log(`[i18n] First run detected. System locale: ${systemLocale}, default language: ${defaultLanguage}`);
+            console.log(`[i18n] 检测到首次运行。系统语言: ${systemLocale}, 默认语言: ${defaultLanguage}`);
 
             this.currentLanguage = defaultLanguage;
 
@@ -1266,7 +1268,7 @@ class I18nService {
               language_initialized: true
             });
           } catch (error) {
-            console.error('Failed to get system locale:', error);
+            console.error('获取系统语言失败:', error);
             // 如果获取系统语言失败,默认使用英文
             this.currentLanguage = 'en';
             configService.updateConfig({
@@ -1290,7 +1292,7 @@ class I18nService {
         }
       }
     } catch (error) {
-      console.error('Failed to initialize language:', error);
+      console.error('初始化语言设置失败:', error);
       // 默认使用英文
       this.currentLanguage = 'en';
     }
@@ -1302,7 +1304,7 @@ class I18nService {
     if (systemLocale === 'zh-CN') {
       return 'zh';
     }
-    return 'en'; // 默认英文 (包括 zh-TW, zh-HK, en-*, 以及其他所有语言)
+    return 'en'; // 默认英文 (包括 zh-TW [繁体中文]、zh-HK [繁体中文-香港]、en-* [所有英文变体], 以及其他所有语言)
   }
   
   // 设置语言
@@ -1327,7 +1329,7 @@ class I18nService {
         language
       });
     } catch (error) {
-      console.error('Failed to save language setting:', error);
+      console.error('保存语言设置失败:', error);
     }
   }
   
@@ -1340,7 +1342,7 @@ class I18nService {
   t(key: string): string {
     const translation = translations[this.currentLanguage][key];
     if (!translation) {
-      console.warn(`Translation missing for key: ${key} in language: ${this.currentLanguage}`);
+      console.warn(`翻译键缺失: ${key}, 语言: ${this.currentLanguage}`);
       // 尝试从另一种语言获取
       const fallbackTranslation = translations[this.currentLanguage === 'zh' ? 'en' : 'zh'][key];
       return fallbackTranslation || key;
@@ -1348,6 +1350,7 @@ class I18nService {
     return translation;
   }
 
+  // 订阅语言变更事件
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {

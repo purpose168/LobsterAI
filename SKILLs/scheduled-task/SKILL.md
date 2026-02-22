@@ -1,6 +1,6 @@
 ---
 name: scheduled-task
-description: 创建定时任务，支持一次性、每日、每周、每月、Cron 等调度方式。当用户想设置定期自动执行的任务时使用。Create scheduled tasks for recurring or one-time automated execution.
+description: 创建定时任务，支持一次性、每日、每周、每月、Cron 等调度方式。当用户想设置定期自动执行的任务时使用。支持周期性或一次性自动执行的定时任务创建。
 ---
 
 # 定时任务 Skill
@@ -15,7 +15,7 @@ description: 创建定时任务，支持一次性、每日、每周、每月、C
 
 ## 创建定时任务
 
-### Step 1: 收集信息
+### 步骤 1：收集信息
 
 先与用户确认以下信息（如果用户未提供）：
 1. **任务名称**（必填）— 简短描述
@@ -24,7 +24,7 @@ description: 创建定时任务，支持一次性、每日、每周、每月、C
 4. **工作目录**（可选）— 默认为当前会话的工作目录
 5. **通知平台**（可选）— 任务完成后发送通知
 
-### Step 2: 构建 JSON 并执行脚本
+### 步骤 2：构建 JSON 并执行脚本
 
 #### Schedule 类型
 
@@ -82,7 +82,7 @@ bash "$SKILLS_ROOT/scheduled-task/scripts/create-task.sh" @/tmp/scheduled-task.j
 | `notifyPlatforms` | ❌ | 通知平台数组：`["dingtalk","feishu","telegram","discord"]`（默认 `[]`） |
 | `enabled` | ❌ | 是否立即启用（默认 `true`） |
 
-### Step 3: 确认结果
+### 步骤 3：确认结果
 
 脚本返回 JSON 响应：
 - 成功：`{ "success": true, "task": { "id": "...", "name": "...", ... } }`

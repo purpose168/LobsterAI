@@ -1,13 +1,13 @@
-# IMAP/SMTP Email Skill
+# IMAP/SMTP 邮件技能
 
-Read and send email via IMAP/SMTP protocol. Works with any IMAP/SMTP server including Gmail, Outlook, 163.com, vip.163.com, 126.com, vip.126.com, 188.com, and vip.188.com.
+通过 IMAP/SMTP 协议读取和发送邮件。支持任何 IMAP/SMTP 服务器，包括 Gmail、Outlook、163.com、vip.163.com、126.com、vip.126.com、188.com 和 vip.188.com。
 
-## Quick Setup
+## 快速设置
 
-1. **Create `.env` file** with your credentials:
+1. **创建 `.env` 文件**并配置您的凭据：
 
 ```bash
-# IMAP Configuration (receiving email)
+# IMAP 配置（接收邮件）
 IMAP_HOST=imap.gmail.com
 IMAP_PORT=993
 IMAP_USER=your@gmail.com
@@ -15,7 +15,7 @@ IMAP_PASS=your_app_password
 IMAP_TLS=true
 IMAP_MAILBOX=INBOX
 
-# SMTP Configuration (sending email)
+# SMTP 配置（发送邮件）
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -24,32 +24,32 @@ SMTP_PASS=your_app_password
 SMTP_FROM=your@gmail.com
 ```
 
-2. **Install dependencies:**
+2. **安装依赖：**
 ```bash
 npm install
 ```
 
-3. **Test the connection:**
+3. **测试连接：**
 ```bash
 node scripts/imap.js check
 node scripts/smtp.js test
 ```
 
-## IMAP Commands (Receiving Email)
+## IMAP 命令（接收邮件）
 
-### Check for new emails
+### 检查新邮件
 ```bash
 node scripts/imap.js check --limit 10
-node scripts/imap.js check --recent 2h        # Last 2 hours
-node scripts/imap.js check --recent 30m       # Last 30 minutes
+node scripts/imap.js check --recent 2h        # 最近 2 小时
+node scripts/imap.js check --recent 30m       # 最近 30 分钟
 ```
 
-### Fetch specific email
+### 获取特定邮件
 ```bash
 node scripts/imap.js fetch <uid>
 ```
 
-### Search emails
+### 搜索邮件
 ```bash
 node scripts/imap.js search --unseen
 node scripts/imap.js search --from "sender@example.com"
@@ -57,42 +57,42 @@ node scripts/imap.js search --subject "important"
 node scripts/imap.js search --recent 24h
 ```
 
-### Mark as read/unread
+### 标记为已读/未读
 ```bash
 node scripts/imap.js mark-read <uid>
 node scripts/imap.js mark-unread <uid>
 ```
 
-### List mailboxes
+### 列出邮箱
 ```bash
 node scripts/imap.js list-mailboxes
 ```
 
-## SMTP Commands (Sending Email)
+## SMTP 命令（发送邮件）
 
-### Test SMTP connection
+### 测试 SMTP 连接
 ```bash
 node scripts/smtp.js test
 ```
 
-### Send email
+### 发送邮件
 ```bash
-# Simple text email
+# 简单文本邮件
 node scripts/smtp.js send --to recipient@example.com --subject "Hello" --body "World"
 
-# HTML email
+# HTML 邮件
 node scripts/smtp.js send --to recipient@example.com --subject "Newsletter" --html --body "<h1>Welcome</h1>"
 
-# Email with attachment
+# 带附件的邮件
 node scripts/smtp.js send --to recipient@example.com --subject "Report" --body "Please find attached" --attach report.pdf
 
-# Multiple recipients
+# 多个收件人
 node scripts/smtp.js send --to "a@example.com,b@example.com" --cc "c@example.com" --subject "Update" --body "Team update"
 ```
 
-## Common Email Servers
+## 常用邮件服务器
 
-| Provider | IMAP Host | IMAP Port | SMTP Host | SMTP Port |
+| 服务商 | IMAP 主机 | IMAP 端口 | SMTP 主机 | SMTP 端口 |
 |----------|-----------|-----------|-----------|-----------|
 | 163.com | imap.163.com | 993 | smtp.163.com | 465 |
 | vip.163.com | imap.vip.163.com | 993 | smtp.vip.163.com | 465 |
@@ -105,47 +105,47 @@ node scripts/smtp.js send --to "a@example.com,b@example.com" --cc "c@example.com
 | Outlook | outlook.office365.com | 993 | smtp.office365.com | 587 |
 | QQ Mail | imap.qq.com | 993 | smtp.qq.com | 587 |
 
-**Important for 163.com:**
-- Use **authorization code** (授权码), not account password
-- Enable IMAP/SMTP in web settings first
+**163.com 重要提示：**
+- 使用**授权码**，而非账户密码
+- 需先在网页设置中启用 IMAP/SMTP
 
-## Configuration Options
+## 配置选项
 
-**IMAP:**
-- `IMAP_HOST` - Server hostname
-- `IMAP_PORT` - Server port
-- `IMAP_USER` - Your email address
-- `IMAP_PASS` - Your password or app-specific password
-- `IMAP_TLS` - Use TLS (true for SSL, false for STARTTLS)
-- `IMAP_REJECT_UNAUTHORIZED` - Accept self-signed certs
-- `IMAP_MAILBOX` - Default mailbox (INBOX)
+**IMAP：**
+- `IMAP_HOST` - 服务器主机名
+- `IMAP_PORT` - 服务器端口
+- `IMAP_USER` - 您的邮箱地址
+- `IMAP_PASS` - 您的密码或应用专用密码
+- `IMAP_TLS` - 使用 TLS（true 表示 SSL，false 表示 STARTTLS）
+- `IMAP_REJECT_UNAUTHORIZED` - 接受自签名证书
+- `IMAP_MAILBOX` - 默认邮箱（INBOX）
 
-**SMTP:**
-- `SMTP_HOST` - Server hostname
-- `SMTP_PORT` - Server port (587 for STARTTLS, 465 for SSL)
-- `SMTP_SECURE` - true for SSL (465), false for STARTTLS (587)
-- `SMTP_USER` - Your email address
-- `SMTP_PASS` - Your password or app-specific password
-- `SMTP_FROM` - Default sender email (optional)
-- `SMTP_REJECT_UNAUTHORIZED` - Accept self-signed certs
+**SMTP：**
+- `SMTP_HOST` - 服务器主机名
+- `SMTP_PORT` - 服务器端口（587 用于 STARTTLS，465 用于 SSL）
+- `SMTP_SECURE` - true 表示 SSL（465），false 表示 STARTTLS（587）
+- `SMTP_USER` - 您的邮箱地址
+- `SMTP_PASS` - 您的密码或应用专用密码
+- `SMTP_FROM` - 默认发件人邮箱（可选）
+- `SMTP_REJECT_UNAUTHORIZED` - 接受自签名证书
 
-## Troubleshooting
+## 故障排除
 
-**Connection errors:**
-- Verify IMAP/SMTP server is running and accessible
-- Check host/port settings in `.env`
+**连接错误：**
+- 验证 IMAP/SMTP 服务器是否正在运行且可访问
+- 检查 `.env` 中的主机/端口设置
 
-**Authentication failed:**
-- For Gmail: Use App Password (not account password if 2FA enabled)
-- For 163.com: Use authorization code (授权码), not account password
+**身份验证失败：**
+- Gmail：使用应用专用密码（如果启用了双因素认证，请勿使用账户密码）
+- 163.com：使用授权码，而非账户密码
 
-**TLS/SSL errors:**
-- For self-signed certs: Set `IMAP_REJECT_UNAUTHORIZED=false` or `SMTP_REJECT_UNAUTHORIZED=false`
+**TLS/SSL 错误：**
+- 对于自签名证书：设置 `IMAP_REJECT_UNAUTHORIZED=false` 或 `SMTP_REJECT_UNAUTHORIZED=false`
 
-## Files
+## 文件说明
 
-- `SKILL.md` - Skill documentation
-- `scripts/imap.js` - IMAP CLI tool
-- `scripts/smtp.js` - SMTP CLI tool
-- `package.json` - Node.js dependencies
-- `.env` - Your credentials (create manually)
+- `SKILL.md` - 技能文档
+- `scripts/imap.js` - IMAP 命令行工具
+- `scripts/smtp.js` - SMTP 命令行工具
+- `package.json` - Node.js 依赖
+- `.env` - 您的凭据（需手动创建）

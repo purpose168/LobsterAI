@@ -5,12 +5,15 @@ import { i18nService } from '../../services/i18n';
 import { RootState } from '../../store';
 import { Skill } from '../../types/skill';
 
+/**
+ * 技能弹出框组件属性接口
+ */
 interface SkillsPopoverProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelectSkill: (skill: Skill) => void;
-  onManageSkills: () => void;
-  anchorRef: React.RefObject<HTMLElement>;
+  isOpen: boolean; // 弹出框是否打开
+  onClose: () => void; // 关闭弹出框的回调函数
+  onSelectSkill: (skill: Skill) => void; // 选择技能的回调函数
+  onManageSkills: () => void; // 管理技能的回调函数
+  anchorRef: React.RefObject<HTMLElement>; // 锚点元素的引用
 }
 
 const SkillsPopover: React.FC<SkillsPopoverProps> = ({
@@ -20,14 +23,14 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
   onManageSkills,
   anchorRef,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [maxListHeight, setMaxListHeight] = useState(256); // default max-h-64 = 256px
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const skills = useSelector((state: RootState) => state.skill.skills);
-  const activeSkillIds = useSelector((state: RootState) => state.skill.activeSkillIds);
+  const [searchQuery, setSearchQuery] = useState(''); // 搜索查询字符串
+  const [maxListHeight, setMaxListHeight] = useState(256); // 默认最大高度 max-h-64 = 256px
+  const popoverRef = useRef<HTMLDivElement>(null); // 弹出框容器的引用
+  const searchInputRef = useRef<HTMLInputElement>(null); // 搜索输入框的引用
+  const skills = useSelector((state: RootState) => state.skill.skills); // 从 Redux 获取所有技能
+  const activeSkillIds = useSelector((state: RootState) => state.skill.activeSkillIds); // 从 Redux 获取已激活的技能 ID 列表
 
-  // Filter enabled skills based on search query
+  // 根据搜索查询过滤已启用的技能
   const filteredSkills = skills
     .filter(s => s.enabled)
     .filter(s =>
@@ -35,15 +38,15 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
       s.description.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  // Calculate available height and focus search input when popover opens
+  // 当弹出框打开时，计算可用高度并聚焦搜索输入框
   useEffect(() => {
     if (isOpen) {
-      // Calculate available space above the anchor
+      // 计算锚点上方的可用空间
       if (anchorRef.current) {
         const anchorRect = anchorRef.current.getBoundingClientRect();
-        // Available height = distance from top of viewport to anchor, minus padding for search bar (~120px) and some margin (~60px)
+        // 可用高度 = 从视口顶部到锚点的距离，减去搜索栏的填充（约 120px）和一些边距（约 60px）
         const availableHeight = anchorRect.top - 120 - 60;
-        // Clamp between 120px (minimum usable) and 256px (default max)
+        // 限制在 120px（最小可用高度）和 256px（默认最大高度）之间
         setMaxListHeight(Math.max(120, Math.min(256, availableHeight)));
       }
       if (searchInputRef.current) {
@@ -55,7 +58,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
     }
   }, [isOpen, anchorRef]);
 
-  // Handle click outside
+  // 处理点击外部区域
   useEffect(() => {
     if (!isOpen) return;
 
@@ -73,7 +76,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose, anchorRef]);
 
-  // Handle escape key
+  // 处理 Escape 键
   useEffect(() => {
     if (!isOpen) return;
 
@@ -89,7 +92,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
 
   const handleSelectSkill = (skill: Skill) => {
     onSelectSkill(skill);
-    // Don't close popover to allow multi-selection
+    // 不关闭弹出框，以允许多选
   };
 
   const handleManageSkills = () => {
@@ -104,7 +107,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
       ref={popoverRef}
       className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-claude-surface shadow-xl z-50"
     >
-      {/* Search input */}
+      {/* 搜索输入框 */}
       <div className="p-3 border-b dark:border-claude-darkBorder border-claude-border">
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 dark:text-claude-darkTextSecondary text-claude-textSecondary" />
@@ -119,7 +122,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
         </div>
       </div>
 
-      {/* Skills list */}
+      {/* 技能列表 */}
       <div className="overflow-y-auto py-1" style={{ maxHeight: `${maxListHeight}px` }}>
         {filteredSkills.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary">
@@ -174,7 +177,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
         )}
       </div>
 
-      {/* Footer - Manage Skills */}
+      {/* 底部 - 管理技能 */}
       <div className="border-t dark:border-claude-darkBorder border-claude-border">
         <button
           onClick={handleManageSkills}

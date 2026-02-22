@@ -207,7 +207,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
   };
 
   const handleSkip = () => {
-    // Clear the answer for the current question
+    // 清除当前问题的答案
     setAnswers((prev) => {
       const newAnswers = { ...prev };
       delete newAnswers[currentQuestion.question];
@@ -225,7 +225,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
   };
 
   const handleSubmit = () => {
-    // Merge "Other" inputs into answers
+    // 将"其他"输入合并到答案中
     const finalAnswers = { ...answers };
     Object.entries(otherInputs).forEach(([stepIndex, otherValue]) => {
       const question = questions[Number(stepIndex)];
@@ -251,7 +251,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
   const handleDeny = () => {
     onRespond({
       behavior: 'deny',
-      message: 'Permission denied',
+      message: '权限被拒绝',
     });
   };
 
@@ -260,7 +260,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
       <div className="modal-content w-full max-w-2xl mx-4 dark:bg-claude-darkSurface bg-claude-surface rounded-2xl shadow-modal overflow-hidden">
-        {/* Header */}
+        {/* 标题栏 */}
         <div className="flex items-center gap-3 px-6 py-4 border-b dark:border-claude-darkBorder border-claude-border">
           <div className="flex-1">
             <h2 className="text-lg font-semibold dark:text-claude-darkText text-claude-text">
@@ -270,13 +270,13 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
           <button
             onClick={handleDeny}
             className="p-2 rounded-lg dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover dark:text-claude-darkTextSecondary text-claude-textSecondary transition-colors"
-            aria-label="Close"
+            aria-label="关闭"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Progress bar */}
+        {/* 进度条 */}
         <div className="h-1 bg-claude-surfaceMuted dark:bg-claude-darkSurfaceMuted">
           <div
             className="h-full bg-claude-accent transition-all duration-300"
@@ -284,10 +284,10 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
           />
         </div>
 
-        {/* Content */}
+        {/* 内容区域 */}
         <div className="px-6 py-6 min-h-[300px] flex flex-col">
           <div className="flex-1">
-            {/* Question header and navigation */}
+            {/* 问题标题和导航 */}
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex-1">
                 {currentQuestion.header && (
@@ -295,15 +295,15 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
                     {currentQuestion.header}
                   </span>
                 )}
-                {/* Question text */}
+                {/* 问题文本 */}
                 <h3 className="text-base font-medium dark:text-claude-darkText text-claude-text">
                   {currentQuestion.question}
                 </h3>
               </div>
 
-              {/* Step indicators and navigation */}
+              {/* 步骤指示器和导航 */}
               <div className="flex items-center gap-2">
-                {/* Previous button */}
+                {/* 上一步按钮 */}
                 {!isFirstStep && (
                   <button
                     onClick={handlePrevious}
@@ -314,7 +314,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
                   </button>
                 )}
 
-                {/* Step dots */}
+                {/* 步骤点 */}
                 <div className="flex items-center gap-1.5">
                   {questions.map((question, index) => {
                     const isActive = index === currentStep;
@@ -346,7 +346,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
                   })}
                 </div>
 
-                {/* Next button */}
+                {/* 下一步按钮 */}
                 {!isLastStep && (
                   <button
                     onClick={handleNext}
@@ -359,7 +359,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
               </div>
             </div>
 
-            {/* Options */}
+            {/* 选项列表 */}
             <div className="space-y-2">
               {currentQuestion.options.map((option) => {
                 const isSelected = selectedValues.includes(option.label);
@@ -410,7 +410,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
               })}
             </div>
 
-            {/* Other input and Skip button in same row */}
+            {/* 其他输入和跳过按钮在同一行 */}
             <div className="mt-4 flex items-center gap-3">
               <input
                 type="text"
@@ -430,7 +430,7 @@ const CoworkQuestionWizard: React.FC<CoworkQuestionWizardProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* 底部按钮栏 */}
         <div className="flex items-center justify-end px-6 py-4 border-t dark:border-claude-darkBorder border-claude-border bg-claude-surfaceMuted dark:bg-claude-darkSurfaceMuted">
           <button
             onClick={handleSubmit}

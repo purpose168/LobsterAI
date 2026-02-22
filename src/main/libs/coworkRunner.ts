@@ -44,9 +44,9 @@ const SANDBOX_ALLOWED_ENV_KEYS = [
 ] as const;
 
 const SANDBOX_SKILLS_MOUNT_TAG = 'skills';
-// On macOS/Linux, keep sandbox skills outside the project workspace mount to
-// avoid creating SKILLs directories in the user's selected host folder.
-// On Windows, keep historical path for compatibility with serial-mode flows.
+// 在 macOS/Linux 上，将沙箱技能目录保持在项目工作区挂载点之外，
+// 以避免在用户选择的主机文件夹中创建 SKILLs 目录。
+// 在 Windows 上，保留历史路径以兼容串口模式流程。
 const SANDBOX_SKILLS_GUEST_PATH = '/workspace/skills';
 const SANDBOX_SKILLS_GUEST_PATH_WINDOWS = '/workspace/project/SKILLs';
 const SANDBOX_WORKSPACE_GUEST_ROOT = '/workspace/project';
@@ -281,7 +281,7 @@ function mergeNoProxyList(currentValue: string | undefined, requiredHosts: strin
   return items.join(',');
 }
 
-// Event types emitted by the runner
+// 运行器发出的事件类型
 export interface CoworkRunnerEvents {
   message: (sessionId: string, message: CoworkMessage) => void;
   messageUpdate: (sessionId: string, messageId: string, content: string) => void;
@@ -303,13 +303,13 @@ interface ActiveSession {
   confirmationMode: 'modal' | 'text';
   pendingPermission: PermissionRequest | null;
   abortController: AbortController;
-  // Track the current streaming message for incremental updates
+  // 跟踪当前流式消息以进行增量更新
   currentStreamingMessageId: string | null;
   currentStreamingContent: string;
-  // Track thinking block streaming
+  // 跟踪思考块流式传输
   currentStreamingThinkingMessageId: string | null;
   currentStreamingThinking: string;
-  // Track which block type is currently streaming (to distinguish on content_block_stop)
+  // 跟踪当前正在流式传输的块类型（用于在 content_block_stop 时区分）
   currentStreamingBlockType: 'thinking' | 'text' | null;
   currentStreamingTextTruncated: boolean;
   currentStreamingThinkingTruncated: boolean;
@@ -323,9 +323,9 @@ interface ActiveSession {
   ipcBridge?: VirtioSerialBridge;
   sandboxSkillsGuestPath?: string;
   sandboxSkillMounts?: Record<string, { tag: string; guestPath: string }>;
-  /** Resolve callback for the current sandbox turn; called by the result event handler. */
+  /** 当前沙箱回合的解析回调；由结果事件处理器调用。 */
   sandboxTurnResolve?: (result: { status: 'ok' } | { status: 'error'; message: string; hvfDenied: boolean }) => void;
-  /** When true, auto-approve all tool permissions (for scheduled tasks) */
+  /** 当为 true 时，自动批准所有工具权限（用于计划任务） */
   autoApprove?: boolean;
 }
 
@@ -894,8 +894,8 @@ export class CoworkRunner extends EventEmitter {
         continue;
       }
 
-      // Root itself can be a skill directory.
-      collectFromSkillDir(resolvedRoot);
+      // 根目录本身可以是一个技能目录。
+    collectFromSkillDir(resolvedRoot);
 
       let entries: fs.Dirent[] = [];
       try {
@@ -947,7 +947,7 @@ export class CoworkRunner extends EventEmitter {
     }
 
     if (runtimePlatform === 'win32') {
-      // Windows sandbox uses virtio-serial sync instead of 9p mounts.
+      // Windows 沙箱使用 virtio-serial 同步而不是 9p 挂载。
       return {
         guestSkillsRoot,
         skillEntries,
@@ -979,8 +979,8 @@ export class CoworkRunner extends EventEmitter {
   ): Record<string, string> {
     const sandboxEnv: Record<string, string> = {};
 
-    // In QEMU user-mode networking, the host is accessible at 10.0.2.2
-    // Remap localhost/127.0.0.1 proxy URLs to the QEMU gateway
+    // 在 QEMU 用户模式网络中，主机可通过 10.0.2.2 访问
+    // 将 localhost/127.0.0.1 代理 URL 重新映射到 QEMU 网关
     const remapLocalhostToQemuGateway = (url: string): string => {
       return url
         .replace(/\/\/localhost([:/])/gi, '//10.0.2.2$1')
@@ -1006,7 +1006,7 @@ export class CoworkRunner extends EventEmitter {
       sandboxEnv.TZ = envTimezone;
       delete sandboxEnv.tz;
     } else {
-      // Keep sandbox wall-clock time aligned with host locale when TZ is not explicitly set.
+      // 当未显式设置 TZ 时，保持沙箱时钟与主机区域设置对齐。
       const hostTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone?.trim();
       if (hostTimezone) {
         sandboxEnv.TZ = hostTimezone;
@@ -1019,7 +1019,7 @@ export class CoworkRunner extends EventEmitter {
     }
     sandboxEnv.WEB_SEARCH_SERVER = 'http://10.0.2.2:8923';
 
-    // Ensure requests to host-side services bypass system HTTP proxies.
+    // 确保对主机端服务的请求绕过系统 HTTP 代理。
     const noProxyHosts = [
       'localhost',
       '127.0.0.1',
@@ -1036,8 +1036,8 @@ export class CoworkRunner extends EventEmitter {
     sandboxEnv.NO_PROXY = mergedNoProxy;
     sandboxEnv.no_proxy = mergedNoProxy;
 
-    // Some SDK/network stacks may ignore NO_PROXY for local gateway addresses.
-    // When model traffic is explicitly routed to host gateway, force direct mode.
+    // 某些 SDK/网络协议栈可能会忽略本地网关地址的 NO_PROXY。
+    // 当模型流量显式路由到主机网关时，强制使用直连模式。
     const anthropicBaseHost = extractHostFromUrl(sandboxEnv.ANTHROPIC_BASE_URL)?.toLowerCase();
     const shouldForceDirectHostRouting = anthropicBaseHost === '10.0.2.2'
       || anthropicBaseHost === '127.0.0.1'
@@ -2014,11 +2014,11 @@ export class CoworkRunner extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Mark session as running
+    // 将会话标记为运行中
     this.store.updateSession(sessionId, { status: 'running' });
 
     if (!options.skipInitialUserMessage) {
-      // Add user message with skill info
+      // 添加带有技能信息的用户消息
       const userMessage = this.store.addMessage(sessionId, {
         type: 'user',
         content: prompt,
@@ -2027,14 +2027,14 @@ export class CoworkRunner extends EventEmitter {
       this.emit('message', sessionId, userMessage);
     }
 
-    // Create abort controller
+    // 创建中止控制器
     const abortController = new AbortController();
     const preferredWorkspaceRoot = options.workspaceRoot?.trim()
       ? path.resolve(options.workspaceRoot)
       : this.inferWorkspaceRootFromSessionCwd(session.cwd);
     const sessionCwd = this.resolveSessionCwdForExecution(sessionId, session.cwd, preferredWorkspaceRoot);
 
-    // Store active session
+    // 存储活动会话
     const activeSession: ActiveSession = {
       sessionId,
       claudeSessionId: session.claudeSessionId,
@@ -2073,7 +2073,7 @@ export class CoworkRunner extends EventEmitter {
       this.store.getConfig().memoryEnabled
     );
 
-    // Run claude-code using the SDK
+    // 使用 SDK 运行 claude-code
     try {
       await this.runClaudeCode(activeSession, prompt, sessionCwd, effectiveSystemPrompt);
     } catch (error) {
@@ -2085,7 +2085,7 @@ export class CoworkRunner extends EventEmitter {
     this.stoppedSessions.delete(sessionId);
     const activeSession = this.activeSessions.get(sessionId);
     if (!activeSession) {
-      // If not active, start a new run
+      // 如果不活动，启动新运行
       await this.startSession(sessionId, prompt, {
         skillIds: options.skillIds,
         systemPrompt: options.systemPrompt,
@@ -2093,10 +2093,10 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Ensure status returns to running for resumed turns on active sessions.
+    // 确保活动会话恢复时状态返回运行中。
     this.store.updateSession(sessionId, { status: 'running' });
 
-    // Add user message with skill info
+    // 添加带有技能信息的用户消息
     const userMessage = this.store.addMessage(sessionId, {
       type: 'user',
       content: prompt,
@@ -2104,7 +2104,7 @@ export class CoworkRunner extends EventEmitter {
     });
     this.emit('message', sessionId, userMessage);
 
-    // Continue with the existing session
+    // 使用现有会话继续
     const session = this.store.getSession(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
@@ -2114,8 +2114,8 @@ export class CoworkRunner extends EventEmitter {
       this.store.updateSession(sessionId, { cwd: sessionCwd });
     }
 
-    // Use provided systemPrompt (e.g. with updated skill routing) or fall back to session's stored one.
-    // Always prepend workspace safety prompt so folder boundary rules are enforced at prompt level.
+    // 使用提供的 systemPrompt（例如带有更新的技能路由）或回退到会话存储的提示。
+    // 始终在前面添加工作区安全提示，以便在提示级别强制执行文件夹边界规则。
     const baseSystemPrompt = options.systemPrompt ?? session.systemPrompt;
     const effectiveSystemPrompt = this.composeEffectiveSystemPrompt(
       baseSystemPrompt,
@@ -2164,13 +2164,13 @@ export class CoworkRunner extends EventEmitter {
   respondToPermission(requestId: string, result: PermissionResult): void {
     const sandboxPermission = this.sandboxPermissions.get(requestId);
     if (sandboxPermission) {
-      // Write file-based response (used by 9p/file-mode IPC)
+      // 写入基于文件的响应（用于 9p/文件模式 IPC）
       try {
         fs.writeFileSync(sandboxPermission.responsePath, JSON.stringify(result));
       } catch (error) {
         console.error('Failed to write sandbox permission response:', error);
       }
-      // Also send via virtio-serial bridge if available (used on Windows)
+      // 如果可用，也通过 virtio-serial 桥发送（在 Windows 上使用）
       const activeSession = this.activeSessions.get(sandboxPermission.sessionId);
       if (activeSession?.ipcBridge) {
         activeSession.ipcBridge.sendPermissionResponse(requestId, result as unknown as Record<string, unknown>);
@@ -2325,7 +2325,7 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Reset per-turn output dedupe flags.
+    // 重置每轮输出去重标志。
     activeSession.hasAssistantTextOutput = false;
     activeSession.hasAssistantThinkingOutput = false;
     activeSession.currentStreamingTextTruncated = false;
@@ -2345,16 +2345,16 @@ export class CoworkRunner extends EventEmitter {
     const envVars = await getEnhancedEnvWithTmpdir(cwd, 'local');
     let stderrTail = '';
 
-    // When packaged, process.execPath is the Electron binary.
-    // child_process.fork() uses process.execPath by default, so without
-    // ELECTRON_RUN_AS_NODE the SDK would launch another Electron app instance
-    // instead of running cli.js as a Node script, causing exit code 1.
+    // 打包时，process.execPath 是 Electron 二进制文件。
+    // child_process.fork() 默认使用 process.execPath，因此如果没有
+    // ELECTRON_RUN_AS_NODE，SDK 会启动另一个 Electron 应用实例
+    // 而不是将 cli.js 作为 Node 脚本运行，导致退出代码 1。
     if (app.isPackaged) {
       envVars.ELECTRON_RUN_AS_NODE = '1';
     }
 
-    // On Windows, check that git-bash is available before attempting to start.
-    // Claude Code CLI requires git-bash for shell tool execution.
+    // 在 Windows 上，在尝试启动之前检查 git-bash 是否可用。
+    // Claude Code CLI 需要 git-bash 来执行 shell 工具。
     if (process.platform === 'win32' && !envVars.CLAUDE_CODE_GIT_BASH_PATH) {
       const errorMsg = 'Windows local execution requires a bundled Git Bash runtime, but this installation is missing it. '
         + 'This is a packaging issue in this app build (PortableGit was not bundled). '
@@ -2402,7 +2402,7 @@ export class CoworkRunner extends EventEmitter {
           return blockedToolResult;
         }
 
-        // Auto-approve mode (kept for compatibility with legacy callers).
+        // 自动批准模式（保留以兼容旧版调用者）。
         if (activeSession.autoApprove) {
           return { behavior: 'allow', updatedInput: resolvedInput };
         }
@@ -2608,7 +2608,7 @@ export class CoworkRunner extends EventEmitter {
         return;
       }
 
-      // Ensure any remaining streaming content is saved to database
+      // 确保任何剩余的流式内容保存到数据库
       this.finalizeStreamingContent(activeSession);
 
       const session = this.store.getSession(sessionId);
@@ -2709,8 +2709,8 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // If there's already a running sandbox VM with IPC bridge, send a
-    // continuation request to the same VM instead of spawning a new one.
+    // 如果已经有一个运行中的沙箱 VM 和 IPC 桥，发送
+    // 继续请求到同一个 VM，而不是生成新的。
     if (hasActiveSandboxVm) {
       await this.continueSandboxTurn(activeSession, effectivePrompt, resolvedCwd, systemPrompt);
       return;
@@ -2760,8 +2760,8 @@ export class CoworkRunner extends EventEmitter {
         arch: sandboxReady.runtimeInfo.arch,
       });
       await this.runClaudeCodeInSandbox(activeSession, sandboxPrompt, resolvedCwd, systemPrompt, sandboxReady.runtimeInfo);
-      // If the sandbox VM is still alive, keep the activeSession for multi-turn continuation.
-      // Otherwise (VM exited), clean up.
+      // 如果沙箱 VM 仍然存活，保留 activeSession 以进行多轮继续。
+      // 否则（VM 已退出），进行清理。
       if (!activeSession.sandboxProcess || activeSession.sandboxProcess.killed) {
         this.activeSessions.delete(sessionId);
       }
@@ -2856,11 +2856,11 @@ export class CoworkRunner extends EventEmitter {
       mounts,
     };
 
-    // NOTE: Do NOT pass activeSession.claudeSessionId here.  This method always
-    // starts a fresh VM, so any previous SDK session ID (e.g. from a prior app
-    // run stored in the DB) is unreachable by the new VM process.  Continuation
-    // within the same running VM is handled by continueSandboxTurn() instead.
-    // Clear the stale value so the new SDK session's ID will replace it.
+    // 注意：不要在此处传递 activeSession.claudeSessionId。此方法始终
+    // 启动一个新的 VM，因此任何以前的 SDK 会话 ID（例如来自之前的应用
+    // 运行并存储在数据库中）对于新的 VM 进程来说是不可达的。同一运行中
+    // 的 VM 内部继续由 continueSandboxTurn() 处理。
+    // 清除过时的值，以便新的 SDK 会话 ID 将替换它。
     activeSession.claudeSessionId = null;
 
     if (resolvedSystemPrompt) {
@@ -2885,7 +2885,7 @@ export class CoworkRunner extends EventEmitter {
       const accelMode = accelOverride ?? (process.platform === 'darwin' ? 'hvf' : process.platform === 'win32' ? 'whpx' : 'default');
       console.log(`Starting sandbox VM with acceleration: ${accelMode}, launcher: ${launcherOverride ?? 'direct'}`);
 
-      // On Windows, allocate a TCP port for virtio-serial IPC bridge
+      // 在 Windows 上，为 virtio-serial IPC 桥分配一个 TCP 端口
       let ipcPort: number | undefined;
       if (runtimeInfo.platform === 'win32') {
         try {
@@ -2922,7 +2922,7 @@ export class CoworkRunner extends EventEmitter {
         try {
           child.kill('SIGKILL');
         } catch {
-          // ignore kill race
+          // 忽略终止竞争
         }
         return { status: 'ok' };
       }
@@ -3014,19 +3014,19 @@ export class CoworkRunner extends EventEmitter {
         if (stderrBuffer.length > 10000) {
           stderrBuffer = stderrBuffer.slice(-10000);
         }
-        // Log QEMU stderr in real-time for diagnostics
+        // 实时记录 QEMU stderr 以进行诊断
         coworkLog('WARN', 'QEMUStderr', text.trim());
       });
-      // Drain stdout to avoid backpressure blocking the VM process.
+      // 排空 stdout 以避免背压阻塞 VM 进程。
       child.stdout.on('data', () => {});
 
       const streamAbort = new AbortController();
       let streamPromise: Promise<void> | null = null;
 
       try {
-        // On Windows, connect the virtio-serial bridge BEFORE waiting for VM ready,
-        // because the bridge receives heartbeat messages and writes them to the local
-        // file that waitForVmReady polls.
+        // 在 Windows 上，在等待 VM 就绪之前连接 virtio-serial 桥，
+        // 因为桥接收心跳消息并将它们写入本地文件，
+        // waitForVmReady 会轮询该文件。
         if (ipcPort && runtimeInfo.platform === 'win32') {
           const bridge = new VirtioSerialBridge(paths.ipcDir, cwdMapping.hostPath);
           try {
@@ -3036,7 +3036,7 @@ export class CoworkRunner extends EventEmitter {
             console.log(`IPC bridge connected on port ${ipcPort}`);
           } catch (error) {
             bridge.close();
-            // Check if QEMU stderr reveals acceleration failure (WHPX/Hyper-V not available)
+            // 检查 QEMU stderr 是否显示加速失败（WHPX/Hyper-V 不可用）
             const stderrSnippet = stderrBuffer.trim();
             const accelFailed = isHvfDenied(stderrSnippet) || isWhpxFailed(stderrSnippet);
             let message = `Failed to connect IPC bridge: ${error instanceof Error ? error.message : String(error)}`;
@@ -3054,7 +3054,7 @@ export class CoworkRunner extends EventEmitter {
           }
         }
 
-        // Wait for the VM to be ready before sending requests
+        // 在发送请求之前等待 VM 就绪
         const vmReady = await this.waitForVmReady(paths.ipcDir, child, 60000);
         if (!vmReady) {
           const stderrSnippet = stderrBuffer.trim();
@@ -3062,13 +3062,13 @@ export class CoworkRunner extends EventEmitter {
           if (stderrSnippet) {
             message += `\nQEMU stderr: ${stderrSnippet.slice(-1000)}`;
           }
-          // Check serial.log for additional boot diagnostics
+          // 检查 serial.log 以获取额外的启动诊断信息
           try {
             const serialLog = fs.readFileSync(path.join(paths.ipcDir, 'serial.log'), 'utf8').trim();
             if (serialLog) {
               message += `\nSerial log (last 500 chars): ${serialLog.slice(-500)}`;
             }
-          } catch { /* serial log may not exist */ }
+          } catch { /* serial 日志可能不存在 */ }
           const accelFailed = isHvfDenied(stderrSnippet) || isWhpxFailed(stderrSnippet);
           coworkLog('ERROR', 'runSandbox', 'VM failed to become ready', {
             elapsed: Date.now() - startTime,
@@ -3082,8 +3082,8 @@ export class CoworkRunner extends EventEmitter {
           return { status: 'ok' };
         }
 
-        // On Windows (serial mode), push skill files into the sandbox
-        // since 9p filesystem sharing is not available.
+        // 在 Windows（串口模式）上，将技能文件推送到沙箱中
+        // 因为 9p 文件系统共享不可用。
         if (activeSession.ipcBridge && sandboxSkills.guestSkillsRoot && sandboxSkills.skillEntries.length > 0) {
           coworkLog('INFO', 'runSandbox', 'Preparing to push skill files via serial bridge', {
             guestSkillsRoot: sandboxSkills.guestSkillsRoot,
@@ -3137,14 +3137,14 @@ export class CoworkRunner extends EventEmitter {
         const { requestId, streamPath } = buildSandboxRequest(paths, input);
         streamPromise = this.readSandboxStream(streamPath, handleLine, streamAbort.signal);
 
-        // On Windows, send the request via virtio-serial bridge instead of file
+        // 在 Windows 上，通过 virtio-serial 桥发送请求而不是文件
         if (activeSession.ipcBridge) {
           activeSession.ipcBridge.sendRequest(requestId, input);
           console.log(`Sandbox request ${requestId} sent via virtio-serial bridge`);
         }
 
         return await new Promise((resolve) => {
-          // Allow the result event handler to resolve this turn without killing the VM
+          // 允许结果事件处理器解析此轮而不终止 VM
           activeSession.sandboxTurnResolve = resolve;
 
           child.on('error', (error) => {
@@ -3159,7 +3159,7 @@ export class CoworkRunner extends EventEmitter {
             activeSession.sandboxProcess = undefined;
             activeSession.sandboxIpcDir = undefined;
 
-            // If already resolved by result event, just clean up — don't resolve again
+            // 如果已由结果事件解析，只需清理 — 不要再次解析
             if (!activeSession.sandboxTurnResolve) {
               return;
             }
@@ -3179,7 +3179,7 @@ export class CoworkRunner extends EventEmitter {
               return;
             }
 
-            // Only update status if not already completed (may have been set by result event)
+            // 仅在尚未完成时更新状态（可能已由结果事件设置）
             const session = this.store.getSession(sessionId);
             if (session?.status !== 'error' && session?.status !== 'completed') {
               this.store.updateSession(sessionId, { status: 'completed' });
@@ -3199,20 +3199,20 @@ export class CoworkRunner extends EventEmitter {
           }
         }
 
-        // If the VM is still alive (turn completed via result event), keep it
-        // running for potential multi-turn continuation.
+        // 如果 VM 仍然存活（轮次通过结果事件完成），保持其
+        // 运行以进行潜在的多轮继续。
         const vmStillAlive = activeSession.sandboxProcess && !activeSession.sandboxProcess.killed;
         if (vmStillAlive) {
-          // Only clear turn-specific state, keep VM and bridge alive
+          // 仅清除轮次特定状态，保持 VM 和桥存活
           this.clearSandboxPermissions(sessionId);
           this.clearPendingPermissions(sessionId);
           activeSession.pendingPermission = null;
         } else {
-          // VM exited or errored — full cleanup
+          // VM 已退出或出错 — 完全清理
           if (child && !child.killed) {
             try {
               child.kill('SIGTERM');
-              // Give it a moment to terminate gracefully, then force kill
+              // 给它一点时间优雅终止，然后强制终止
               setTimeout(() => {
                 if (!child.killed) {
                   child.kill('SIGKILL');
@@ -3225,7 +3225,7 @@ export class CoworkRunner extends EventEmitter {
           this.clearSandboxPermissions(sessionId);
           this.clearPendingPermissions(sessionId);
           activeSession.pendingPermission = null;
-          // Close virtio-serial bridge if active
+          // 如果活动，关闭 virtio-serial 桥
           if (activeSession.ipcBridge) {
             try {
               activeSession.ipcBridge.close();
@@ -3267,7 +3267,7 @@ export class CoworkRunner extends EventEmitter {
       if (result.hvfDenied && launcherOverride !== 'launchctl' && process.platform === 'darwin') {
         this.addSystemMessage(
           sessionId,
-          'HVF acceleration is denied in the app sandbox. Retrying via launchctl.'
+          'HVF 加速在应用沙箱中被拒绝。正在通过 launchctl 重试。'
         );
         launcherOverride = 'launchctl';
         continue;
@@ -3275,21 +3275,21 @@ export class CoworkRunner extends EventEmitter {
 
       if (result.hvfDenied && accelOverride !== 'tcg') {
         if (process.platform === 'win32') {
-          // On Windows, WHPX/Hyper-V may not be enabled. Try TCG (software emulation) as fallback.
+          // 在 Windows 上，WHPX/Hyper-V 可能未启用。尝试 TCG（软件模拟）作为后备。
           this.addSystemMessage(
             sessionId,
-            'Hardware virtualization (WHPX/Hyper-V) is unavailable. Retrying with software emulation (TCG).'
+            '硬件虚拟化（WHPX/Hyper-V）不可用。正在使用软件模拟（TCG）重试。'
           );
           accelOverride = 'tcg';
           continue;
         }
-        // HVF acceleration unavailable - instead of using slow TCG emulation,
-        // throw an error to trigger fallback to local execution mode
+        // HVF 加速不可用 - 不使用慢速 TCG 模拟，
+        // 而是抛出错误以触发回退到本地执行模式
         this.addSystemMessage(
           sessionId,
-          'HVF acceleration is unavailable. Falling back to local execution mode for better performance.'
+          'HVF 加速不可用。正在回退到本地执行模式以获得更好的性能。'
         );
-        throw new Error('HVF unavailable, fallback to local mode');
+        throw new Error('HVF 不可用，回退到本地模式');
       }
 
       throw new Error(result.message);
@@ -3298,8 +3298,8 @@ export class CoworkRunner extends EventEmitter {
   }
 
   /**
-   * Send a continuation request to an already-running sandbox VM.
-   * Reuses the existing QEMU process and IPC bridge.
+   * 向已运行的沙箱 VM 发送继续请求。
+   * 重用现有的 QEMU 进程和 IPC 桥。
    */
   private async continueSandboxTurn(
     activeSession: ActiveSession,
@@ -3314,7 +3314,7 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Reset per-turn output dedupe flags
+    // 重置每轮输出去重标志
     activeSession.hasAssistantTextOutput = false;
     activeSession.hasAssistantThinkingOutput = false;
     activeSession.currentStreamingTextTruncated = false;
@@ -3347,7 +3347,7 @@ export class CoworkRunner extends EventEmitter {
       directHostRouting: !(sandboxEnv.HTTP_PROXY || sandboxEnv.http_proxy),
     });
 
-    // Ensure the bridge has the latest host CWD for file sync
+    // 确保桥具有最新的主机 CWD 用于文件同步
     if (activeSession.ipcBridge) {
       activeSession.ipcBridge.setHostCwd(cwdMapping.hostPath);
     }
@@ -3459,13 +3459,13 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Send continuation request via IPC bridge
+    // 通过 IPC 桥发送继续请求
     activeSession.ipcBridge!.sendRequest(requestId, input);
     console.log(`Sandbox continuation request ${requestId} sent via virtio-serial bridge`);
 
     try {
       await new Promise<void>((resolve, reject) => {
-        // Allow the result event handler to resolve this turn
+        // 允许结果事件处理器解析此轮
         activeSession.sandboxTurnResolve = (result) => {
           activeSession.sandboxTurnResolve = undefined;
           if (result.status === 'ok') {
@@ -3475,7 +3475,7 @@ export class CoworkRunner extends EventEmitter {
           }
         };
 
-        // Handle unexpected process exit during this turn
+        // 处理此轮期间意外的进程退出
         const onClose = (code: number | null) => {
           if (!activeSession.sandboxTurnResolve) return;
           activeSession.sandboxTurnResolve = undefined;
@@ -3541,8 +3541,8 @@ export class CoworkRunner extends EventEmitter {
     const match = rewrittenPrompt.match(skillBlockRe);
     if (!match) return rewrittenPrompt;
 
-    // Prefer keeping the original auto-routing flow (select one skill by description,
-    // then read it) and only rewrite skill locations to sandbox paths.
+    // 优先保留原始自动路由流程（通过描述选择一个技能，
+    // 然后读取它），仅将技能位置重写为沙箱路径。
     if (guestSkillsRoot) {
       let hasLocationRewrite = false;
       const rewritten = rewrittenPrompt.replace(
@@ -3569,8 +3569,8 @@ export class CoworkRunner extends EventEmitter {
       }
     }
 
-    // Fallback: inline skill contents when location-based routing cannot be used.
-    // Extract all <location> paths from the available_skills block
+    // 后备方案：当无法使用基于位置的路由时，内联技能内容。
+    // 从 available_skills 块中提取所有 <location> 路径
     const locationRe = /<location>(.*?)<\/location>/g;
     const skillContents: string[] = [];
     let locMatch: RegExpExecArray | null;
@@ -3582,7 +3582,7 @@ export class CoworkRunner extends EventEmitter {
         if (resolvedSkillPath && fs.existsSync(resolvedSkillPath)) {
           const content = fs.readFileSync(resolvedSkillPath, 'utf8').trim();
           let rewrittenContent = this.rewriteSkillPathsForSandbox(content, resolvedSkillPath, options);
-          // Extract skill name from the <name> tag near this location
+          // 从此位置附近的 <name> 标签提取技能名称
           const nameRe = new RegExp(`<name>(.*?)</name>[\\s\\S]*?<location>${skillPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</location>`);
           const nameMatch = match[1].match(nameRe);
           const skillId = path.basename(path.dirname(resolvedSkillPath));
@@ -3614,22 +3614,22 @@ export class CoworkRunner extends EventEmitter {
     }
 
     if (skillContents.length === 0) {
-      coworkLog('WARN', 'resolveAutoRouting', 'No skill contents resolved, removing auto-routing section');
-      // Remove the entire auto-routing section if no skills could be read
+      coworkLog('WARN', 'resolveAutoRouting', '未解析到技能内容，移除自动路由部分');
+      // 如果无法读取任何技能，移除整个自动路由部分
       const sectionRe = /## Skills \(mandatory\)[\s\S]*?<\/available_skills>/;
       return rewrittenPrompt.replace(sectionRe, '').trim();
     }
 
     coworkLog('INFO', 'resolveAutoRouting', `Resolved ${skillContents.length} skills for sandbox`);
 
-    // Replace the auto-routing section with full skill content
+    // 用完整的技能内容替换自动路由部分
     const sandboxPathNote = guestSkillsRoot
       ? `Sandbox path note: Skills are mounted at \`${guestSkillsRoot}\`. If a skill mentions \`/home/ubuntu/skills\`, \`/mnt/skills\`, \`/tmp/workspace/skills\`, or \`skills/...\`, rewrite it to \`${guestSkillsRoot}/...\`.`
       : 'Sandbox path note: Prefer workspace-relative paths when skill instructions mention local files.';
     let fullContent = `# Available Skills\n\n${sandboxPathNote}\n\nFollow the instructions in each applicable skill section below:\n\n${skillContents.join('\n\n---\n\n')}`;
 
-    // Remap localhost/127.0.0.1 references to QEMU host gateway (10.0.2.2)
-    // so that skills referencing host services work from inside the sandbox
+    // 将 localhost/127.0.0.1 引用重新映射到 QEMU 主机网关（10.0.2.2）
+    // 以便引用主机服务的技能可以从沙箱内部工作
     fullContent = fullContent
       .replace(/127\.0\.0\.1/g, '10.0.2.2')
       .replace(/localhost(?=[:\/])/gi, '10.0.2.2');
@@ -3729,7 +3729,7 @@ export class CoworkRunner extends EventEmitter {
     const payload = event as Record<string, unknown>;
     const eventType = String(payload.type ?? '');
 
-    // Handle streaming events (SDKPartialAssistantMessage)
+    // 处理流式事件（SDKPartialAssistantMessage）
     if (eventType === 'stream_event') {
       this.handleStreamEvent(sessionId, activeSession, payload);
       return;
@@ -3777,8 +3777,8 @@ export class CoworkRunner extends EventEmitter {
         markAssistantTextOutput();
       }
 
-      // For sandbox mode, mark session as completed when we receive a successful result.
-      // Keep the VM alive for multi-turn conversations instead of killing it.
+      // 对于沙箱模式，当我们收到成功结果时，将会话标记为已完成。
+      // 保持 VM 存活以进行多轮对话，而不是终止它。
       if (activeSession.executionMode === 'sandbox') {
         this.finalizeStreamingContent(activeSession);
         const session = this.store.getSession(sessionId);
@@ -3787,7 +3787,7 @@ export class CoworkRunner extends EventEmitter {
           this.applyTurnMemoryUpdatesForSession(sessionId);
           this.emit('complete', sessionId, activeSession.claudeSessionId);
         }
-        // Signal turn completion — keep VM alive for multi-turn sandbox sessions
+        // 发出轮次完成信号 — 保持 VM 存活以进行多轮沙箱会话
         if (activeSession.sandboxTurnResolve) {
           const resolve = activeSession.sandboxTurnResolve;
           activeSession.sandboxTurnResolve = undefined;
@@ -3842,14 +3842,14 @@ export class CoworkRunner extends EventEmitter {
       this.handleError(sessionId, assistantEventError);
     }
 
-    // Check if we already have assistant text output from streaming
-    // Use hasAssistantTextOutput flag instead of streaming state, because
-    // content_block_stop may have already cleared the streaming state
+    // 检查我们是否已经有来自流式传输的助手文本输出
+    // 使用 hasAssistantTextOutput 标志而不是流式状态，因为
+    // content_block_stop 可能已经清除了流式状态
     const hasStreamedText = activeSession.hasAssistantTextOutput;
     const hasStreamedThinking = activeSession.hasAssistantThinkingOutput;
 
-    // Persist any pending streaming content before applying fallback assistant parsing.
-    // This prevents losing streamed text when assistant event arrives before stop events.
+    // 在应用后备助手解析之前保存任何待处理的流式内容。
+    // 这可以防止在助手事件在停止事件之前到达时丢失流式文本。
     const hadPendingTextStreaming =
       activeSession.currentStreamingMessageId !== null || activeSession.currentStreamingContent !== '';
     const hadPendingThinkingStreaming =
@@ -3860,7 +3860,7 @@ export class CoworkRunner extends EventEmitter {
 
     const messagePayload = payload.message;
     if (!messagePayload || typeof messagePayload !== 'object') {
-      // Skip text messages if we already have streamed text output
+      // 如果我们已经有流式文本输出，跳过文本消息
       if (hasStreamedText || hadPendingTextStreaming) return;
       const content = this.extractText(messagePayload);
       if (content) {
@@ -3876,7 +3876,7 @@ export class CoworkRunner extends EventEmitter {
 
     const contentBlocks = (messagePayload as Record<string, unknown>).content;
     if (!Array.isArray(contentBlocks)) {
-      // Skip text messages if we already have streamed text output
+      // 如果我们已经有流式文本输出，跳过文本消息
       if (hasStreamedText || hadPendingTextStreaming) return;
       const content = this.extractText(contentBlocks ?? messagePayload);
       if (!content) return;
@@ -3891,7 +3891,7 @@ export class CoworkRunner extends EventEmitter {
 
     const textParts: string[] = [];
     const flushTextParts = () => {
-      // Skip text messages if we already have streamed text output
+      // 如果我们已经有流式文本输出，跳过文本消息
       if (hasStreamedText || hadPendingTextStreaming || textParts.length === 0) return;
       const message = this.store.addMessage(sessionId, {
         type: 'assistant',
@@ -3979,21 +3979,21 @@ export class CoworkRunner extends EventEmitter {
     activeSession: ActiveSession,
     payload: Record<string, unknown>
   ): void {
-    // SDKPartialAssistantMessage structure:
+    // SDKPartialAssistantMessage 结构：
     // { type: 'stream_event', event: BetaRawMessageStreamEvent, ... }
     const event = payload.event as Record<string, unknown> | undefined;
     if (!event || typeof event !== 'object') return;
 
     const eventType = String(event.type ?? '');
 
-    // Handle content_block_start - create a new streaming message
+    // 处理 content_block_start - 创建新的流式消息
     if (eventType === 'content_block_start') {
       const contentBlock = event.content_block as Record<string, unknown> | undefined;
       if (!contentBlock) return;
 
       const blockType = String(contentBlock.type ?? '');
       if (blockType === 'thinking') {
-        // Start a new thinking message for streaming
+        // 为流式传输启动新的思考消息
         const initialThinkingRaw = typeof contentBlock.thinking === 'string' ? contentBlock.thinking : '';
         const initialThinking = this.truncateLargeContent(initialThinkingRaw, STREAMING_THINKING_MAX_CHARS);
         activeSession.currentStreamingThinking = initialThinking;
@@ -4014,7 +4014,7 @@ export class CoworkRunner extends EventEmitter {
           activeSession.currentStreamingThinkingMessageId = null;
         }
       } else if (blockType === 'text') {
-        // Start a new assistant message for streaming
+        // 为流式传输启动新的助手消息
         const initialTextRaw = typeof contentBlock.text === 'string' ? contentBlock.text : '';
         const initialText = this.truncateLargeContent(initialTextRaw, STREAMING_TEXT_MAX_CHARS);
         activeSession.currentStreamingContent = initialText;
@@ -4038,7 +4038,7 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Handle content_block_delta - update the streaming message
+    // 处理 content_block_delta - 更新流式消息
     if (eventType === 'content_block_delta') {
       const delta = event.delta as Record<string, unknown> | undefined;
       if (!delta) return;
@@ -4067,7 +4067,7 @@ export class CoworkRunner extends EventEmitter {
             this.emit('messageUpdate', sessionId, activeSession.currentStreamingThinkingMessageId, activeSession.currentStreamingThinking);
           }
         } else {
-          // No thinking message yet, create one
+          // 还没有思考消息，创建一个
           const message = this.store.addMessage(sessionId, {
             type: 'assistant',
             content: activeSession.currentStreamingThinking,
@@ -4091,7 +4091,7 @@ export class CoworkRunner extends EventEmitter {
         activeSession.currentStreamingContent = next.content;
         activeSession.currentStreamingTextTruncated = next.truncated;
 
-        // If we have a streaming message, emit update; otherwise create one
+        // 如果我们有流式消息，发出更新；否则创建一个
         if (activeSession.currentStreamingMessageId) {
           activeSession.hasAssistantTextOutput = true;
           if (!next.changed) {
@@ -4103,7 +4103,7 @@ export class CoworkRunner extends EventEmitter {
             this.emit('messageUpdate', sessionId, activeSession.currentStreamingMessageId, activeSession.currentStreamingContent);
           }
         } else {
-          // No message yet, create one
+          // 还没有消息，创建一个
           const message = this.store.addMessage(sessionId, {
             type: 'assistant',
             content: activeSession.currentStreamingContent,
@@ -4118,12 +4118,12 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Handle content_block_stop - finalize the streaming message
+    // 处理 content_block_stop - 完成流式消息
     if (eventType === 'content_block_stop') {
       const blockType = activeSession.currentStreamingBlockType;
 
       if (blockType === 'thinking') {
-        // Finalize thinking message
+        // 完成思考消息
         if (activeSession.currentStreamingThinkingMessageId && activeSession.currentStreamingThinking) {
           this.updateMessageMerged(sessionId, activeSession.currentStreamingThinkingMessageId, {
             content: activeSession.currentStreamingThinking,
@@ -4136,7 +4136,7 @@ export class CoworkRunner extends EventEmitter {
         activeSession.currentStreamingThinkingTruncated = false;
         activeSession.lastStreamingThinkingUpdateAt = 0;
       } else {
-        // Finalize text message (existing behavior)
+        // 完成文本消息（现有行为）
         if (activeSession.currentStreamingMessageId && activeSession.currentStreamingContent) {
           this.updateMessageMerged(sessionId, activeSession.currentStreamingMessageId, {
             content: activeSession.currentStreamingContent,
@@ -4154,9 +4154,9 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Handle message_stop - ensure everything is finalized
+    // 处理 message_stop - 确保所有内容都已完成
     if (eventType === 'message_stop') {
-      // Finalize any pending thinking message
+      // 完成任何待处理的思考消息
       if (activeSession.currentStreamingThinkingMessageId && activeSession.currentStreamingThinking) {
         this.updateMessageMerged(sessionId, activeSession.currentStreamingThinkingMessageId, {
           content: activeSession.currentStreamingThinking,
@@ -4169,7 +4169,7 @@ export class CoworkRunner extends EventEmitter {
       activeSession.currentStreamingThinkingTruncated = false;
       activeSession.lastStreamingThinkingUpdateAt = 0;
 
-      // Finalize any pending text message
+      // 完成任何待处理的文本消息
       if (activeSession.currentStreamingMessageId && activeSession.currentStreamingContent) {
         this.updateMessageMerged(sessionId, activeSession.currentStreamingMessageId, {
           content: activeSession.currentStreamingContent,
@@ -4189,7 +4189,7 @@ export class CoworkRunner extends EventEmitter {
   private finalizeStreamingContent(activeSession: ActiveSession): void {
     const { sessionId } = activeSession;
 
-    // Finalize any pending thinking message
+    // 完成任何待处理的思考消息
     if (activeSession.currentStreamingThinkingMessageId) {
       this.updateMessageMerged(sessionId, activeSession.currentStreamingThinkingMessageId, {
         content: activeSession.currentStreamingThinking,
@@ -4202,7 +4202,7 @@ export class CoworkRunner extends EventEmitter {
     activeSession.currentStreamingThinkingTruncated = false;
     activeSession.lastStreamingThinkingUpdateAt = 0;
 
-    // Finalize any pending text message
+    // 完成任何待处理的文本消息
     const { currentStreamingMessageId, currentStreamingContent } = activeSession;
     if (currentStreamingMessageId) {
       this.updateMessageMerged(sessionId, currentStreamingMessageId, {
@@ -4285,10 +4285,10 @@ export class CoworkRunner extends EventEmitter {
     const heartbeatPath = path.join(ipcDir, 'heartbeat');
     const start = Date.now();
 
-    // Use shorter polling interval for faster response
-    const pollInterval = 100; // 100ms instead of 500ms
+    // 使用更短的轮询间隔以获得更快的响应
+    const pollInterval = 100; // 100ms 而不是 500ms
 
-    // Detect early VM exit so we fail fast instead of waiting the full timeout
+    // 检测早期 VM 退出，以便快速失败而不是等待完整超时
     let processExited = false;
     let processExitCode: number | null = null;
     childProcess.on('close', (code) => {
@@ -4305,7 +4305,7 @@ export class CoworkRunner extends EventEmitter {
         if (fs.existsSync(heartbeatPath)) {
           const content = fs.readFileSync(heartbeatPath, 'utf8');
           const data = JSON.parse(content) as { timestamp?: number; ipcMounted?: boolean };
-          // Heartbeat is valid if within 10 seconds and IPC is mounted
+          // 心跳如果在 10 秒内且 IPC 已挂载则有效
           if (data.timestamp && Date.now() - data.timestamp < 10000 && data.ipcMounted) {
             const elapsed = Date.now() - start;
             console.log(`VM is ready, heartbeat received after ${elapsed}ms`);
@@ -4313,7 +4313,7 @@ export class CoworkRunner extends EventEmitter {
           }
         }
       } catch {
-        // Not ready yet
+        // 尚未就绪
       }
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
@@ -4337,7 +4337,7 @@ export class CoworkRunner extends EventEmitter {
       while (!signal.aborted) {
         if (!fileHandle) {
           if (!fs.existsSync(streamPath)) {
-            await sleep(50); // Reduced from 200ms
+            await sleep(50); // 从 200ms 减少
             continue;
           }
           fileHandle = await fs.promises.open(streamPath, 'r');
@@ -4363,7 +4363,7 @@ export class CoworkRunner extends EventEmitter {
             newlineIndex = buffer.indexOf('\n');
           }
         } else {
-          await sleep(50); // Reduced from 200ms
+          await sleep(50); // 从 200ms 减少
         }
       }
     } finally {
@@ -4441,8 +4441,8 @@ export class CoworkRunner extends EventEmitter {
     const trimmed = safeResultText.trim();
     if (!trimmed) return;
 
-    // If we have an active streaming message, prefer updating it with the final result.
-    // This avoids duplicate assistant messages when result arrives before streaming completes.
+    // 如果我们有活动的流式消息，优先使用最终结果更新它。
+    // 这可以避免在流式传输完成之前结果到达时出现重复的助手消息。
     if (activeSession.currentStreamingMessageId) {
       // 优先保留已累积的流式内容，只有在流式内容为空时才使用 resultText
       // 这样可以防止 result 事件覆盖已接收的流式内容
@@ -4462,13 +4462,13 @@ export class CoworkRunner extends EventEmitter {
       return;
     }
 
-    // Check if we already have assistant output with the same content
-    // This catches the case where streaming is complete but hasAssistantTextOutput is set
+    // 检查我们是否已经有相同内容的助手输出
+    // 这可以处理流式传输完成但 hasAssistantTextOutput 已设置的情况
     if (activeSession.hasAssistantTextOutput) {
       const session = this.store.getSession(sessionId);
       const lastAssistant = session?.messages.slice().reverse().find((message) => message.type === 'assistant');
       if (lastAssistant && lastAssistant.content?.trim() === trimmed) {
-        // Content is the same, just update metadata
+        // 内容相同，仅更新元数据
         this.updateMessageMerged(sessionId, lastAssistant.id, {
           metadata: { isFinal: true, isStreaming: false },
         });
@@ -4480,8 +4480,8 @@ export class CoworkRunner extends EventEmitter {
     const lastAssistant = session?.messages.slice().reverse().find((message) => message.type === 'assistant');
     const lastAssistantText = lastAssistant?.content?.trim() ?? '';
 
-    // If the last assistant message is a streaming placeholder (empty or still marked streaming),
-    // update it with the final result instead of adding a new message.
+    // 如果最后一条助手消息是流式占位符（空或仍标记为流式），
+    // 用最终结果更新它而不是添加新消息。
     if (lastAssistant && (lastAssistant.metadata?.isStreaming || lastAssistantText.length === 0)) {
       this.updateMessageMerged(sessionId, lastAssistant.id, {
         content: safeResultText,

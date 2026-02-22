@@ -1,79 +1,79 @@
-# Progressive Disclosure Patterns
+# 渐进式披露模式
 
-Keep SKILL.md body to the essentials and under 500 lines to minimize context bloat. Split content into separate files when approaching this limit. When splitting out content into other files, it is very important to reference them from SKILL.md and describe clearly when to read them, to ensure the reader of the skill knows they exist and when to use them.
+将 SKILL.md 正文保持在核心要点范围内，并控制在 500 行以内，以减少上下文膨胀。当接近此限制时，应将内容拆分到单独的文件中。在将内容拆分到其他文件时，务必从 SKILL.md 中引用它们，并清楚地描述何时阅读这些文件，以确保技能的读者知道它们的存在以及何时使用它们。
 
-**Key principle:** When a skill supports multiple variations, frameworks, or options, keep only the core workflow and selection guidance in SKILL.md. Move variant-specific details (patterns, examples, configuration) into separate reference files.
+**核心原则：** 当技能支持多种变体、框架或选项时，仅在 SKILL.md 中保留核心工作流程和选择指导。将特定于变体的详细信息（模式、示例、配置）移至单独的参考文件中。
 
-**Pattern 1: High-level guide with references**
+**模式 1：带有引用的高层指南**
 
 ```markdown
-# PDF Processing
+# PDF 处理
 
-## Quick start
+## 快速入门
 
-Extract text with pdfplumber:
-[code example]
+使用 pdfplumber 提取文本：
+[代码示例]
 
-## Advanced features
+## 高级功能
 
-- **Form filling**: See [FORMS.md](FORMS.md) for complete guide
-- **API reference**: See [REFERENCE.md](REFERENCE.md) for all methods
-- **Examples**: See [EXAMPLES.md](EXAMPLES.md) for common patterns
+- **表单填充**：完整指南请参阅 [FORMS.md](FORMS.md)
+- **API 参考**：所有方法请参阅 [REFERENCE.md](REFERENCE.md)
+- **示例**：常用模式请参阅 [EXAMPLES.md](EXAMPLES.md)
 ```
 
-Manus loads FORMS.md, REFERENCE.md, or EXAMPLES.md only when needed.
+Manus 仅在需要时才加载 FORMS.md、REFERENCE.md 或 EXAMPLES.md。
 
-**Pattern 2: Domain-specific organization**
+**模式 2：按领域组织**
 
-For Skills with multiple domains, organize content by domain to avoid loading irrelevant context:
+对于包含多个领域的技能，按领域组织内容以避免加载无关的上下文：
 
 ```
 bigquery-skill/
-├── SKILL.md (overview and navigation)
+├── SKILL.md（概述和导航）
 └── reference/
-    ├── finance.md (revenue, billing metrics)
-    ├── sales.md (opportunities, pipeline)
-    ├── product.md (API usage, features)
-    └── marketing.md (campaigns, attribution)
+    ├── finance.md（收入、账单指标）
+    ├── sales.md（商机、销售管线）
+    ├── product.md（API 使用、功能）
+    └── marketing.md（营销活动、归因分析）
 ```
 
-When a user asks about sales metrics, Manus only reads sales.md.
+当用户询问销售指标时，Manus 仅读取 sales.md。
 
-Similarly, for skills supporting multiple frameworks or variants, organize by variant:
+同样，对于支持多种框架或变体的技能，按变体组织：
 
 ```
 cloud-deploy/
-├── SKILL.md (workflow + provider selection)
+├── SKILL.md（工作流程 + 提供商选择）
 └── references/
-    ├── aws.md (AWS deployment patterns)
-    ├── gcp.md (GCP deployment patterns)
-    └── azure.md (Azure deployment patterns)
+    ├── aws.md（AWS 部署模式）
+    ├── gcp.md（GCP 部署模式）
+    └── azure.md（Azure 部署模式）
 ```
 
-When the user chooses AWS, Manus only reads aws.md.
+当用户选择 AWS 时，Manus 仅读取 aws.md。
 
-**Pattern 3: Conditional details**
+**模式 3：条件性详情**
 
-Show basic content, link to advanced content:
+展示基础内容，链接到高级内容：
 
 ```markdown
-# DOCX Processing
+# DOCX 处理
 
-## Creating documents
+## 创建文档
 
-Use docx-js for new documents. See [DOCX-JS.md](DOCX-JS.md).
+使用 docx-js 创建新文档。请参阅 [DOCX-JS.md](DOCX-JS.md)。
 
-## Editing documents
+## 编辑文档
 
-For simple edits, modify the XML directly.
+对于简单编辑，直接修改 XML。
 
-**For tracked changes**: See [REDLINING.md](REDLINING.md)
-**For OOXML details**: See [OOXML.md](OOXML.md)
+**对于修订追踪**：请参阅 [REDLINING.md](REDLINING.md)
+**对于 OOXML 详情**：请参阅 [OOXML.md](OOXML.md)
 ```
 
-Manus reads REDLINING.md or OOXML.md only when the user needs those features.
+Manus 仅在用户需要这些功能时才读取 REDLINING.md 或 OOXML.md。
 
-**Important guidelines:**
+**重要指南：**
 
-- **Avoid deeply nested references** - Keep references one level deep from SKILL.md. All reference files should link directly from SKILL.md.
-- **Structure longer reference files** - For files longer than 100 lines, include a table of contents at the top so Manus can see the full scope when previewing.
+- **避免深层嵌套引用** - 保持引用在 SKILL.md 下一层深度。所有参考文件应直接从 SKILL.md 链接。
+- **结构化较长的参考文件** - 对于超过 100 行的文件，在顶部包含目录，以便 Manus 在预览时能看到完整范围。

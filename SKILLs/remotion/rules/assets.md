@@ -1,19 +1,19 @@
 ---
 name: assets
-description: Importing images, videos, audio, and fonts into Remotion
+description: 在 Remotion 中导入图片、视频、音频和字体
 metadata:
   tags: assets, staticFile, images, fonts, public
 ---
 
-# Importing assets in Remotion
+# 在 Remotion 中导入资源
 
-## The public folder
+## public 文件夹
 
-Place assets in the `public/` folder at your project root.
+将资源放置在项目根目录的 `public/` 文件夹中。
 
-## Using staticFile()
+## 使用 staticFile()
 
-You MUST use `staticFile()` to reference files from the `public/` folder:
+您必须使用 `staticFile()` 来引用 `public/` 文件夹中的文件：
 
 ```tsx
 import {Img, staticFile} from 'remotion';
@@ -23,11 +23,11 @@ export const MyComposition = () => {
 };
 ```
 
-The function returns an encoded URL that works correctly when deploying to subdirectories.
+该函数返回一个经过编码的 URL，在部署到子目录时能够正常工作。
 
-## Using with components
+## 配合组件使用
 
-**Images:**
+**图片：**
 
 ```tsx
 import {Img, staticFile} from 'remotion';
@@ -35,7 +35,7 @@ import {Img, staticFile} from 'remotion';
 <Img src={staticFile('photo.png')} />;
 ```
 
-**Videos:**
+**视频：**
 
 ```tsx
 import {Video} from '@remotion/media';
@@ -44,7 +44,7 @@ import {staticFile} from 'remotion';
 <Video src={staticFile('clip.mp4')} />;
 ```
 
-**Audio:**
+**音频：**
 
 ```tsx
 import {Audio} from '@remotion/media';
@@ -53,7 +53,7 @@ import {staticFile} from 'remotion';
 <Audio src={staticFile('music.mp3')} />;
 ```
 
-**Fonts:**
+**字体：**
 
 ```tsx
 import {staticFile} from 'remotion';
@@ -63,16 +63,16 @@ await fontFamily.load();
 document.fonts.add(fontFamily);
 ```
 
-## Remote URLs
+## 远程 URL
 
-Remote URLs can be used directly without `staticFile()`:
+远程 URL 可以直接使用，无需 `staticFile()`：
 
 ```tsx
 <Img src="https://example.com/image.png" />
 <Video src="https://remotion.media/video.mp4" />
 ```
 
-## Important notes
+## 重要说明
 
-- Remotion components (`<Img>`, `<Video>`, `<Audio>`) ensure assets are fully loaded before rendering
-- Special characters in filenames (`#`, `?`, `&`) are automatically encoded
+- Remotion 组件（`<Img>`、`<Video>`、`<Audio>`）确保资源在渲染前完全加载
+- 文件名中的特殊字符（`#`、`?`、`&`）会自动编码

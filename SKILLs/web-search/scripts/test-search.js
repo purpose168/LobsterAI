@@ -1,36 +1,36 @@
 #!/usr/bin/env node
 /**
- * Integration test for Bridge Server and Bing Search
+ * 桥接服务器和必应搜索的集成测试
  */
 
 const BridgeServer = require('../dist/server/index').default;
 
 async function testSearchIntegration() {
-  console.log('\n=== Web Search Skill - Integration Test ===\n');
+  console.log('\n=== 网页搜索技能 - 集成测试 ===\n');
 
   const server = new BridgeServer();
   let connectionId = null;
 
   try {
-    // Start Bridge Server
-    console.log('Step 1: Starting Bridge Server...');
+    // 启动桥接服务器
+    console.log('步骤 1: 正在启动桥接服务器...');
     await server.start();
-    console.log('✓ Bridge Server started\n');
+    console.log('✓ 桥接服务器已启动\n');
 
-    // Wait a moment for server to be ready
+    // 等待服务器准备就绪
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Launch browser via API
-    console.log('Step 2: Launching browser via API...');
+    // 通过 API 启动浏览器
+    console.log('步骤 2: 正在通过 API 启动浏览器...');
     const launchResponse = await fetch('http://127.0.0.1:8923/api/browser/launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
     const launchData = await launchResponse.json();
-    console.log(`✓ Browser launched: PID ${launchData.data.pid}\n`);
+    console.log(`✓ 浏览器已启动: 进程ID ${launchData.data.pid}\n`);
 
-    // Connect to browser
-    console.log('Step 3: Connecting to browser...');
+    // 连接到浏览器
+    console.log('步骤 3: 正在连接到浏览器...');
     const connectResponse = await fetch('http://127.0.0.1:8923/api/browser/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,10 +38,10 @@ async function testSearchIntegration() {
     });
     const connectData = await connectResponse.json();
     connectionId = connectData.data.connectionId;
-    console.log(`✓ Connected: ${connectionId}\n`);
+    console.log(`✓ 已连接: ${connectionId}\n`);
 
-    // Perform search
-    console.log('Step 4: Performing Bing search for "TypeScript tutorial"...');
+    // 执行搜索
+    console.log('步骤 4: 正在必应搜索 "TypeScript tutorial"...');
     const searchResponse = await fetch('http://127.0.0.1:8923/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -52,20 +52,20 @@ async function testSearchIntegration() {
       })
     });
     const searchData = await searchResponse.json();
-    console.log(`✓ Search completed in ${searchData.data.duration}ms\n`);
+    console.log(`✓ 搜索完成，耗时 ${searchData.data.duration}毫秒\n`);
 
-    // Display results
-    console.log('Search Results:');
+    // 显示结果
+    console.log('搜索结果:');
     console.log('─'.repeat(80));
     searchData.data.results.forEach((result, index) => {
       console.log(`\n${index + 1}. ${result.title}`);
-      console.log(`   URL: ${result.url}`);
-      console.log(`   Snippet: ${result.snippet.substring(0, 150)}...`);
+      console.log(`   网址: ${result.url}`);
+      console.log(`   摘要: ${result.snippet.substring(0, 150)}...`);
     });
     console.log('\n' + '─'.repeat(80));
 
-    // Take screenshot
-    console.log('\nStep 5: Taking screenshot...');
+    // 截取屏幕截图
+    console.log('\n步骤 5: 正在截取屏幕截图...');
     const screenshotResponse = await fetch('http://127.0.0.1:8923/api/page/screenshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -75,31 +75,31 @@ async function testSearchIntegration() {
       })
     });
     const screenshotData = await screenshotResponse.json();
-    console.log(`✓ Screenshot captured: ${screenshotData.data.size} bytes\n`);
+    console.log(`✓ 屏幕截图已捕获: ${screenshotData.data.size} 字节\n`);
 
-    // Get page text
-    console.log('Step 6: Getting page text...');
+    // 获取页面文本
+    console.log('步骤 6: 正在获取页面文本...');
     const textResponse = await fetch('http://127.0.0.1:8923/api/page/text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connectionId })
     });
     const textData = await textResponse.json();
-    console.log(`✓ Page text retrieved: ${textData.data.text.length} chars\n`);
+    console.log(`✓ 页面文本已获取: ${textData.data.text.length} 个字符\n`);
 
-    // Check status
-    console.log('Step 7: Checking server status...');
+    // 检查状态
+    console.log('步骤 7: 正在检查服务器状态...');
     const statusResponse = await fetch('http://127.0.0.1:8923/api/browser/status');
     const statusData = await statusResponse.json();
-    console.log(`✓ Status: ${JSON.stringify(statusData.data, null, 2)}\n`);
+    console.log(`✓ 状态: ${JSON.stringify(statusData.data, null, 2)}\n`);
 
-    console.log('=== All integration tests passed! ===\n');
+    console.log('=== 所有集成测试通过！ ===\n');
   } catch (error) {
-    console.error('\n❌ Test failed:', error);
+    console.error('\n❌ 测试失败:', error);
     process.exit(1);
   } finally {
-    // Cleanup
-    console.log('Cleaning up...');
+    // 清理资源
+    console.log('正在清理资源...');
     if (connectionId) {
       try {
         await fetch('http://127.0.0.1:8923/api/browser/disconnect', {
@@ -108,17 +108,17 @@ async function testSearchIntegration() {
           body: JSON.stringify({ connectionId })
         });
       } catch (error) {
-        console.warn('Failed to disconnect:', error.message);
+        console.warn('断开连接失败:', error.message);
       }
     }
     await server.stop();
-    console.log('✓ Cleanup complete\n');
+    console.log('✓ 清理完成\n');
     process.exit(0);
   }
 }
 
-// Run test
+// 运行测试
 testSearchIntegration().catch(error => {
-  console.error('Fatal error:', error);
+  console.error('致命错误:', error);
   process.exit(1);
 });

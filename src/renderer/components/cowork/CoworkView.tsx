@@ -31,12 +31,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const dispatch = useDispatch();
   const isMac = window.electron.platform === 'darwin';
   const [isInitialized, setIsInitialized] = useState(false);
-  // Track if we're starting a session to prevent duplicate submissions
+  // 跟踪是否正在启动会话，以防止重复提交
   const isStartingRef = useRef(false);
-  // Track pending start request so stop can cancel delayed startup.
+  // 跟踪待处理的启动请求，以便停止操作可以取消延迟的启动
   const pendingStartRef = useRef<{ requestId: number; cancelled: boolean } | null>(null);
   const startRequestIdRef = useRef(0);
-  // Ref for CoworkPromptInput
+  // CoworkPromptInput 组件的引用
   const promptInputRef = useRef<CoworkPromptInputRef>(null);
 
   const {
@@ -68,13 +68,13 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   useEffect(() => {
     const init = async () => {
       await coworkService.init();
-      // Load quick actions with localization
+      // 加载快捷操作并进行本地化
       try {
         quickActionService.initialize();
         const actions = await quickActionService.getLocalizedActions();
         dispatch(setActions(actions));
       } catch (error) {
-        console.error('Failed to load quick actions:', error);
+        console.error('加载快捷操作失败:', error);
       }
       try {
         const apiConfig = await coworkService.checkApiConfig();
@@ -85,19 +85,19 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
           });
         }
       } catch (error) {
-        console.error('Failed to check cowork API config:', error);
+        console.error('检查协作 API 配置失败:', error);
       }
       setIsInitialized(true);
     };
     init();
 
-    // Subscribe to language changes to reload quick actions
+    // 订阅语言变化以重新加载快捷操作
     const unsubscribe = quickActionService.subscribe(async () => {
       try {
         const actions = await quickActionService.getLocalizedActions();
         dispatch(setActions(actions));
       } catch (error) {
-        console.error('Failed to reload quick actions:', error);
+        console.error('重新加载快捷操作失败:', error);
       }
     });
 
@@ -107,7 +107,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   }, [dispatch]);
 
   const handleStartSession = async (prompt: string, skillPrompt?: string) => {
-    // Prevent duplicate submissions
+    // 防止重复提交
     if (isStartingRef.current) return;
     isStartingRef.current = true;
     const requestId = ++startRequestIdRef.current;
@@ -129,15 +129,15 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
           return;
         }
       } catch (error) {
-        console.error('Failed to check cowork API config:', error);
+        console.error('检查协作 API 配置失败:', error);
       }
 
-      // Create a temporary session with user message to show immediately
+      // 创建一个包含用户消息的临时会话，以便立即显示
       const tempSessionId = `temp-${Date.now()}`;
       const fallbackTitle = prompt.split('\n')[0].slice(0, 50) || i18nService.t('coworkNewSession');
       const now = Date.now();
 
-      // Capture active skill IDs before clearing them
+      // 在清除之前捕获活跃技能 ID
       const sessionSkillIds = [...activeSkillIds];
 
       const tempSession: CoworkSession = {
@@ -163,17 +163,17 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         ],
       };
 
-      // Immediately show the session detail page with user message
+      // 立即显示包含用户消息的会话详情页面
       dispatch(setCurrentSession(tempSession));
       dispatch(setStreaming(true));
 
-      // Clear active skills and quick action selection after starting session
-      // so they don't persist to next session
+      // 在启动会话后清除活跃技能和快捷操作选择
+      // 这样它们就不会持续到下一个会话
       dispatch(clearActiveSkills());
       dispatch(clearSelection());
 
-      // Combine skill prompt with system prompt
-      // If no manual skill selected, use auto-routing prompt
+      // 将技能提示词与系统提示词组合
+      // 如果没有手动选择技能，则使用自动路由提示词
       let effectiveSkillPrompt = skillPrompt;
       if (!skillPrompt) {
         effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
@@ -182,13 +182,13 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         .filter(p => p?.trim())
         .join('\n\n') || undefined;
 
-      // Generate title in background while starting session
+      // 在后台生成标题，同时启动会话
       const [generatedTitle] = await Promise.all([
         coworkService.generateSessionTitle(prompt).catch(error => {
-          console.error('Failed to generate cowork session title:', error);
+          console.error('生成协作会话标题失败:', error);
           return null;
         }),
-        // Small delay to ensure UI updates before heavy operations
+        // 短暂延迟以确保 UI 在繁重操作之前更新
         new Promise(resolve => setTimeout(resolve, 0)),
       ]);
 
@@ -198,7 +198,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
 
       const title = generatedTitle?.trim() || fallbackTitle;
 
-      // Start the actual session - this will replace the temp session via addSession
+      // 启动实际会话 - 这将通过 addSession 替换临时会话
       const startedSession = await coworkService.startSession({
         prompt,
         title,
@@ -207,7 +207,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         activeSkillIds: sessionSkillIds,
       });
 
-      // Stop immediately if user cancelled while startup request was in flight.
+      // 如果用户在启动请求进行中时取消，立即停止
       if (isPendingStartCancelled() && startedSession) {
         await coworkService.stopSession(startedSession.id);
       }
@@ -222,16 +222,16 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const handleContinueSession = async (prompt: string, skillPrompt?: string) => {
     if (!currentSession) return;
 
-    // Capture active skill IDs before clearing
+    // 在清除之前捕获活跃技能 ID
     const sessionSkillIds = [...activeSkillIds];
 
-    // Clear active skills after capturing so they don't persist to next message
+    // 捕获后清除活跃技能，这样它们就不会持续到下一条消息
     if (sessionSkillIds.length > 0) {
       dispatch(clearActiveSkills());
     }
 
-    // Combine skill prompt with system prompt for continuation
-    // If no manual skill selected, use auto-routing prompt
+    // 将技能提示词与系统提示词组合以继续会话
+    // 如果没有手动选择技能，则使用自动路由提示词
     let effectiveSkillPrompt = skillPrompt;
     if (!skillPrompt) {
       effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
@@ -256,12 +256,12 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     await coworkService.stopSession(currentSession.id);
   };
 
-  // Get selected quick action
+  // 获取选中的快捷操作
   const selectedAction = React.useMemo(() => {
     return quickActions.find(action => action.id === selectedActionId);
   }, [quickActions, selectedActionId]);
 
-  // Handle quick action button click: select action + activate skill in one batch
+  // 处理快捷操作按钮点击：选择操作并批量激活技能
   const handleActionSelect = (actionId: string) => {
     dispatch(selectAction(actionId));
     const action = quickActions.find(a => a.id === actionId);
@@ -273,7 +273,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     }
   };
 
-  // When the mapped skill is deactivated from input area, restore the QuickActionBar
+  // 当映射的技能从输入区域停用时，恢复 QuickActionBar
   useEffect(() => {
     if (!selectedActionId) return;
     const action = quickActions.find(a => a.id === selectedActionId);
@@ -285,9 +285,9 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     }
   }, [activeSkillIds]);
 
-  // Handle prompt selection from QuickAction
+  // 处理从 QuickAction 选择提示词
   const handleQuickActionPromptSelect = (prompt: string) => {
-    // Fill the prompt into input
+    // 将提示词填充到输入框
     promptInputRef.current?.setValue(prompt);
     promptInputRef.current?.focus();
   };
@@ -321,7 +321,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     );
   }
 
-  // When there's a current session, show the session detail view
+  // 当存在当前会话时，显示会话详情视图
   if (currentSession) {
     return (
       <>
@@ -339,10 +339,10 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     );
   }
 
-  // Home view - no current session
+  // 主页视图 - 无当前会话
   return (
     <div className="flex-1 flex flex-col dark:bg-claude-darkBg bg-claude-bg h-full">
-      {/* Header */}
+      {/* 头部 */}
       <div className="draggable flex h-12 items-center justify-between px-4 border-b dark:border-claude-darkBorder border-claude-border shrink-0">
         <div className="non-draggable h-8 flex items-center">
           {isSidebarCollapsed && (
@@ -369,10 +369,10 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         <WindowTitleBar inline />
       </div>
 
-      {/* Main Content */}
+      {/* 主内容区域 */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-3xl mx-auto px-4 py-16 space-y-12">
-          {/* Welcome Section */}
+          {/* 欢迎区域 */}
           <div className="text-center space-y-5">
             <img src="logo.png" alt="logo" className="w-16 h-16 mx-auto" />
             <h2 className="text-3xl font-bold tracking-tight dark:text-claude-darkText text-claude-text">
@@ -383,7 +383,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             </p>
           </div>
 
-          {/* Prompt Input Area - Large version with folder selector */}
+          {/* 提示词输入区域 - 带文件夹选择器的大版本 */}
           <div className="space-y-3">
             <div className="shadow-glow-accent rounded-2xl">
               <CoworkPromptInput
@@ -403,7 +403,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* 快捷操作 */}
           <div className="space-y-4">
             {selectedAction ? (
               <PromptPanel

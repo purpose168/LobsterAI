@@ -1,74 +1,75 @@
 ---
 name: create-plan
-description: Create a concise plan. Use when a user explicitly asks for a plan related to a coding task.
+description: 创建简洁的计划。当用户明确要求制定与编码任务相关的计划时使用。
 metadata:
-  short-description: Create a plan
+  short-description: 创建计划
 ---
 
-# Create Plan
+# 创建计划
 
-## Goal
+## 目标
 
-Turn a user prompt into a **single, actionable plan** delivered in the final assistant message.
+将用户提示转换为**单一、可执行的计划**，并在最终的助手消息中交付。
 
-## Minimal workflow
+## 最小化工作流程
 
-Throughout the entire workflow, operate in read-only mode. Do not write or update files.
+在整个工作流程中，以只读模式运行。不要写入或更新文件。
 
-1. **Scan context quickly**
-   - Read `README.md` and any obvious docs (`docs/`, `CONTRIBUTING.md`, `ARCHITECTURE.md`).
-   - Skim relevant files (the ones most likely touched).
-   - Identify constraints (language, frameworks, CI/test commands, deployment shape).
+1. **快速扫描上下文**
+   - 阅读 `README.md` 和任何明显的文档（`docs/`、`CONTRIBUTING.md`、`ARCHITECTURE.md`）。
+   - 浏览相关文件（最可能被修改的文件）。
+   - 识别约束条件（语言、框架、CI/测试命令、部署形态）。
 
-2. **Ask follow-ups only if blocking**
-   - Ask **at most 1–2 questions**.
-   - Only ask if you cannot responsibly plan without the answer; prefer multiple-choice.
-   - If unsure but not blocked, make a reasonable assumption and proceed.
+2. **仅在阻塞时提出后续问题**
+   - 最多提出 **1-2 个问题**。
+   - 仅在无法在没有答案的情况下负责任地制定计划时才提问；优先使用多选题形式。
+   - 如果不确定但未被阻塞，做出合理假设并继续进行。
 
-3. **Create a plan using the template below**
-   - Start with **1 short paragraph** describing the intent and approach.
-   - Clearly call out what is **in scope** and what is **not in scope** in short.
-   - Then provide a **small checklist** of action items (default 6–10 items).
-      - Each checklist item should be a concrete action and, when helpful, mention files/commands.
-      - **Make items atomic and ordered**: discovery → changes → tests → rollout.
-      - **Verb-first**: “Add…”, “Refactor…”, “Verify…”, “Ship…”.
-   - Include at least one item for **tests/validation** and one for **edge cases/risk** when applicable.
-   - If there are unknowns, include a tiny **Open questions** section (max 3).
+3. **使用下面的模板创建计划**
+   - 以 **1 个简短段落**开头，描述意图和方法。
+   - 简要明确指出**范围内**和**范围外**的内容。
+   - 然后提供**小型检查清单**的行动项（默认 6-10 项）。
+      - 每个检查清单项应该是一个具体的行动，并在有帮助时提及文件/命令。
+      - **使项目原子化并有序**：发现 → 更改 → 测试 → 发布。
+      - **动词开头**："添加…"、"重构…"、"验证…"、"发布…"。
+   - 在适用时至少包含一项**测试/验证**和一项**边缘情况/风险**。
+   - 如果存在未知因素，包含一个小型的**待解决问题**部分（最多 3 个）。
 
-4. **Do not preface the plan with meta explanations; output only the plan as per template**
+4. **不要在计划前添加元解释；仅按模板输出计划**
 
-## Plan template (follow exactly)
+## 计划模板（严格遵循）
 
 ```markdown
-# Plan
+# 计划
 
-<1–3 sentences: what we’re doing, why, and the high-level approach.>
+<1-3 句话：我们正在做什么、为什么做，以及高层级方法。>
 
-## Scope
-- In:
-- Out:
+## 范围
+- 包含：
+- 不包含：
 
-## Action items
-[ ] <Step 1>
-[ ] <Step 2>
-[ ] <Step 3>
-[ ] <Step 4>
-[ ] <Step 5>
-[ ] <Step 6>
+## 行动项
+[ ] <步骤 1>
+[ ] <步骤 2>
+[ ] <步骤 3>
+[ ] <步骤 4>
+[ ] <步骤 5>
+[ ] <步骤 6>
 
-## Open questions
-- <Question 1>
-- <Question 2>
-- <Question 3>
+## 待解决问题
+- <问题 1>
+- <问题 2>
+- <问题 3>
 ```
 
-## Checklist item guidance
-Good checklist items:
-- Point to likely files/modules: src/..., app/..., services/...
-- Name concrete validation: “Run npm test”, “Add unit tests for X”
-- Include safe rollout when relevant: feature flag, migration plan, rollback note
+## 检查清单项指南
 
-Avoid:
-- Vague steps (“handle backend”, “do auth”)
-- Too many micro-steps
-- Writing code snippets (keep the plan implementation-agnostic)
+良好的检查清单项：
+- 指向可能的文件/模块：src/...、app/...、services/...
+- 命名具体的验证："运行 npm test"、"为 X 添加单元测试"
+- 在相关时包含安全发布：功能开关、迁移计划、回滚说明
+
+应避免：
+- 模糊的步骤（"处理后端"、"做认证"）
+- 过多的微步骤
+- 编写代码片段（保持计划与实现无关）

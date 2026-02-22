@@ -1,121 +1,121 @@
-# Web Search Skill
+# 网页搜索技能
 
-Real-time web search capability for LobsterAI using Playwright-controlled browser automation.
+使用 Playwright 控制的浏览器自动化为 LobsterAI 提供实时网页搜索能力。
 
-## Overview
+## 概述
 
-The Web Search Skill enables LobsterAI to perform live web searches using Google and Bing, with automatic fallback when one provider is unavailable. The skill uses Playwright to control a local Chrome browser instance, making all operations transparent and observable.
+网页搜索技能使 LobsterAI 能够使用 Google 和 Bing 执行实时网页搜索，当一个提供商不可用时会自动回退。该技能使用 Playwright 控制本地 Chrome 浏览器实例，使所有操作透明且可观察。
 
-## Features
+## 功能特性
 
-- ✅ **Real-time Search** - Access current web information via Google with Bing fallback
-- ✅ **Transparent Operations** - Visible browser window shows all actions
-- ✅ **Playwright-Powered** - Robust browser automation using playwright-core
-- ✅ **Simple CLI** - Easy-to-use command-line interface for Claude
-- ✅ **HTTP API** - RESTful Bridge Server for advanced integrations
-- ✅ **Auto-Managed** - Electron automatically starts/stops the service
-- ✅ **Connection Caching** - Reuses browser connections for performance
-- ✅ **Localhost Only** - Secure by design, no external exposure
+- ✅ **实时搜索** - 通过 Google 访问当前网页信息，支持 Bing 回退
+- ✅ **透明操作** - 可见的浏览器窗口显示所有操作
+- ✅ **Playwright 驱动** - 使用 playwright-core 实现稳健的浏览器自动化
+- ✅ **简单 CLI** - 为 Claude 提供易用的命令行界面
+- ✅ **HTTP API** - 用于高级集成的 RESTful 桥接服务器
+- ✅ **自动管理** - Electron 自动启动/停止服务
+- ✅ **连接缓存** - 重用浏览器连接以提升性能
+- ✅ **仅限本地** - 设计安全，无外部暴露
 
-## Architecture
+## 架构
 
 ```
-Claude → Bash Tool → CLI Scripts → Bridge Server (localhost:8923) → Playwright → CDP → Chrome
+Claude → Bash 工具 → CLI 脚本 → 桥接服务器 (localhost:8923) → Playwright → CDP → Chrome
 ```
 
-**Components:**
+**组件：**
 
-1. **Bridge Server** - Express HTTP API for browser control
-2. **Playwright Manager** - Connection and session management
-3. **Browser Launcher** - Chrome lifecycle management
-4. **Search Engines** - Google primary and Bing fallback
-5. **CLI Scripts** - Simplified command-line interface
-6. **Electron Integration** - Automatic service management
+1. **桥接服务器** - 用于浏览器控制的 Express HTTP API
+2. **Playwright 管理器** - 连接和会话管理
+3. **浏览器启动器** - Chrome 生命周期管理
+4. **搜索引擎** - Google 为主，Bing 为备用
+5. **CLI 脚本** - 简化的命令行界面
+6. **Electron 集成** - 自动服务管理
 
-## Quick Start
+## 快速开始
 
-### 1. Install Dependencies
+### 1. 安装依赖
 
 ```bash
 cd SKILLs/web-search
 npm install
 ```
 
-### 2. Build
+### 2. 构建
 
 ```bash
 npm run build
 ```
 
-### 3. Start Server
+### 3. 启动服务器
 
 ```bash
 bash scripts/start-server.sh
 ```
 
-### 4. Perform Search
+### 4. 执行搜索
 
 ```bash
 bash scripts/search.sh "TypeScript tutorial" 5
 ```
 
-### 5. Stop Server
+### 5. 停止服务器
 
 ```bash
 bash scripts/stop-server.sh
 ```
 
-## Usage
+## 使用方法
 
-### Simple Search
+### 简单搜索
 
 ```bash
-bash SKILLs/web-search/scripts/search.sh "search query" [max_results]
+bash SKILLs/web-search/scripts/search.sh "搜索查询" [最大结果数]
 ```
 
-**Examples:**
+**示例：**
 
 ```bash
-# Search for React 19 features (default 10 results)
+# 搜索 React 19 特性（默认 10 条结果）
 bash scripts/search.sh "React 19 new features"
 
-# Search for TypeScript tutorials (limit to 5 results)
+# 搜索 TypeScript 教程（限制为 5 条结果）
 bash scripts/search.sh "TypeScript tutorial" 5
 
-# Search for current news
+# 搜索当前新闻
 bash scripts/search.sh "AI news 2026" 10
 ```
 
-### API Usage
+### API 使用
 
-See [examples/basic-search.md](examples/basic-search.md) for complete API documentation.
+完整 API 文档请参阅 [examples/basic-search.md](examples/basic-search.md)。
 
-**Health Check:**
+**健康检查：**
 ```bash
 curl http://127.0.0.1:8923/api/health
 ```
 
-**Search:**
+**搜索：**
 ```bash
 curl -X POST http://127.0.0.1:8923/api/search \
   -H "Content-Type: application/json" \
   -d '{"connectionId": "...", "query": "...", "maxResults": 5}'
 ```
 
-## Configuration
+## 配置
 
-Default configuration in `server/config.ts`:
+`server/config.ts` 中的默认配置：
 
 ```typescript
 {
   browser: {
     cdpPort: 9222,
-    headless: false,  // Always visible
+    headless: false,  // 始终可见
     chromeFlags: [/* ... */]
   },
   server: {
     port: 8923,
-    host: '127.0.0.1'  // Localhost only
+    host: '127.0.0.1'  // 仅限本地
   },
   search: {
     defaultEngine: 'auto',
@@ -127,213 +127,213 @@ Default configuration in `server/config.ts`:
 }
 ```
 
-## How Claude Uses This Skill
+## Claude 如何使用此技能
 
-When Claude needs real-time information, it will:
+当 Claude 需要实时信息时，它会：
 
-1. **Recognize the need** - Questions about current events, latest docs, etc.
-2. **Check server** - Verify Bridge Server is running
-3. **Execute search** - Run `bash scripts/search.sh "query" N`
-4. **Parse results** - Extract relevant information from Markdown output
-5. **Answer user** - Provide response based on search results
+1. **识别需求** - 关于当前事件、最新文档等问题
+2. **检查服务器** - 验证桥接服务器是否运行
+3. **执行搜索** - 运行 `bash scripts/search.sh "查询" N`
+4. **解析结果** - 从 Markdown 输出中提取相关信息
+5. **回答用户** - 基于搜索结果提供响应
 
-**Example Interaction:**
+**交互示例：**
 
 ```
-User: What are the new features in Next.js 14?
+用户：Next.js 14 有哪些新功能？
 
-Claude: [Calls: bash SKILLs/web-search/scripts/search.sh "Next.js 14 features" 5]
+Claude：[调用：bash SKILLs/web-search/scripts/search.sh "Next.js 14 features" 5]
 
-        Based on the latest search results, Next.js 14 introduces:
-        1. Turbopack - 5000x faster than Webpack
-        2. Server Actions (stable) - Simplified data mutations
-        3. Partial Prerendering - Faster page loads
+        根据最新的搜索结果，Next.js 14 引入了：
+        1. Turbopack - 比 Webpack 快 5000 倍
+        2. Server Actions（稳定版）- 简化数据变更
+        3. 部分预渲染 - 更快的页面加载
         ...
 ```
 
-## API Endpoints
+## API 端点
 
-### Browser Management
-- `POST /api/browser/launch` - Launch Chrome
-- `POST /api/browser/connect` - Connect to browser
-- `POST /api/browser/disconnect` - Disconnect
-- `GET /api/browser/status` - Get status
+### 浏览器管理
+- `POST /api/browser/launch` - 启动 Chrome
+- `POST /api/browser/connect` - 连接到浏览器
+- `POST /api/browser/disconnect` - 断开连接
+- `GET /api/browser/status` - 获取状态
 
-### Search Operations
-- `POST /api/search` - Execute search
-- `POST /api/search/content` - Get URL content
+### 搜索操作
+- `POST /api/search` - 执行搜索
+- `POST /api/search/content` - 获取 URL 内容
 
-### Page Operations
-- `POST /api/page/navigate` - Navigate to URL
-- `POST /api/page/screenshot` - Take screenshot
-- `POST /api/page/content` - Get HTML content
-- `POST /api/page/text` - Get text content
+### 页面操作
+- `POST /api/page/navigate` - 导航到 URL
+- `POST /api/page/screenshot` - 截取屏幕截图
+- `POST /api/page/content` - 获取 HTML 内容
+- `POST /api/page/text` - 获取文本内容
 
-### Utility
-- `GET /api/health` - Health check
-- `GET /api/connections` - List connections
+### 实用工具
+- `GET /api/health` - 健康检查
+- `GET /api/connections` - 列出连接
 
-## Project Structure
+## 项目结构
 
 ```
 SKILLs/web-search/
-├── README.md                    # This file
-├── SKILL.md                     # Skill documentation (for Claude)
-├── LICENSE.txt                  # MIT License
-├── package.json                 # Dependencies
-├── tsconfig.json                # TypeScript config
-├── server/                      # Bridge Server source
-│   ├── index.ts                 # Express server
-│   ├── config.ts                # Configuration
+├── README.md                    # 本文件
+├── SKILL.md                     # 技能文档（供 Claude 使用）
+├── LICENSE.txt                  # MIT 许可证
+├── package.json                 # 依赖项
+├── tsconfig.json                # TypeScript 配置
+├── server/                      # 桥接服务器源码
+│   ├── index.ts                 # Express 服务器
+│   ├── config.ts                # 配置
 │   ├── playwright/
-│   │   ├── manager.ts           # Playwright connection manager
-│   │   ├── browser.ts           # Browser lifecycle
-│   │   └── operations.ts        # Page operations
+│   │   ├── manager.ts           # Playwright 连接管理器
+│   │   ├── browser.ts           # 浏览器生命周期
+│   │   └── operations.ts        # 页面操作
 │   └── search/
-│       ├── types.ts             # Type definitions
-│       ├── google.ts            # Google search engine
-│       └── bing.ts              # Bing fallback engine
-├── scripts/                     # CLI tools
-│   ├── start-server.sh          # Start Bridge Server
-│   ├── stop-server.sh           # Stop Bridge Server
-│   ├── search.sh                # Search CLI
-│   ├── test-basic.js            # Basic functionality test
-│   └── test-search.js           # Integration test
-├── examples/                    # Usage examples
-│   └── basic-search.md          # Complete usage guide
-└── dist/                        # Compiled output (auto-generated)
+│       ├── types.ts             # 类型定义
+│       ├── google.ts            # Google 搜索引擎
+│       └── bing.ts              # Bing 备用引擎
+├── scripts/                     # CLI 工具
+│   ├── start-server.sh          # 启动桥接服务器
+│   ├── stop-server.sh           # 停止桥接服务器
+│   ├── search.sh                # 搜索 CLI
+│   ├── test-basic.js            # 基础功能测试
+│   └── test-search.js           # 集成测试
+├── examples/                    # 使用示例
+│   └── basic-search.md          # 完整使用指南
+└── dist/                        # 编译输出（自动生成）
 ```
 
-## Testing
+## 测试
 
-### Basic Functionality Test
+### 基础功能测试
 
 ```bash
 node scripts/test-basic.js
 ```
 
-Tests:
-- Browser launch and connection
-- Playwright connection management
-- Page navigation
-- Title and content extraction
-- Screenshot capture
-- Resource cleanup
+测试内容：
+- 浏览器启动和连接
+- Playwright 连接管理
+- 页面导航
+- 标题和内容提取
+- 屏幕截图捕获
+- 资源清理
 
-### Search Integration Test
+### 搜索集成测试
 
 ```bash
 node scripts/test-search.js
 ```
 
-Tests:
-- Bridge Server startup
-- Browser launch via API
-- Playwright connection
-- Bing search execution
-- Result parsing
-- Screenshot and text extraction
-- Full cleanup
+测试内容：
+- 桥接服务器启动
+- 通过 API 启动浏览器
+- Playwright 连接
+- Bing 搜索执行
+- 结果解析
+- 屏幕截图和文本提取
+- 完整清理
 
-## Troubleshooting
+## 故障排除
 
-### Server Won't Start
+### 服务器无法启动
 
 ```bash
-# Check logs
+# 检查日志
 cat .server.log
 
-# Check if port is in use
+# 检查端口是否被占用
 lsof -i :8923
 
-# Rebuild
+# 重新构建
 npm run build
 ```
 
-### Chrome Not Found
+### 找不到 Chrome
 
-Install Chrome:
+安装 Chrome：
 - macOS: https://www.google.com/chrome/
 - Linux: `sudo apt install chromium-browser`
 - Windows: https://www.google.com/chrome/
 
-### Connection Issues
+### 连接问题
 
 ```bash
-# Clean up
+# 清理
 bash scripts/stop-server.sh
 rm .connection .server.pid
 
-# Restart
+# 重启
 bash scripts/start-server.sh
 ```
 
-## Security
+## 安全性
 
-- **Localhost only** - Server binds to 127.0.0.1
-- **No external access** - Not exposed to network
-- **Isolated profile** - Separate Chrome user-data-dir
-- **Visible operations** - All actions shown in browser window
-- **No credentials** - No sensitive operations performed
+- **仅限本地** - 服务器绑定到 127.0.0.1
+- **无外部访问** - 不暴露到网络
+- **隔离配置** - 独立的 Chrome 用户数据目录
+- **可见操作** - 所有操作在浏览器窗口中显示
+- **无凭据** - 不执行敏感操作
 
-## Performance
+## 性能
 
-- **Server startup**: < 2 seconds
-- **Browser launch**: < 3 seconds
-- **Search latency**: < 1 second (network dependent)
-- **Connection reuse**: Cached for multiple searches
-- **Memory usage**: ~80MB (Bridge Server) + Chrome
+- **服务器启动**: < 2 秒
+- **浏览器启动**: < 3 秒
+- **搜索延迟**: < 1 秒（取决于网络）
+- **连接重用**: 缓存用于多次搜索
+- **内存使用**: ~80MB（桥接服务器）+ Chrome
 
-## Requirements
+## 系统要求
 
 - Node.js 18+
-- Google Chrome or Chromium
-- macOS, Windows, or Linux
-- Internet connection for searches
+- Google Chrome 或 Chromium
+- macOS、Windows 或 Linux
+- 用于搜索的网络连接
 
-## Dependencies
+## 依赖项
 
-- `express` - HTTP server
-- `playwright-core` - Browser automation
-- `uuid` - Connection ID generation
+- `express` - HTTP 服务器
+- `playwright-core` - 浏览器自动化
+- `uuid` - 连接 ID 生成
 
-## License
+## 许可证
 
-MIT License - See LICENSE.txt
+MIT 许可证 - 详见 LICENSE.txt
 
-## Future Enhancements
+## 未来增强
 
-### Phase 2 (Optional)
-- Advanced search options (date range, language, region)
-- Result caching
-- Deep content extraction
+### 第二阶段（可选）
+- 高级搜索选项（日期范围、语言、地区）
+- 结果缓存
+- 深度内容提取
 
-### Phase 3 (Optional)
-- Native Cowork tool integration
-- Form filling and multi-step automation
-- CAPTCHA handling
-- Network interception with Playwright
+### 第三阶段（可选）
+- 原生 Cowork 工具集成
+- 表单填写和多步骤自动化
+- CAPTCHA 处理
+- 使用 Playwright 进行网络拦截
 
-## Contributing
+## 贡献
 
-This skill is part of the LobsterAI project. For issues or suggestions:
+此技能是 LobsterAI 项目的一部分。如有问题或建议：
 
-1. Check existing issues
-2. Create detailed bug reports
-3. Include logs from `.server.log`
-4. Test with latest version
+1. 检查现有问题
+2. 创建详细的错误报告
+3. 包含 `.server.log` 中的日志
+4. 使用最新版本测试
 
-## Credits
+## 致谢
 
-Built with:
-- [Playwright](https://playwright.dev/) - Browser automation
-- [Express](https://expressjs.com/) - HTTP server
-- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) - Browser control
+构建使用：
+- [Playwright](https://playwright.dev/) - 浏览器自动化
+- [Express](https://expressjs.com/) - HTTP 服务器
+- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) - 浏览器控制
 
-## Support
+## 支持
 
-For help:
-1. Read [examples/basic-search.md](examples/basic-search.md)
-2. Check troubleshooting section
-3. Review `.server.log` for errors
-4. Test with `node scripts/test-basic.js`
+获取帮助：
+1. 阅读 [examples/basic-search.md](examples/basic-search.md)
+2. 查看故障排除部分
+3. 检查 `.server.log` 中的错误
+4. 使用 `node scripts/test-basic.js` 测试

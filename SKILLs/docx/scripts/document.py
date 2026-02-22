@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """
-Library for working with Word documents: comments, tracked changes, and editing.
+用于处理 Word 文档的库：批注、修订追踪和编辑。
 
-Usage:
+用法:
     from skills.docx.scripts.document import Document
 
-    # Initialize
+    # 初始化
     doc = Document('workspace/unpacked')
     doc = Document('workspace/unpacked', author="John Doe", initials="JD")
 
-    # Find nodes
+    # 查找节点
     node = doc["word/document.xml"].get_node(tag="w:del", attrs={"w:id": "1"})
     node = doc["word/document.xml"].get_node(tag="w:p", line_number=10)
 
-    # Add comments
-    doc.add_comment(start=node, end=node, text="Comment text")
-    doc.reply_to_comment(parent_comment_id=0, text="Reply text")
+    # 添加批注
+    doc.add_comment(start=node, end=node, text="批注文本")
+    doc.reply_to_comment(parent_comment_id=0, text="回复文本")
 
-    # Suggest tracked changes
-    doc["word/document.xml"].suggest_deletion(node)  # Delete content
-    doc["word/document.xml"].revert_insertion(ins_node)  # Reject insertion
-    doc["word/document.xml"].revert_deletion(del_node)  # Reject deletion
+    # 建议修订
+    doc["word/document.xml"].suggest_deletion(node)  # 删除内容
+    doc["word/document.xml"].revert_insertion(ins_node)  # 拒绝插入
+    doc["word/document.xml"].revert_deletion(del_node)  # 拒绝删除
 
-    # Save
+    # 保存
     doc.save()
 """
 
@@ -40,32 +40,32 @@ from ooxml.scripts.validation.redlining import RedliningValidator
 
 from .utilities import XMLEditor
 
-# Path to template files
+# 模板文件路径
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 
 class DocxXMLEditor(XMLEditor):
-    """XMLEditor that automatically applies RSID, author, and date to new elements.
+    """自动将 RSID、作者和日期应用到新元素的 XMLEditor。
 
-    Automatically adds attributes to elements that support them when inserting new content:
-    - w:rsidR, w:rsidRDefault, w:rsidP (for w:p and w:r elements)
-    - w:author and w:date (for w:ins, w:del, w:comment elements)
-    - w:id (for w:ins and w:del elements)
+    在插入新内容时自动为支持属性的元素添加属性：
+    - w:rsidR, w:rsidRDefault, w:rsidP（用于 w:p 和 w:r 元素）
+    - w:author 和 w:date（用于 w:ins, w:del, w:comment 元素）
+    - w:id（用于 w:ins 和 w:del 元素）
 
-    Attributes:
-        dom (defusedxml.minidom.Document): The DOM document for direct manipulation
+    属性:
+        dom (defusedxml.minidom.Document): 用于直接操作的 DOM 文档
     """
 
     def __init__(
         self, xml_path, rsid: str, author: str = "Claude", initials: str = "C"
     ):
-        """Initialize with required RSID and optional author.
+        """使用必需的 RSID 和可选的作者信息初始化。
 
-        Args:
-            xml_path: Path to XML file to edit
-            rsid: RSID to automatically apply to new elements
-            author: Author name for tracked changes and comments (default: "Claude")
-            initials: Author initials (default: "C")
+        参数:
+            xml_path: 要编辑的 XML 文件路径
+            rsid: 自动应用到新元素的 RSID
+            author: 修订追踪和批注的作者名称（默认值："Claude"）
+            initials: 作者姓名首字母缩写（默认值："C"）
         """
         super().__init__(xml_path)
         self.rsid = rsid
@@ -73,7 +73,7 @@ class DocxXMLEditor(XMLEditor):
         self.initials = initials
 
     def _get_next_change_id(self):
-        """Get the next available change ID by checking all tracked change elements."""
+        """通过检查所有修订元素获取下一个可用的变更 ID。"""
         max_id = -1
         for tag in ("w:ins", "w:del"):
             elements = self.dom.getElementsByTagName(tag)
@@ -87,7 +87,7 @@ class DocxXMLEditor(XMLEditor):
         return max_id + 1
 
     def _ensure_w16du_namespace(self):
-        """Ensure w16du namespace is declared on the root element."""
+        """确保根元素上声明了 w16du 命名空间。"""
         root = self.dom.documentElement
         if not root.hasAttribute("xmlns:w16du"):  # type: ignore
             root.setAttribute(  # type: ignore
@@ -96,7 +96,7 @@ class DocxXMLEditor(XMLEditor):
             )
 
     def _ensure_w16cex_namespace(self):
-        """Ensure w16cex namespace is declared on the root element."""
+        """确保根元素上声明了 w16cex 命名空间。"""
         root = self.dom.documentElement
         if not root.hasAttribute("xmlns:w16cex"):  # type: ignore
             root.setAttribute(  # type: ignore
@@ -105,7 +105,7 @@ class DocxXMLEditor(XMLEditor):
             )
 
     def _ensure_w14_namespace(self):
-        """Ensure w14 namespace is declared on the root element."""
+        """确保根元素上声明了 w14 命名空间。"""
         root = self.dom.documentElement
         if not root.hasAttribute("xmlns:w14"):  # type: ignore
             root.setAttribute(  # type: ignore
@@ -114,25 +114,25 @@ class DocxXMLEditor(XMLEditor):
             )
 
     def _inject_attributes_to_nodes(self, nodes):
-        """Inject RSID, author, and date attributes into DOM nodes where applicable.
+        """将 RSID、作者和日期属性注入到适用的 DOM 节点中。
 
-        Adds attributes to elements that support them:
-        - w:r: gets w:rsidR (or w:rsidDel if inside w:del)
-        - w:p: gets w:rsidR, w:rsidRDefault, w:rsidP, w14:paraId, w14:textId
-        - w:t: gets xml:space="preserve" if text has leading/trailing whitespace
-        - w:ins, w:del: get w:id, w:author, w:date, w16du:dateUtc
-        - w:comment: gets w:author, w:date, w:initials
-        - w16cex:commentExtensible: gets w16cex:dateUtc
+        为支持属性的元素添加属性：
+        - w:r: 获取 w:rsidR（如果在 w:del 内部则获取 w:rsidDel）
+        - w:p: 获取 w:rsidR, w:rsidRDefault, w:rsidP, w14:paraId, w14:textId
+        - w:t: 如果文本有前导/尾随空格则获取 xml:space="preserve"
+        - w:ins, w:del: 获取 w:id, w:author, w:date, w16du:dateUtc
+        - w:comment: 获取 w:author, w:date, w:initials
+        - w16cex:commentExtensible: 获取 w16cex:dateUtc
 
-        Args:
-            nodes: List of DOM nodes to process
+        参数:
+            nodes: 要处理的 DOM 节点列表
         """
         from datetime import datetime, timezone
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def is_inside_deletion(elem):
-            """Check if element is inside a w:del element."""
+            """检查元素是否在 w:del 元素内部。"""
             parent = elem.parentNode
             while parent:
                 if parent.nodeType == parent.ELEMENT_NODE and parent.tagName == "w:del":
@@ -147,7 +147,7 @@ class DocxXMLEditor(XMLEditor):
                 elem.setAttribute("w:rsidRDefault", self.rsid)
             if not elem.hasAttribute("w:rsidP"):
                 elem.setAttribute("w:rsidP", self.rsid)
-            # Add w14:paraId and w14:textId if not present
+            # 如果不存在则添加 w14:paraId 和 w14:textId
             if not elem.hasAttribute("w14:paraId"):
                 self._ensure_w14_namespace()
                 elem.setAttribute("w14:paraId", _generate_hex_id())
@@ -156,7 +156,7 @@ class DocxXMLEditor(XMLEditor):
                 elem.setAttribute("w14:textId", _generate_hex_id())
 
         def add_rsid_to_r(elem):
-            # Use w:rsidDel for <w:r> inside <w:del>, otherwise w:rsidR
+            # 对于 <w:del> 内部的 <w:r> 使用 w:rsidDel，否则使用 w:rsidR
             if is_inside_deletion(elem):
                 if not elem.hasAttribute("w:rsidDel"):
                     elem.setAttribute("w:rsidDel", self.rsid)
@@ -165,14 +165,14 @@ class DocxXMLEditor(XMLEditor):
                     elem.setAttribute("w:rsidR", self.rsid)
 
         def add_tracked_change_attrs(elem):
-            # Auto-assign w:id if not present
+            # 如果不存在则自动分配 w:id
             if not elem.hasAttribute("w:id"):
                 elem.setAttribute("w:id", str(self._get_next_change_id()))
             if not elem.hasAttribute("w:author"):
                 elem.setAttribute("w:author", self.author)
             if not elem.hasAttribute("w:date"):
                 elem.setAttribute("w:date", timestamp)
-            # Add w16du:dateUtc for tracked changes (same as w:date since we generate UTC timestamps)
+            # 为修订添加 w16du:dateUtc（与我们生成的 UTC 时间戳相同）
             if elem.tagName in ("w:ins", "w:del") and not elem.hasAttribute(
                 "w16du:dateUtc"
             ):
@@ -188,13 +188,13 @@ class DocxXMLEditor(XMLEditor):
                 elem.setAttribute("w:initials", self.initials)
 
         def add_comment_extensible_date(elem):
-            # Add w16cex:dateUtc for comment extensible elements
+            # 为批注可扩展元素添加 w16cex:dateUtc
             if not elem.hasAttribute("w16cex:dateUtc"):
                 self._ensure_w16cex_namespace()
                 elem.setAttribute("w16cex:dateUtc", timestamp)
 
         def add_xml_space_to_t(elem):
-            # Add xml:space="preserve" to w:t if text has leading/trailing whitespace
+            # 如果文本有前导/尾随空格，则为 w:t 添加 xml:space="preserve"
             if (
                 elem.firstChild
                 and elem.firstChild.nodeType == elem.firstChild.TEXT_NODE
@@ -208,7 +208,7 @@ class DocxXMLEditor(XMLEditor):
             if node.nodeType != node.ELEMENT_NODE:
                 continue
 
-            # Handle the node itself
+            # 处理节点本身
             if node.tagName == "w:p":
                 add_rsid_to_p(node)
             elif node.tagName == "w:r":
@@ -222,7 +222,7 @@ class DocxXMLEditor(XMLEditor):
             elif node.tagName == "w16cex:commentExtensible":
                 add_comment_extensible_date(node)
 
-            # Process descendants (getElementsByTagName doesn't return the element itself)
+            # 处理后代元素（getElementsByTagName 不会返回元素本身）
             for elem in node.getElementsByTagName("w:p"):
                 add_rsid_to_p(elem)
             for elem in node.getElementsByTagName("w:r"):
@@ -238,79 +238,79 @@ class DocxXMLEditor(XMLEditor):
                 add_comment_extensible_date(elem)
 
     def replace_node(self, elem, new_content):
-        """Replace node with automatic attribute injection."""
+        """替换节点并自动注入属性。"""
         nodes = super().replace_node(elem, new_content)
         self._inject_attributes_to_nodes(nodes)
         return nodes
 
     def insert_after(self, elem, xml_content):
-        """Insert after with automatic attribute injection."""
+        """在元素之后插入并自动注入属性。"""
         nodes = super().insert_after(elem, xml_content)
         self._inject_attributes_to_nodes(nodes)
         return nodes
 
     def insert_before(self, elem, xml_content):
-        """Insert before with automatic attribute injection."""
+        """在元素之前插入并自动注入属性。"""
         nodes = super().insert_before(elem, xml_content)
         self._inject_attributes_to_nodes(nodes)
         return nodes
 
     def append_to(self, elem, xml_content):
-        """Append to with automatic attribute injection."""
+        """追加到元素并自动注入属性。"""
         nodes = super().append_to(elem, xml_content)
         self._inject_attributes_to_nodes(nodes)
         return nodes
 
     def revert_insertion(self, elem):
-        """Reject an insertion by wrapping its content in a deletion.
+        """通过将内容包装在删除中来拒绝插入。
 
-        Wraps all runs inside w:ins in w:del, converting w:t to w:delText.
-        Can process a single w:ins element or a container element with multiple w:ins.
+        将 w:ins 内的所有运行包装在 w:del 中，将 w:t 转换为 w:delText。
+        可以处理单个 w:ins 元素或包含多个 w:ins 的容器元素。
 
-        Args:
-            elem: Element to process (w:ins, w:p, w:body, etc.)
+        参数:
+            elem: 要处理的元素（w:ins, w:p, w:body 等）
 
-        Returns:
-            list: List containing the processed element(s)
+        返回:
+            list: 包含已处理元素的列表
 
-        Raises:
-            ValueError: If the element contains no w:ins elements
+        抛出:
+            ValueError: 如果元素不包含任何 w:ins 元素
 
-        Example:
-            # Reject a single insertion
+        示例:
+            # 拒绝单个插入
             ins = doc["word/document.xml"].get_node(tag="w:ins", attrs={"w:id": "5"})
             doc["word/document.xml"].revert_insertion(ins)
 
-            # Reject all insertions in a paragraph
+            # 拒绝段落中的所有插入
             para = doc["word/document.xml"].get_node(tag="w:p", line_number=42)
             doc["word/document.xml"].revert_insertion(para)
         """
-        # Collect insertions
+        # 收集插入元素
         ins_elements = []
         if elem.tagName == "w:ins":
             ins_elements.append(elem)
         else:
             ins_elements.extend(elem.getElementsByTagName("w:ins"))
 
-        # Validate that there are insertions to reject
+        # 验证是否有要拒绝的插入元素
         if not ins_elements:
             raise ValueError(
                 f"revert_insertion requires w:ins elements. "
                 f"The provided element <{elem.tagName}> contains no insertions. "
             )
 
-        # Process all insertions - wrap all children in w:del
+        # 处理所有插入元素 - 将所有子元素包装在 w:del 中
         for ins_elem in ins_elements:
             runs = list(ins_elem.getElementsByTagName("w:r"))
             if not runs:
                 continue
 
-            # Create deletion wrapper
+            # 创建删除包装器
             del_wrapper = self.dom.createElement("w:del")
 
-            # Process each run
+            # 处理每个运行
             for run in runs:
-                # Convert w:t → w:delText and w:rsidR → w:rsidDel
+                # 转换 w:t → w:delText 和 w:rsidR → w:rsidDel
                 if run.hasAttribute("w:rsidR"):
                     run.setAttribute("w:rsidDel", run.getAttribute("w:rsidR"))
                     run.removeAttribute("w:rsidR")
@@ -319,7 +319,7 @@ class DocxXMLEditor(XMLEditor):
 
                 for t_elem in list(run.getElementsByTagName("w:t")):
                     del_text = self.dom.createElement("w:delText")
-                    # Copy ALL child nodes (not just firstChild) to handle entities
+                    # 复制所有子节点（不仅仅是 firstChild）以处理实体
                     while t_elem.firstChild:
                         del_text.appendChild(t_elem.firstChild)
                     for i in range(t_elem.attributes.length):
@@ -327,44 +327,44 @@ class DocxXMLEditor(XMLEditor):
                         del_text.setAttribute(attr.name, attr.value)
                     t_elem.parentNode.replaceChild(del_text, t_elem)
 
-            # Move all children from ins to del wrapper
+            # 将所有子元素从 ins 移动到 del 包装器
             while ins_elem.firstChild:
                 del_wrapper.appendChild(ins_elem.firstChild)
 
-            # Add del wrapper back to ins
+            # 将 del 包装器添加回 ins
             ins_elem.appendChild(del_wrapper)
 
-            # Inject attributes to the deletion wrapper
+            # 向删除包装器注入属性
             self._inject_attributes_to_nodes([del_wrapper])
 
         return [elem]
 
     def revert_deletion(self, elem):
-        """Reject a deletion by re-inserting the deleted content.
+        """通过重新插入已删除的内容来拒绝删除。
 
-        Creates w:ins elements after each w:del, copying deleted content and
-        converting w:delText back to w:t.
-        Can process a single w:del element or a container element with multiple w:del.
+        在每个 w:del 之后创建 w:ins 元素，复制已删除的内容并将
+        w:delText 转换回 w:t。
+        可以处理单个 w:del 元素或包含多个 w:del 的容器元素。
 
-        Args:
-            elem: Element to process (w:del, w:p, w:body, etc.)
+        参数:
+            elem: 要处理的元素（w:del, w:p, w:body 等）
 
-        Returns:
-            list: If elem is w:del, returns [elem, new_ins]. Otherwise returns [elem].
+        返回:
+            list: 如果 elem 是 w:del，返回 [elem, new_ins]。否则返回 [elem]。
 
-        Raises:
-            ValueError: If the element contains no w:del elements
+        抛出:
+            ValueError: 如果元素不包含任何 w:del 元素
 
-        Example:
-            # Reject a single deletion - returns [w:del, w:ins]
+        示例:
+            # 拒绝单个删除 - 返回 [w:del, w:ins]
             del_elem = doc["word/document.xml"].get_node(tag="w:del", attrs={"w:id": "3"})
             nodes = doc["word/document.xml"].revert_deletion(del_elem)
 
-            # Reject all deletions in a paragraph - returns [para]
+            # 拒绝段落中的所有删除 - 返回 [para]
             para = doc["word/document.xml"].get_node(tag="w:p", line_number=42)
             nodes = doc["word/document.xml"].revert_deletion(para)
         """
-        # Collect deletions FIRST - before we modify the DOM
+        # 首先收集删除元素 - 在修改 DOM 之前
         del_elements = []
         is_single_del = elem.tagName == "w:del"
 
@@ -373,34 +373,34 @@ class DocxXMLEditor(XMLEditor):
         else:
             del_elements.extend(elem.getElementsByTagName("w:del"))
 
-        # Validate that there are deletions to reject
+        # 验证是否有要拒绝的删除元素
         if not del_elements:
             raise ValueError(
                 f"revert_deletion requires w:del elements. "
                 f"The provided element <{elem.tagName}> contains no deletions. "
             )
 
-        # Track created insertion (only relevant if elem is a single w:del)
+        # 跟踪创建的插入元素（仅当 elem 是单个 w:del 时相关）
         created_insertion = None
 
-        # Process all deletions - create insertions that copy the deleted content
+        # 处理所有删除元素 - 创建复制已删除内容的插入元素
         for del_elem in del_elements:
-            # Clone the deleted runs and convert them to insertions
+            # 克隆已删除的运行并将它们转换为插入元素
             runs = list(del_elem.getElementsByTagName("w:r"))
             if not runs:
                 continue
 
-            # Create insertion wrapper
+            # 创建插入包装器
             ins_elem = self.dom.createElement("w:ins")
 
             for run in runs:
-                # Clone the run
+                # 克隆运行
                 new_run = run.cloneNode(True)
 
-                # Convert w:delText → w:t
+                # 转换 w:delText → w:t
                 for del_text in list(new_run.getElementsByTagName("w:delText")):
                     t_elem = self.dom.createElement("w:t")
-                    # Copy ALL child nodes (not just firstChild) to handle entities
+                    # 复制所有子节点（不仅仅是 firstChild）以处理实体
                     while del_text.firstChild:
                         t_elem.appendChild(del_text.firstChild)
                     for i in range(del_text.attributes.length):
@@ -408,7 +408,7 @@ class DocxXMLEditor(XMLEditor):
                         t_elem.setAttribute(attr.name, attr.value)
                     del_text.parentNode.replaceChild(t_elem, del_text)
 
-                # Update run attributes: w:rsidDel → w:rsidR
+                # 更新运行属性：w:rsidDel → w:rsidR
                 if new_run.hasAttribute("w:rsidDel"):
                     new_run.setAttribute("w:rsidR", new_run.getAttribute("w:rsidDel"))
                     new_run.removeAttribute("w:rsidDel")
@@ -417,14 +417,14 @@ class DocxXMLEditor(XMLEditor):
 
                 ins_elem.appendChild(new_run)
 
-            # Insert the new insertion after the deletion
+            # 在删除之后插入新的插入元素
             nodes = self.insert_after(del_elem, ins_elem.toxml())
 
-            # If processing a single w:del, track the created insertion
+            # 如果处理单个 w:del，跟踪创建的插入元素
             if is_single_del and nodes:
                 created_insertion = nodes[0]
 
-        # Return based on input type
+        # 根据输入类型返回
         if is_single_del and created_insertion:
             return [elem, created_insertion]
         else:
@@ -432,21 +432,21 @@ class DocxXMLEditor(XMLEditor):
 
     @staticmethod
     def suggest_paragraph(xml_content: str) -> str:
-        """Transform paragraph XML to add tracked change wrapping for insertion.
+        """转换段落 XML 以添加插入的修订包装。
 
-        Wraps runs in <w:ins> and adds <w:ins/> to w:rPr in w:pPr for numbered lists.
+        将运行包装在 <w:ins> 中，并为编号列表在 w:pPr 的 w:rPr 中添加 <w:ins/>。
 
-        Args:
-            xml_content: XML string containing a <w:p> element
+        参数:
+            xml_content: 包含 <w:p> 元素的 XML 字符串
 
-        Returns:
-            str: Transformed XML with tracked change wrapping
+        返回:
+            str: 带有修订包装的转换后 XML
         """
         wrapper = f'<root xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">{xml_content}</root>'
         doc = minidom.parseString(wrapper)
         para = doc.getElementsByTagName("w:p")[0]
 
-        # Ensure w:pPr exists
+        # 确保 w:pPr 存在
         pPr_list = para.getElementsByTagName("w:pPr")
         if not pPr_list:
             pPr = doc.createElement("w:pPr")
@@ -456,7 +456,7 @@ class DocxXMLEditor(XMLEditor):
         else:
             pPr = pPr_list[0]
 
-        # Ensure w:rPr exists in w:pPr
+        # 确保 w:rPr 存在于 w:pPr 中
         rPr_list = pPr.getElementsByTagName("w:rPr")
         if not rPr_list:
             rPr = doc.createElement("w:rPr")
@@ -464,7 +464,7 @@ class DocxXMLEditor(XMLEditor):
         else:
             rPr = rPr_list[0]
 
-        # Add <w:ins/> to w:rPr
+        # 将 <w:ins/> 添加到 w:rPr
         ins_marker = doc.createElement("w:ins")
         rPr.insertBefore(
             ins_marker, rPr.firstChild

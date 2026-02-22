@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * SMTP Email CLI
- * Send email via SMTP protocol. Works with Gmail, Outlook, 163.com, and any standard SMTP server.
- * Supports attachments, HTML content, and multiple recipients.
+ * SMTP 邮件命令行工具
+ * 通过 SMTP 协议发送邮件。支持 Gmail、Outlook、163.com 以及任何标准 SMTP 服务器。
+ * 支持附件、HTML 内容和多收件人。
  */
 
 const nodemailer = require('nodemailer');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-// Parse command-line arguments
+// 解析命令行参数
 function parseArgs() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -32,12 +32,12 @@ function parseArgs() {
   return { command, options, positional };
 }
 
-// Create SMTP transporter
+// 创建 SMTP 传输器
 function createTransporter() {
   const config = {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'true', // 端口 465 时为 true，其他端口为 false
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -48,22 +48,22 @@ function createTransporter() {
   };
 
   if (!config.host || !config.auth.user || !config.auth.pass) {
-    throw new Error('Missing SMTP configuration. Please set SMTP_HOST, SMTP_USER, and SMTP_PASS in .env');
+    throw new Error('缺少 SMTP 配置。请在 .env 文件中设置 SMTP_HOST、SMTP_USER 和 SMTP_PASS');
   }
 
   return nodemailer.createTransport(config);
 }
 
-// Send email
+// 发送邮件
 async function sendEmail(options) {
   const transporter = createTransporter();
 
-  // Verify connection
+  // 验证连接
   try {
     await transporter.verify();
-    console.error('SMTP server is ready to send');
+    console.error('SMTP 服务器已准备好发送邮件');
   } catch (err) {
-    throw new Error(`SMTP connection failed: ${err.message}`);
+    throw new Error(`SMTP 连接失败: ${err.message}`);
   }
 
   const mailOptions = {
@@ -71,13 +71,13 @@ async function sendEmail(options) {
     to: options.to,
     cc: options.cc || undefined,
     bcc: options.bcc || undefined,
-    subject: options.subject || '(no subject)',
+    subject: options.subject || '(无主题)',
     text: options.text || undefined,
     html: options.html || undefined,
     attachments: options.attachments || [],
   };
 
-  // If neither text nor html provided, use default text
+  // 如果未提供文本或 HTML 内容，则使用默认文本
   if (!mailOptions.text && !mailOptions.html) {
     mailOptions.text = options.body || '';
   }
@@ -92,11 +92,11 @@ async function sendEmail(options) {
   };
 }
 
-// Read file content for attachments
+// 读取附件文件内容
 function readAttachment(filePath) {
   const fs = require('fs');
   if (!fs.existsSync(filePath)) {
-    throw new Error(`Attachment file not found: ${filePath}`);
+    throw new Error(`附件文件未找到: ${filePath}`);
   }
   return {
     filename: path.basename(filePath),
@@ -104,9 +104,9 @@ function readAttachment(filePath) {
   };
 }
 
-// Send email with file content
+// 发送包含文件内容的邮件
 async function sendEmailWithContent(options) {
-  // Handle attachments
+  // 处理附件
   if (options.attach) {
     const attachFiles = options.attach.split(',').map(f => f.trim());
     options.attachments = attachFiles.map(f => readAttachment(f));
@@ -115,7 +115,7 @@ async function sendEmailWithContent(options) {
   return await sendEmail(options);
 }
 
-// Test SMTP connection
+// 测试 SMTP 连接
 async function testConnection() {
   const transporter = createTransporter();
 
@@ -123,23 +123,23 @@ async function testConnection() {
     await transporter.verify();
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: process.env.SMTP_USER, // Send to self
-      subject: 'SMTP Connection Test',
-      text: 'This is a test email from the IMAP/SMTP email skill.',
-      html: '<p>This is a <strong>test email</strong> from the IMAP/SMTP email skill.</p>',
+      to: process.env.SMTP_USER, // 发送给自己
+      subject: 'SMTP 连接测试',
+      text: '这是一封来自 IMAP/SMTP 邮件技能的测试邮件。',
+      html: '<p>这是一封来自 IMAP/SMTP 邮件技能的<strong>测试邮件</strong>。</p>',
     });
 
     return {
       success: true,
-      message: 'SMTP connection successful',
+      message: 'SMTP 连接成功',
       messageId: info.messageId,
     };
   } catch (err) {
-    throw new Error(`SMTP test failed: ${err.message}`);
+    throw new Error(`SMTP 测试失败: ${err.message}`);
   }
 }
 
-// Verify SMTP connection without sending email
+// 验证 SMTP 连接（不发送邮件）
 async function verifyConnection() {
   const transporter = createTransporter();
 
@@ -147,14 +147,14 @@ async function verifyConnection() {
     await transporter.verify();
     return {
       success: true,
-      message: 'SMTP verification successful',
+      message: 'SMTP 验证成功',
     };
   } catch (err) {
-    throw new Error(`SMTP verify failed: ${err.message}`);
+    throw new Error(`SMTP 验证失败: ${err.message}`);
   }
 }
 
-// Main CLI handler
+// 主命令行处理函数
 async function main() {
   const { command, options, positional } = parseArgs();
 
@@ -164,19 +164,19 @@ async function main() {
     switch (command) {
       case 'send':
         if (!options.to) {
-          throw new Error('Missing required option: --to <email>');
+          throw new Error('缺少必需选项: --to <邮箱地址>');
         }
         if (!options.subject && !options['subject-file']) {
-          throw new Error('Missing required option: --subject <text> or --subject-file <file>');
+          throw new Error('缺少必需选项: --subject <文本> 或 --subject-file <文件>');
         }
 
-        // Read subject from file if specified
+        // 如果指定了主题文件，则从文件读取主题
         if (options['subject-file']) {
           const fs = require('fs');
           options.subject = fs.readFileSync(options['subject-file'], 'utf8').trim();
         }
 
-        // Read body from file if specified
+        // 如果指定了正文文件，则从文件读取正文
         if (options['body-file']) {
           const fs = require('fs');
           const content = fs.readFileSync(options['body-file'], 'utf8');
@@ -204,19 +204,19 @@ async function main() {
         break;
 
       default:
-        console.error('Unknown command:', command);
-        console.error('Available commands: send, test, verify');
-        console.error('\nUsage:');
-        console.error('  send   --to <email> --subject <text> [--body <text>] [--html] [--cc <email>] [--bcc <email>] [--attach <file>]');
-        console.error('  send   --to <email> --subject <text> --body-file <file> [--html-file <file>] [--attach <file>]');
-        console.error('  test   Test SMTP connection');
-        console.error('  verify Verify SMTP connection without sending email');
+        console.error('未知命令:', command);
+        console.error('可用命令: send, test, verify');
+        console.error('\n用法:');
+        console.error('  send   --to <邮箱> --subject <主题> [--body <正文>] [--html] [--cc <邮箱>] [--bcc <邮箱>] [--attach <文件>]');
+        console.error('  send   --to <邮箱> --subject <主题> --body-file <文件> [--html-file <文件>] [--attach <文件>]');
+        console.error('  test   测试 SMTP 连接');
+        console.error('  verify 验证 SMTP 连接（不发送邮件）');
         process.exit(1);
     }
 
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('错误:', err.message);
     process.exit(1);
   }
 }

@@ -1,52 +1,102 @@
 #!/bin/bash
-# Stop Web Search Bridge Server
+# 停止 Web Search Bridge 服务器
+# 用途：优雅地停止 Web Search Bridge 服务器进程
+# 作者：purpose168@outlook.com
+# 创建日期：2026-02-22
 
+# ============================================================================
+# 路径配置部分
+# ============================================================================
+
+# 获取脚本所在目录的绝对路径
+# BASH_SOURCE[0]：当前脚本的路径
+# dirname：获取路径的目录部分
+# cd：切换到该目录
+# pwd：获取绝对路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 获取项目根目录（脚本目录的上级目录）
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# PID文件路径，用于存储服务器进程ID
 PID_FILE="$PROJECT_DIR/.server.pid"
 
-# Check if PID file exists
+# ============================================================================
+# 检查服务器状态
+# ============================================================================
+
+# 检查PID文件是否存在
+# -f：判断文件是否存在且为常规文件
 if [ ! -f "$PID_FILE" ]; then
-  echo "✓ Bridge Server is not running"
+  echo "✓ Bridge 服务器未运行"
   exit 0
 fi
 
-# Read PID
+# 读取PID（进程ID）
+# cat命令读取文件内容，即服务器进程的ID号
 PID=$(cat "$PID_FILE")
 
-# Check if process is running
+# 检查进程是否正在运行
+# ps -p $PID：查看指定PID的进程信息
+# > /dev/null 2>&1：将标准输出和标准错误都重定向到空设备（不显示任何输出）
+# !：取反，如果进程不存在则条件为真
 if ! ps -p "$PID" > /dev/null 2>&1; then
-  echo "✓ Bridge Server is not running (stale PID file removed)"
+  echo "✓ Bridge 服务器未运行（已清理过期的PID文件）"
+  # 删除过期的PID文件
   rm "$PID_FILE"
   exit 0
 fi
 
-# Stop the server
-echo "Stopping Bridge Server (PID: $PID)..."
+# ============================================================================
+# 停止服务器
+# ============================================================================
+
+# 发送终止信号停止服务器
+echo "正在停止 Bridge 服务器（PID: $PID）..."
+# kill命令发送SIGTERM信号（默认信号），请求进程优雅退出
 kill "$PID"
 
-# Wait for graceful shutdown
+# ============================================================================
+# 等待优雅关闭
+# ============================================================================
+
+# 等待进程优雅关闭（最多等待10秒）
+# {1..10}：生成1到10的序列
 for i in {1..10}; do
+  # 检查进程是否已停止
   if ! ps -p "$PID" > /dev/null 2>&1; then
-    echo "✓ Bridge Server stopped successfully"
+    echo "✓ Bridge 服务器已成功停止"
+    # 删除PID文件
     rm "$PID_FILE"
     exit 0
   fi
+  # 等待1秒后再次检查
   sleep 1
 done
 
-# Force kill if still running
+# ============================================================================
+# 强制终止（如果优雅关闭失败）
+# ============================================================================
+
+# 如果进程仍在运行，使用强制终止
+# kill -9：发送SIGKILL信号，强制终止进程（无法被进程捕获或忽略）
 if ps -p "$PID" > /dev/null 2>&1; then
-  echo "Force stopping Bridge Server..."
+  echo "正在强制停止 Bridge 服务器..."
   kill -9 "$PID"
   sleep 1
 fi
 
+# ============================================================================
+# 最终状态检查
+# ============================================================================
+
+# 检查进程是否已停止
 if ps -p "$PID" > /dev/null 2>&1; then
-  echo "✗ Failed to stop Bridge Server"
+  echo "✗ 无法停止 Bridge 服务器"
   exit 1
 else
-  echo "✓ Bridge Server stopped (forced)"
+  echo "✓ Bridge 服务器已停止（强制终止）"
+  # 删除PID文件
   rm "$PID_FILE"
   exit 0
 fi

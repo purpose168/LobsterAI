@@ -7,24 +7,24 @@ const proxyModule = require('../dist-electron/libs/coworkOpenAICompatProxy.js');
 const testUtils = proxyModule.__openAICompatProxyTestUtils;
 
 if (!testUtils?.findSSEPacketBoundary) {
-  throw new Error('findSSEPacketBoundary is not available in __openAICompatProxyTestUtils');
+  throw new Error('findSSEPacketBoundary 在 __openAICompatProxyTestUtils 中不可用');
 }
 
-test('findSSEPacketBoundary detects LF packet separator', () => {
+test('findSSEPacketBoundary 检测 LF 数据包分隔符', () => {
   const boundary = testUtils.findSSEPacketBoundary('data: 1\n\ndata: 2\n\n');
   assert.ok(boundary);
   assert.equal(boundary.index, 7);
   assert.equal(boundary.separatorLength, 2);
 });
 
-test('findSSEPacketBoundary detects CRLF packet separator', () => {
+test('findSSEPacketBoundary 检测 CRLF 数据包分隔符', () => {
   const boundary = testUtils.findSSEPacketBoundary('data: 1\r\n\r\ndata: 2\r\n\r\n');
   assert.ok(boundary);
   assert.equal(boundary.index, 7);
   assert.equal(boundary.separatorLength, 4);
 });
 
-test('findSSEPacketBoundary returns earliest separator in mixed input', () => {
+test('findSSEPacketBoundary 在混合输入中返回最早出现的分隔符', () => {
   const boundary = testUtils.findSSEPacketBoundary('data: 1\r\n\r\ndata: 2\n\n');
   assert.ok(boundary);
   assert.equal(boundary.index, 7);

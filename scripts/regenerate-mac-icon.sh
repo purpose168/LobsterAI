@@ -1,74 +1,142 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+# ============================================================================
+# macOS图标重新生成脚本
+# ============================================================================
+# 用途：从PNG图标文件重新生成macOS .icns图标文件，以提高兼容性
+# 说明：确保图标在Intel和Apple Silicon Mac上都能正常工作
+# 作者：purpose168@outlook.com
+# 创建日期：2026-02-21
+# ============================================================================
+
+# 设置错误时立即退出
+# -e 选项：当任何命令返回非零状态码时，脚本立即退出
 set -e
 
-# Script to regenerate macOS .icns file from PNG icons for better compatibility
-# This ensures the icon works correctly on both Intel and Apple Silicon Macs
+# ============================================================================
+# 目录路径配置
+# ============================================================================
 
+# 获取脚本所在目录的绝对路径
+# BASH_SOURCE[0]：当前脚本的路径
+# dirname：获取目录部分
+# cd ... && pwd：切换到目录并获取绝对路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 获取项目根目录（脚本目录的上一级）
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-ICON_DIR="$PROJECT_ROOT/build/icons"
-PNG_DIR="$ICON_DIR/png"
-MAC_DIR="$ICON_DIR/mac"
-ICONSET_DIR="$MAC_DIR/icon.iconset"
 
-echo "🎨 Regenerating macOS icon for better compatibility..."
+# 图标相关目录配置
+ICON_DIR="$PROJECT_ROOT/build/icons"      # 图标总目录
+PNG_DIR="$ICON_DIR/png"                   # PNG图标源文件目录
+MAC_DIR="$ICON_DIR/mac"                   # macOS图标输出目录
+ICONSET_DIR="$MAC_DIR/icon.iconset"       # 临时iconset目录（用于生成.icns）
 
-# Check if source PNG exists
+# ============================================================================
+# 开始处理
+# ============================================================================
+
+echo "🎨 正在重新生成macOS图标以提高兼容性..."
+
+# ============================================================================
+# 检查源文件是否存在
+# ============================================================================
+
+# 检查512x512的PNG图标是否存在（作为基准检查）
 if [ ! -f "$PNG_DIR/icon_512x512.png" ]; then
-    echo "❌ Error: Source PNG not found at $PNG_DIR/icon_512x512.png"
-    echo "   Please ensure PNG icons are extracted first."
+    echo "❌ 错误：在 $PNG_DIR/icon_512x512.png 未找到源PNG文件"
+    echo "   请确保已先提取PNG图标文件。"
     exit 1
 fi
 
-# Create iconset directory
+# ============================================================================
+# 创建iconset目录
+# ============================================================================
+
+# 删除旧的iconset目录（如果存在）
+# rm -rf：递归强制删除，不提示确认
 rm -rf "$ICONSET_DIR"
+
+# 创建新的iconset目录
+# mkdir -p：递归创建目录，如果目录已存在则不报错
 mkdir -p "$ICONSET_DIR"
 
-# Copy PNG files to iconset with correct naming
+# ============================================================================
+# 复制PNG文件到iconset目录（使用正确的命名规范）
+# ============================================================================
+
+# macOS图标需要多种尺寸的PNG文件
+# 标准尺寸：16, 32, 128, 256, 512 像素
+# @2x版本：用于Retina显示屏的高分辨率版本
 for size in 16 32 128 256 512; do
+    # 复制标准尺寸图标
     if [ -f "$PNG_DIR/icon_${size}x${size}.png" ]; then
         cp "$PNG_DIR/icon_${size}x${size}.png" "$ICONSET_DIR/icon_${size}x${size}.png"
-        echo "  ✓ Added ${size}x${size}"
+        echo "  ✓ 已添加 ${size}x${size}"
     fi
 
-    # Copy @2x versions
+    # 复制@2x高分辨率版本（用于Retina显示屏）
+    # @2x版本的尺寸是标准尺寸的2倍
     doubled=$((size * 2))
     if [ -f "$PNG_DIR/icon_${size}x${size}@2x.png" ]; then
         cp "$PNG_DIR/icon_${size}x${size}@2x.png" "$ICONSET_DIR/icon_${size}x${size}@2x.png"
-        echo "  ✓ Added ${size}x${size}@2x (${doubled}x${doubled})"
+        echo "  ✓ 已添加 ${size}x${size}@2x (${doubled}x${doubled})"
     fi
 done
 
-# Backup old icon
+# ============================================================================
+# 备份旧图标文件
+# ============================================================================
+
+# 如果已存在.icns文件，先进行备份
 if [ -f "$MAC_DIR/icon.icns" ]; then
     mv "$MAC_DIR/icon.icns" "$MAC_DIR/icon.icns.backup"
-    echo "📦 Backed up old icon to icon.icns.backup"
+    echo "📦 已将旧图标备份为 icon.icns.backup"
 fi
 
-# Generate new .icns file using iconutil
+# ============================================================================
+# 使用iconutil生成新的.icns文件
+# ============================================================================
+
+# iconutil是macOS自带的图标转换工具
+# -c icns：转换为icns格式
+# 第一个参数：iconset目录路径
+# -o：指定输出文件路径
 iconutil -c icns "$ICONSET_DIR" -o "$MAC_DIR/icon.icns"
 
-if [ $? -eq 0 ]; then
-    echo "✅ Successfully generated new icon.icns"
+# ============================================================================
+# 检查生成结果
+# ============================================================================
 
-    # Show file info
+# $?：上一个命令的退出状态码（0表示成功）
+if [ $? -eq 0 ]; then
+    echo "✅ 成功生成新的 icon.icns"
+
+    # 显示生成的文件信息
+    # ls -lh：以人类可读格式显示文件详细信息
+    # file：显示文件类型
     ls -lh "$MAC_DIR/icon.icns"
     file "$MAC_DIR/icon.icns"
 
-    # Clean up
+    # 清理临时iconset目录
     rm -rf "$ICONSET_DIR"
-    echo "🧹 Cleaned up temporary iconset directory"
+    echo "🧹 已清理临时iconset目录"
 else
-    echo "❌ Failed to generate icon.icns"
-    # Restore backup if generation failed
+    echo "❌ 生成 icon.icns 失败"
+    
+    # 如果生成失败，恢复备份文件
     if [ -f "$MAC_DIR/icon.icns.backup" ]; then
         mv "$MAC_DIR/icon.icns.backup" "$MAC_DIR/icon.icns"
-        echo "♻️  Restored original icon"
+        echo "♻️  已恢复原始图标"
     fi
     exit 1
 fi
 
+# ============================================================================
+# 完成
+# ============================================================================
+
 echo ""
-echo "🎉 Icon regeneration complete!"
-echo "   The new icon should work correctly on both Intel and Apple Silicon Macs."
-echo "   You can now rebuild the app with: npm run dist:mac"
+echo "🎉 图标重新生成完成！"
+echo "   新图标应该在Intel和Apple Silicon Mac上都能正常工作。"
+echo "   您现在可以使用以下命令重新构建应用：npm run dist:mac"

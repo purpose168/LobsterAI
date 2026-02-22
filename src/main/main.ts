@@ -93,7 +93,7 @@ const ensurePngFileName = (value: string): string => {
 
 const truncateIpcString = (value: string, maxChars: number): string => {
   if (value.length <= maxChars) return value;
-  return `${value.slice(0, maxChars)}\n...[truncated in main IPC forwarding]`;
+  return `${value.slice(0, maxChars)}\n...[在主进程IPC转发中已截断]`;
 };
 
 const sanitizeIpcPayload = (value: unknown, depth = 0, seen?: WeakSet<object>): unknown => {
@@ -113,21 +113,21 @@ const sanitizeIpcPayload = (value: unknown, depth = 0, seen?: WeakSet<object>): 
     return value.toString();
   }
   if (typeof value === 'function') {
-    return '[function]';
+    return '[函数]';
   }
   if (depth >= IPC_MAX_DEPTH) {
-    return '[truncated-depth]';
+    return '[深度截断]';
   }
   if (Array.isArray(value)) {
     const result = value.slice(0, IPC_MAX_ITEMS).map((entry) => sanitizeIpcPayload(entry, depth + 1, localSeen));
     if (value.length > IPC_MAX_ITEMS) {
-      result.push(`[truncated-items:${value.length - IPC_MAX_ITEMS}]`);
+      result.push(`[项目截断:${value.length - IPC_MAX_ITEMS}]`);
     }
     return result;
   }
   if (typeof value === 'object') {
     if (localSeen.has(value as object)) {
-      return '[circular]';
+      return '[循环引用]';
     }
     localSeen.add(value as object);
     const entries = Object.entries(value as Record<string, unknown>);
@@ -183,7 +183,7 @@ const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
   fs.mkdirSync(resolvedWorkspaceRoot, { recursive: true });
   if (!fs.statSync(resolvedWorkspaceRoot).isDirectory()) {
-    throw new Error(`Selected workspace is not a directory: ${resolvedWorkspaceRoot}`);
+    throw new Error(`所选工作区不是目录: ${resolvedWorkspaceRoot}`);
   }
   return resolvedWorkspaceRoot;
 };
@@ -191,11 +191,11 @@ const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
 const resolveExistingTaskWorkingDirectory = (workspaceRoot: string): string => {
   const trimmed = workspaceRoot.trim();
   if (!trimmed) {
-    throw new Error('Please select a task folder before submitting.');
+    throw new Error('请在提交前选择任务文件夹。');
   }
   const resolvedWorkspaceRoot = path.resolve(trimmed);
   if (!fs.existsSync(resolvedWorkspaceRoot) || !fs.statSync(resolvedWorkspaceRoot).isDirectory()) {
-    throw new Error(`Task folder does not exist or is not a directory: ${resolvedWorkspaceRoot}`);
+    throw new Error(`任务文件夹不存在或不是目录: ${resolvedWorkspaceRoot}`);
   }
   return resolvedWorkspaceRoot;
 };
@@ -215,9 +215,9 @@ const savePngWithDialog = async (
   const defaultName = getDefaultExportImageName(defaultFileName);
   const ownerWindow = BrowserWindow.fromWebContents(webContents);
   const saveOptions = {
-    title: 'Export Session Image',
+    title: '导出会话图片',
     defaultPath: path.join(app.getPath('downloads'), defaultName),
-    filters: [{ name: 'PNG Image', extensions: ['png'] }],
+    filters: [{ name: 'PNG 图片', extensions: ['png'] }],
   };
   const saveResult = ownerWindow
     ? await dialog.showSaveDialog(ownerWindow, saveOptions)
@@ -239,7 +239,7 @@ const configureUserDataPath = (): void => {
 
   if (currentUserDataPath !== preferredUserDataPath) {
     app.setPath('userData', preferredUserDataPath);
-    console.log(`[Main] userData path updated: ${currentUserDataPath} -> ${preferredUserDataPath}`);
+    console.log(`[主进程] userData路径已更新: ${currentUserDataPath} -> ${preferredUserDataPath}`);
   }
 };
 
@@ -274,9 +274,9 @@ const migrateLegacyUserData = (): void => {
           errorOnExist: false,
         });
       }
-      console.log(`[Main] Migrated missing user data from legacy directory: ${legacyRoot}`);
+      console.log(`[主进程] 已从旧版目录迁移缺失的用户数据: ${legacyRoot}`);
     } catch (error) {
-      console.warn(`[Main] Failed to migrate legacy user data from ${legacyRoot}:`, error);
+      console.warn(`[主进程] 从 ${legacyRoot} 迁移旧版用户数据失败:`, error);
     }
   }
 };
@@ -303,7 +303,7 @@ const reloadOnChildProcessGone =
 const TITLEBAR_HEIGHT = 48;
 const TITLEBAR_COLORS = {
   dark: { color: '#0F1117', symbolColor: '#E4E5E9' },
-  // Align light title bar with app light surface-muted tone to reduce visual contrast.
+  // 将浅色标题栏与应用浅色表面静音色调对齐，以减少视觉对比度
   light: { color: '#F3F4F6', symbolColor: '#1A1D23' },
 } as const;
 
@@ -346,48 +346,48 @@ const normalizeWindowsShellPath = (inputPath: string): string => {
   return normalized;
 };
 
-// ==================== macOS Permissions ====================
+// ==================== macOS 权限 ====================
 
 /**
- * Check calendar permission on macOS by attempting to access Calendar app
- * Returns: 'authorized' | 'denied' | 'restricted' | 'not-determined'
- * On Windows, checks if Outlook is available
- * On Linux, returns 'not-supported'
+ * 在 macOS 上通过尝试访问日历应用来检查日历权限
+ * 返回值: 'authorized' | 'denied' | 'restricted' | 'not-determined'
+ * 在 Windows 上，检查 Outlook 是否可用
+ * 在 Linux 上，返回 'not-supported'
  */
 const checkCalendarPermission = async (): Promise<string> => {
   if (process.platform === 'darwin') {
     try {
-      // Try to access Calendar to check permission
+      // 尝试访问日历来检查权限
       const { exec } = require('child_process');
       const util = require('util');
       const execAsync = util.promisify(exec);
 
-      // Quick test to see if we can access Calendar
+      // 快速测试以查看是否可以访问日历
       await execAsync('osascript -l JavaScript -e \'Application("Calendar").name()\'', { timeout: 5000 });
-      console.log('[Permissions] macOS Calendar access: authorized');
+      console.log('[权限] macOS 日历访问权限: 已授权');
       return 'authorized';
     } catch (error: any) {
-      // Check if it's a permission error
+      // 检查是否为权限错误
       if (error.stderr?.includes('不能获取对象') ||
           error.stderr?.includes('not authorized') ||
           error.stderr?.includes('Permission denied')) {
-        console.log('[Permissions] macOS Calendar access: not-determined (needs permission)');
+        console.log('[权限] macOS 日历访问权限: 未确定（需要权限）');
         return 'not-determined';
       }
-      console.warn('[Permissions] Failed to check macOS calendar permission:', error);
+      console.warn('[权限] 检查 macOS 日历权限失败:', error);
       return 'not-determined';
     }
   }
 
   if (process.platform === 'win32') {
-    // Windows doesn't have a system-level calendar permission like macOS
-    // Instead, we check if Outlook is available
+    // Windows 没有像 macOS 那样的系统级日历权限
+    // 相反，我们检查 Outlook 是否可用
     try {
       const { exec } = require('child_process');
       const util = require('util');
       const execAsync = util.promisify(exec);
 
-      // Check if Outlook COM object is accessible
+      // 检查 Outlook COM 对象是否可访问
       const checkScript = `
         try {
           $Outlook = New-Object -ComObject Outlook.Application
@@ -395,10 +395,10 @@ const checkCalendarPermission = async (): Promise<string> => {
         } catch { exit 1 }
       `;
       await execAsync('powershell -Command "' + checkScript + '"', { timeout: 10000 });
-      console.log('[Permissions] Windows Outlook is available');
+      console.log('[权限] Windows Outlook 可用');
       return 'authorized';
     } catch (error) {
-      console.log('[Permissions] Windows Outlook not available or not accessible');
+      console.log('[权限] Windows Outlook 不可用或无法访问');
       return 'not-determined';
     }
   }
@@ -407,14 +407,14 @@ const checkCalendarPermission = async (): Promise<string> => {
 };
 
 /**
- * Request calendar permission on macOS
- * On Windows, attempts to initialize Outlook COM object
+ * 在 macOS 上请求日历权限
+ * 在 Windows 上，尝试初始化 Outlook COM 对象
  */
 const requestCalendarPermission = async (): Promise<boolean> => {
   if (process.platform === 'darwin') {
     try {
-      // On macOS, we trigger permission by trying to access Calendar
-      // The system will show permission dialog if needed
+      // 在 macOS 上，我们通过尝试访问日历来触发权限
+      // 如果需要，系统将显示权限对话框
       const { exec } = require('child_process');
       const util = require('util');
       const execAsync = util.promisify(exec);
@@ -422,14 +422,14 @@ const requestCalendarPermission = async (): Promise<boolean> => {
       await execAsync('osascript -l JavaScript -e \'Application("Calendar").calendars()[0].name()\'', { timeout: 10000 });
       return true;
     } catch (error) {
-      console.warn('[Permissions] Failed to request macOS calendar permission:', error);
+      console.warn('[权限] 请求 macOS 日历权限失败:', error);
       return false;
     }
   }
 
   if (process.platform === 'win32') {
-    // Windows doesn't have a permission dialog for COM objects
-    // We just check if Outlook is available
+    // Windows 没有 COM 对象的权限对话框
+    // 我们只是检查 Outlook 是否可用
     const status = await checkCalendarPermission();
     return status === 'authorized';
   }
@@ -466,7 +466,7 @@ app.on('ready', () => {
 
 // 添加错误处理
 app.on('render-process-gone', (_event, webContents, details) => {
-  console.error('Render process gone:', details);
+  console.error('渲染进程已退出:', details);
   const shouldReload =
     details.reason === 'crashed' ||
     details.reason === 'killed' ||
@@ -474,24 +474,24 @@ app.on('render-process-gone', (_event, webContents, details) => {
     details.reason === 'launch-failed' ||
     details.reason === 'integrity-failure';
   if (shouldReload) {
-    scheduleReload(`render-process-gone (${details.reason})`, webContents);
+    scheduleReload(`渲染进程退出 (${details.reason})`, webContents);
   }
 });
 
 app.on('child-process-gone', (_event, details) => {
-  console.error('Child process gone:', details);
+  console.error('子进程已退出:', details);
   if (reloadOnChildProcessGone && (details.type === 'GPU' || details.type === 'Utility')) {
-    scheduleReload(`child-process-gone (${details.type}/${details.reason})`);
+    scheduleReload(`子进程退出 (${details.type}/${details.reason})`);
   }
 });
 
 // 处理未捕获的异常
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('未捕获的异常:', error);
 });
 
 process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
+  console.error('未处理的 Promise 拒绝:', error);
 });
 
 let store: SqliteStore | null = null;
@@ -506,7 +506,7 @@ let storeInitPromise: Promise<SqliteStore> | null = null;
 const initStore = async (): Promise<SqliteStore> => {
   if (!storeInitPromise) {
     if (!app.isReady()) {
-      throw new Error('Store accessed before app is ready.');
+      throw new Error('应用未就绪时就访问了存储。');
     }
     storeInitPromise = SqliteStore.create(app.getPath('userData'));
   }
@@ -515,7 +515,7 @@ const initStore = async (): Promise<SqliteStore> => {
 
 const getStore = (): SqliteStore => {
   if (!store) {
-    throw new Error('Store not initialized. Call initStore() first.');
+    throw new Error('存储未初始化。请先调用 initStore()。');
   }
   return store;
 };
@@ -536,7 +536,7 @@ const getCoworkRunner = () => {
   if (!coworkRunner) {
     coworkRunner = new CoworkRunner(getCoworkStore());
 
-    // Set up event listeners to forward to renderer
+    // 设置事件监听器以转发到渲染进程
     coworkRunner.on('message', (sessionId: string, message: any) => {
       const safeMessage = sanitizeCoworkMessageForIpc(message);
       const windows = BrowserWindow.getAllWindows();
@@ -545,7 +545,7 @@ const getCoworkRunner = () => {
           try {
             win.webContents.send('cowork:stream:message', { sessionId, message: safeMessage });
           } catch (error) {
-            console.error('Failed to forward cowork message:', error);
+            console.error('转发协作消息失败:', error);
           }
         }
       });
@@ -559,7 +559,7 @@ const getCoworkRunner = () => {
           try {
             win.webContents.send('cowork:stream:messageUpdate', { sessionId, messageId, content: safeContent });
           } catch (error) {
-            console.error('Failed to forward cowork message update:', error);
+            console.error('转发协作消息更新失败:', error);
           }
         }
       });
@@ -576,7 +576,7 @@ const getCoworkRunner = () => {
           try {
             win.webContents.send('cowork:stream:permission', { sessionId, request: safeRequest });
           } catch (error) {
-            console.error('Failed to forward cowork permission request:', error);
+            console.error('转发协作权限请求失败:', error);
           }
         }
       });
@@ -614,7 +614,7 @@ const getIMGatewayManager = () => {
   if (!imGatewayManager) {
     const sqliteStore = getStore();
 
-    // Get Cowork dependencies for IM Cowork mode
+    // 获取协作模式的依赖项
     const runner = getCoworkRunner();
     const store = getCoworkStore();
 
@@ -627,13 +627,13 @@ const getIMGatewayManager = () => {
       }
     );
 
-    // Initialize with LLM config provider
+    // 使用 LLM 配置提供程序进行初始化
     imGatewayManager.initialize({
       getLLMConfig: async () => {
         const appConfig = sqliteStore.get<any>('app_config');
         if (!appConfig) return null;
 
-        // Find first enabled provider
+        // 查找第一个启用的提供商
         const providers = appConfig.providers || {};
         for (const [providerName, providerConfig] of Object.entries(providers) as [string, any][]) {
           if (providerConfig.enabled && providerConfig.apiKey) {
@@ -647,7 +647,7 @@ const getIMGatewayManager = () => {
           }
         }
 
-        // Fallback to legacy api config
+        // 回退到旧版 API 配置
         if (appConfig.api?.key) {
           return {
             apiKey: appConfig.api.key,
@@ -663,7 +663,7 @@ const getIMGatewayManager = () => {
       },
     });
 
-    // Forward IM events to renderer
+    // 将 IM 事件转发到渲染进程
     imGatewayManager.on('statusChange', (status) => {
       const windows = BrowserWindow.getAllWindows();
       windows.forEach(win => {
@@ -683,7 +683,7 @@ const getIMGatewayManager = () => {
     });
 
     imGatewayManager.on('error', ({ platform, error }) => {
-      console.error(`[IM Gateway] ${platform} error:`, error);
+      console.error(`[IM 网关] ${platform} 错误:`, error);
     });
   }
   return imGatewayManager;
@@ -776,7 +776,7 @@ const updateTitleBarOverlay = () => {
   if (!isMac && !isWindows) {
     mainWindow.setTitleBarOverlay(getTitleBarOverlayOptions());
   }
-  // Also update the window background color to match the theme
+  // 同时更新窗口背景色以匹配主题
   const config = getStore().get('app_config') as { theme?: string } | undefined;
   const theme = resolveThemeFromConfig(config);
   mainWindow.setBackgroundColor(theme === 'dark' ? '#0F1117' : '#F8F9FB');
@@ -798,9 +798,9 @@ const showSystemMenu = (position?: { x?: number; y?: number }) => {
 
   const isMaximized = mainWindow.isMaximized();
   const menu = Menu.buildFromTemplate([
-    { label: 'Restore', enabled: isMaximized, click: () => mainWindow.restore() },
+    { label: '还原', enabled: isMaximized, click: () => mainWindow.restore() },
     { role: 'minimize' },
-    { label: 'Maximize', enabled: !isMaximized, click: () => mainWindow.maximize() },
+    { label: '最大化', enabled: !isMaximized, click: () => mainWindow.maximize() },
     { type: 'separator' },
     { role: 'close' },
   ]);
@@ -819,11 +819,11 @@ const scheduleReload = (reason: string, webContents?: WebContents) => {
   }
   const now = Date.now();
   if (now - lastReloadAt < MIN_RELOAD_INTERVAL_MS) {
-    console.warn(`Skipping reload (${reason}); last reload was ${now - lastReloadAt}ms ago.`);
+    console.warn(`跳过重新加载 (${reason}); 上次重新加载是在 ${now - lastReloadAt} 毫秒前。`);
     return;
   }
   lastReloadAt = now;
-  console.warn(`Reloading window due to ${reason}`);
+  console.warn(`由于 ${reason} 正在重新加载窗口`);
   target.reloadIgnoringCache();
 };
 
@@ -835,7 +835,7 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (_event, commandLine, workingDirectory) => {
-    console.log('[Main] second-instance event', { commandLine, workingDirectory });
+    console.log('[主进程] 第二实例事件', { commandLine, workingDirectory });
     // 如果尝试启动第二个实例，则聚焦到主窗口
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -857,14 +857,14 @@ if (!gotTheLock) {
     getStore().delete(key);
   });
 
-  // Network status change handler
-  // Remove any existing listener first to avoid duplicate registrations
+  // 网络状态变更处理程序
+  // 首先移除任何现有监听器以避免重复注册
   ipcMain.removeAllListeners('network:status-change');
   ipcMain.on('network:status-change', (_event, status: 'online' | 'offline') => {
-    console.log(`[Main] Network status changed: ${status}`);
+    console.log(`[主进程] 网络状态已变更: ${status}`);
 
     if (status === 'online' && imGatewayManager) {
-      console.log('[Main] Network restored, reconnecting IM gateways...');
+      console.log('[主进程] 网络已恢复，正在重新连接 IM 网关...');
       imGatewayManager.reconnectAllDisconnected();
     }
   });
@@ -881,14 +881,14 @@ if (!gotTheLock) {
     }
   });
 
-  // Auto-launch IPC handlers
+  // 自动启动 IPC 处理程序
   ipcMain.handle('app:getAutoLaunch', () => {
     return { enabled: getAutoLaunchEnabled() };
   });
 
   ipcMain.handle('app:setAutoLaunch', (_event, enabled: unknown) => {
     if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'Invalid parameter: enabled must be boolean' };
+      return { success: false, error: '无效参数: enabled 必须为布尔值' };
     }
     try {
       setAutoLaunchEnabled(enabled);
@@ -896,12 +896,12 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to set auto-launch',
+        error: error instanceof Error ? error.message : '设置自动启动失败',
       };
     }
   });
 
-  // Window control IPC handlers
+  // 窗口控制 IPC 处理程序
   ipcMain.on('window-minimize', () => {
     mainWindow?.minimize();
   });
@@ -929,13 +929,13 @@ if (!gotTheLock) {
   ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('app:getSystemLocale', () => app.getLocale());
 
-  // Skills IPC handlers
+  // 技能 IPC 处理程序
   ipcMain.handle('skills:list', () => {
     try {
       const skills = getSkillManager().listSkills();
       return { success: true, skills };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to load skills' };
+      return { success: false, error: error instanceof Error ? error.message : '加载技能失败' };
     }
   });
 
@@ -944,7 +944,7 @@ if (!gotTheLock) {
       const skills = getSkillManager().setSkillEnabled(options.id, options.enabled);
       return { success: true, skills };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update skill' };
+      return { success: false, error: error instanceof Error ? error.message : '更新技能失败' };
     }
   });
 
@@ -953,7 +953,7 @@ if (!gotTheLock) {
       const skills = getSkillManager().deleteSkill(id);
       return { success: true, skills };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete skill' };
+      return { success: false, error: error instanceof Error ? error.message : '删除技能失败' };
     }
   });
 
@@ -966,7 +966,7 @@ if (!gotTheLock) {
       const root = getSkillManager().getSkillsRoot();
       return { success: true, path: root };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to resolve skills root' };
+      return { success: false, error: error instanceof Error ? error.message : '解析技能根目录失败' };
     }
   });
 
@@ -975,7 +975,7 @@ if (!gotTheLock) {
       const prompt = getSkillManager().buildAutoRoutingPrompt();
       return { success: true, prompt };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to build auto-routing prompt' };
+      return { success: false, error: error instanceof Error ? error.message : '构建自动路由提示失败' };
     }
   });
 
@@ -995,7 +995,7 @@ if (!gotTheLock) {
     return getSkillManager().testEmailConnectivity(skillId, config);
   });
 
-  // Cowork IPC handlers
+  // 协作 IPC 处理程序
   ipcMain.handle('cowork:session:start', async (_event, options: {
     prompt: string;
     cwd?: string;
@@ -1012,12 +1012,12 @@ if (!gotTheLock) {
       if (!selectedWorkspaceRoot) {
         return {
           success: false,
-          error: 'Please select a task folder before submitting.',
+          error: '请在提交前选择任务文件夹。',
         };
       }
 
-      // Generate title from first line of prompt
-      const fallbackTitle = options.prompt.split('\n')[0].slice(0, 50) || 'New Session';
+      // 从提示的第一行生成标题
+      const fallbackTitle = options.prompt.split('\n')[0].slice(0, 50) || '新会话';
       const title = options.title?.trim() || fallbackTitle;
       const taskWorkingDirectory = resolveTaskWorkingDirectory(selectedWorkspaceRoot);
 
@@ -1030,8 +1030,8 @@ if (!gotTheLock) {
       );
       const runner = getCoworkRunner();
 
-      // Update session status to 'running' before starting async task
-      // This ensures the frontend receives the correct status immediately
+      // 在启动异步任务之前将会话状态更新为 'running'
+      // 这确保前端立即收到正确的状态
       coworkStoreInstance.updateSession(session.id, { status: 'running' });
       coworkStoreInstance.addMessage(session.id, {
         type: 'user',
@@ -1039,14 +1039,14 @@ if (!gotTheLock) {
         metadata: options.activeSkillIds?.length ? { skillIds: options.activeSkillIds } : undefined,
       });
 
-      // Start the session asynchronously (skip initial user message since we already added it)
+      // 异步启动会话（跳过初始用户消息，因为我们已经添加了它）
       runner.startSession(session.id, options.prompt, {
         skipInitialUserMessage: true,
         skillIds: options.activeSkillIds,
         workspaceRoot: selectedWorkspaceRoot,
         confirmationMode: 'modal',
       }).catch(error => {
-        console.error('Cowork session error:', error);
+        console.error('协作会话错误:', error);
       });
 
       const sessionWithMessages = coworkStoreInstance.getSession(session.id) || {
@@ -1057,7 +1057,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to start session',
+        error: error instanceof Error ? error.message : '启动会话失败',
       };
     }
   });
@@ -1071,7 +1071,7 @@ if (!gotTheLock) {
     try {
       const runner = getCoworkRunner();
       runner.continueSession(options.sessionId, options.prompt, { systemPrompt: options.systemPrompt, skillIds: options.activeSkillIds }).catch(error => {
-        console.error('Cowork continue error:', error);
+        console.error('协作继续错误:', error);
       });
 
       const session = getCoworkStore().getSession(options.sessionId);
@@ -1079,7 +1079,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to continue session',
+        error: error instanceof Error ? error.message : '继续会话失败',
       };
     }
   });
@@ -1092,7 +1092,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to stop session',
+        error: error instanceof Error ? error.message : '停止会话失败',
       };
     }
   });
@@ -1105,7 +1105,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete session',
+        error: error instanceof Error ? error.message : '删除会话失败',
       };
     }
   });
@@ -1118,7 +1118,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update session pin',
+        error: error instanceof Error ? error.message : '更新会话置顶失败',
       };
     }
   });
@@ -1127,7 +1127,7 @@ if (!gotTheLock) {
     try {
       const title = options.title.trim();
       if (!title) {
-        return { success: false, error: 'Title is required' };
+        return { success: false, error: '标题为必填项' };
       }
       const coworkStoreInstance = getCoworkStore();
       coworkStoreInstance.updateSession(options.sessionId, { title });
@@ -1135,7 +1135,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to rename session',
+        error: error instanceof Error ? error.message : '重命名会话失败',
       };
     }
   });
@@ -1147,7 +1147,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get session',
+        error: error instanceof Error ? error.message : '获取会话失败',
       };
     }
   });
@@ -1159,7 +1159,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to list sessions',
+        error: error instanceof Error ? error.message : '列出会话失败',
       };
     }
   });
@@ -1175,7 +1175,7 @@ if (!gotTheLock) {
       const { rect, defaultFileName } = options || {};
       const captureRect = normalizeCaptureRect(rect);
       if (!captureRect) {
-        return { success: false, error: 'Capture rect is required' };
+        return { success: false, error: '需要捕获区域' };
       }
 
       const image = await event.sender.capturePage(captureRect);
@@ -1183,7 +1183,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to export session image',
+        error: error instanceof Error ? error.message : '导出会话图片失败',
       };
     }
   });
@@ -1197,7 +1197,7 @@ if (!gotTheLock) {
     try {
       const captureRect = normalizeCaptureRect(options?.rect);
       if (!captureRect) {
-        return { success: false, error: 'Capture rect is required' };
+        return { success: false, error: '需要捕获区域' };
       }
 
       const image = await event.sender.capturePage(captureRect);
@@ -1212,7 +1212,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to capture session image chunk',
+        error: error instanceof Error ? error.message : '捕获会话图片块失败',
       };
     }
   });
@@ -1227,19 +1227,19 @@ if (!gotTheLock) {
     try {
       const base64 = typeof options?.pngBase64 === 'string' ? options.pngBase64.trim() : '';
       if (!base64) {
-        return { success: false, error: 'Image data is required' };
+        return { success: false, error: '需要图片数据' };
       }
 
       const pngBuffer = Buffer.from(base64, 'base64');
       if (pngBuffer.length <= 0) {
-        return { success: false, error: 'Invalid image data' };
+        return { success: false, error: '无效的图片数据' };
       }
 
       return savePngWithDialog(event.sender, pngBuffer, options?.defaultFileName);
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to save session image',
+        error: error instanceof Error ? error.message : '保存会话图片失败',
       };
     }
   });
@@ -1255,7 +1255,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to respond to permission',
+        error: error instanceof Error ? error.message : '响应权限失败',
       };
     }
   });
@@ -1267,7 +1267,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get config',
+        error: error instanceof Error ? error.message : '获取配置失败',
       };
     }
   });
@@ -1294,7 +1294,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to list memory entries',
+        error: error instanceof Error ? error.message : '列出内存条目失败',
       };
     }
   });
@@ -1313,7 +1313,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create memory entry',
+        error: error instanceof Error ? error.message : '创建内存条目失败',
       };
     }
   });
@@ -1333,13 +1333,13 @@ if (!gotTheLock) {
         isExplicit: input.isExplicit,
       });
       if (!entry) {
-        return { success: false, error: 'Memory entry not found' };
+        return { success: false, error: '未找到内存条目' };
       }
       return { success: true, entry };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update memory entry',
+        error: error instanceof Error ? error.message : '更新内存条目失败',
       };
     }
   });
@@ -1350,11 +1350,11 @@ if (!gotTheLock) {
       const success = getCoworkStore().deleteUserMemory(input.id);
       return success
         ? { success: true }
-        : { success: false, error: 'Memory entry not found' };
+        : { success: false, error: '未找到内存条目' };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete memory entry',
+        error: error instanceof Error ? error.message : '删除内存条目失败',
       };
     }
   });
@@ -1365,7 +1365,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get memory stats',
+        error: error instanceof Error ? error.message : '获取内存统计失败',
       };
     }
   });
@@ -1431,19 +1431,19 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to set config',
+        error: error instanceof Error ? error.message : '设置配置失败',
       };
     }
   });
 
-  // ==================== Scheduled Task IPC Handlers ====================
+  // ==================== 计划任务 IPC 处理程序 ====================
 
   ipcMain.handle('scheduledTask:list', async () => {
     try {
       const tasks = getScheduledTaskStore().listTasks();
       return { success: true, tasks };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list tasks' };
+      return { success: false, error: error instanceof Error ? error.message : '列出任务失败' };
     }
   });
 
@@ -1452,7 +1452,7 @@ if (!gotTheLock) {
       const task = getScheduledTaskStore().getTask(id);
       return { success: true, task };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get task' };
+      return { success: false, error: error instanceof Error ? error.message : '获取任务失败' };
     }
   });
 
@@ -1469,7 +1469,7 @@ if (!gotTheLock) {
       getScheduler().reschedule();
       return { success: true, task };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to create task' };
+      return { success: false, error: error instanceof Error ? error.message : '创建任务失败' };
     }
   });
 
@@ -1478,7 +1478,7 @@ if (!gotTheLock) {
       const scheduledTaskStore = getScheduledTaskStore();
       const existingTask = scheduledTaskStore.getTask(id);
       if (!existingTask) {
-        return { success: false, error: `Task not found: ${id}` };
+        return { success: false, error: `未找到任务: ${id}` };
       }
 
       const coworkConfig = getCoworkStore().getConfig();
@@ -1492,7 +1492,7 @@ if (!gotTheLock) {
       getScheduler().reschedule();
       return { success: true, task };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update task' };
+      return { success: false, error: error instanceof Error ? error.message : '更新任务失败' };
     }
   });
 
@@ -1503,7 +1503,7 @@ if (!gotTheLock) {
       getScheduler().reschedule();
       return { success: true, result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete task' };
+      return { success: false, error: error instanceof Error ? error.message : '删除任务失败' };
     }
   });
 
@@ -1513,18 +1513,18 @@ if (!gotTheLock) {
       getScheduler().reschedule();
       return { success: true, task, warning };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to toggle task' };
+      return { success: false, error: error instanceof Error ? error.message : '切换任务失败' };
     }
   });
 
   ipcMain.handle('scheduledTask:runManually', async (_event, id: string) => {
     try {
       getScheduler().runManually(id).catch((err) => {
-        console.error(`[IPC] Manual run failed for ${id}:`, err);
+        console.error(`[IPC] 手动运行 ${id} 失败:`, err);
       });
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to run task' };
+      return { success: false, error: error instanceof Error ? error.message : '运行任务失败' };
     }
   });
 
@@ -1533,7 +1533,7 @@ if (!gotTheLock) {
       const result = getScheduler().stopTask(id);
       return { success: true, result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to stop task' };
+      return { success: false, error: error instanceof Error ? error.message : '停止任务失败' };
     }
   });
 
@@ -1542,7 +1542,7 @@ if (!gotTheLock) {
       const runs = getScheduledTaskStore().listRuns(taskId, limit, offset);
       return { success: true, runs };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list runs' };
+      return { success: false, error: error instanceof Error ? error.message : '列出运行记录失败' };
     }
   });
 
@@ -1551,7 +1551,7 @@ if (!gotTheLock) {
       const count = getScheduledTaskStore().countRuns(taskId);
       return { success: true, count };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to count runs' };
+      return { success: false, error: error instanceof Error ? error.message : '统计运行记录失败' };
     }
   });
 
@@ -1560,50 +1560,50 @@ if (!gotTheLock) {
       const runs = getScheduledTaskStore().listAllRuns(limit, offset);
       return { success: true, runs };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list all runs' };
+      return { success: false, error: error instanceof Error ? error.message : '列出所有运行记录失败' };
     }
   });
 
-  // ==================== Permissions IPC Handlers ====================
+  // ==================== 权限 IPC 处理程序 ====================
 
   ipcMain.handle('permissions:checkCalendar', async () => {
     try {
       const status = await checkCalendarPermission();
       
-      // Development mode: Auto-request permission if not determined
-      // This provides a better dev experience without affecting production
+      // 开发模式: 如果未确定则自动请求权限
+      // 这提供了更好的开发体验而不影响生产环境
       if (isDev && status === 'not-determined' && process.platform === 'darwin') {
-        console.log('[Permissions] Development mode: Auto-requesting calendar permission...');
+        console.log('[权限] 开发模式: 自动请求日历权限...');
         try {
           await requestCalendarPermission();
           const newStatus = await checkCalendarPermission();
-          console.log('[Permissions] Development mode: Permission status after request:', newStatus);
+          console.log('[权限] 开发模式: 请求后的权限状态:', newStatus);
           return { success: true, status: newStatus, autoRequested: true };
         } catch (requestError) {
-          console.warn('[Permissions] Development mode: Auto-request failed:', requestError);
+          console.warn('[权限] 开发模式: 自动请求失败:', requestError);
         }
       }
       
       return { success: true, status };
     } catch (error) {
-      console.error('[Main] Error checking calendar permission:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to check permission' };
+      console.error('[主进程] 检查日历权限错误:', error);
+      return { success: false, error: error instanceof Error ? error.message : '检查权限失败' };
     }
   });
 
   ipcMain.handle('permissions:requestCalendar', async () => {
     try {
-      // Request permission and check status
+      // 请求权限并检查状态
       const granted = await requestCalendarPermission();
       const status = await checkCalendarPermission();
       return { success: true, granted, status };
     } catch (error) {
-      console.error('[Main] Error requesting calendar permission:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to request permission' };
+      console.error('[主进程] 请求日历权限错误:', error);
+      return { success: false, error: error instanceof Error ? error.message : '请求权限失败' };
     }
   });
 
-  // ==================== IM Gateway IPC Handlers ====================
+  // ==================== IM 网关 IPC 处理程序 ====================
 
   ipcMain.handle('im:config:get', async () => {
     try {
@@ -1612,7 +1612,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get IM config',
+        error: error instanceof Error ? error.message : '获取 IM 配置失败',
       };
     }
   });
@@ -1624,14 +1624,14 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to set IM config',
+        error: error instanceof Error ? error.message : '设置 IM 配置失败',
       };
     }
   });
 
   ipcMain.handle('im:gateway:start', async (_event, platform: IMPlatform) => {
     try {
-      // Persist enabled state
+      // 持久化启用状态
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: true } });
       await manager.startGateway(platform);
@@ -1639,14 +1639,14 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to start gateway',
+        error: error instanceof Error ? error.message : '启动网关失败',
       };
     }
   });
 
   ipcMain.handle('im:gateway:stop', async (_event, platform: IMPlatform) => {
     try {
-      // Persist disabled state
+      // 持久化禁用状态
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: false } });
       await manager.stopGateway(platform);
@@ -1654,7 +1654,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to stop gateway',
+        error: error instanceof Error ? error.message : '停止网关失败',
       };
     }
   });
@@ -1670,7 +1670,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to test gateway connectivity',
+        error: error instanceof Error ? error.message : '测试网关连接失败',
       };
     }
   });
@@ -1682,7 +1682,7 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to get IM status',
+        error: error instanceof Error ? error.message : '获取 IM 状态失败',
       };
     }
   });
@@ -1717,12 +1717,12 @@ if (!gotTheLock) {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to save API config',
+        error: error instanceof Error ? error.message : '保存 API 配置失败',
       };
     }
   });
 
-  // Dialog handlers
+  // 对话框处理程序
   ipcMain.handle('dialog:selectDirectory', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
@@ -1754,18 +1754,18 @@ if (!gotTheLock) {
       try {
         const dataBase64 = typeof options?.dataBase64 === 'string' ? options.dataBase64.trim() : '';
         if (!dataBase64) {
-          return { success: false, path: null, error: 'Missing file data' };
+          return { success: false, path: null, error: '缺少文件数据' };
         }
 
         const buffer = Buffer.from(dataBase64, 'base64');
         if (!buffer.length) {
-          return { success: false, path: null, error: 'Invalid file data' };
+          return { success: false, path: null, error: '无效的文件数据' };
         }
         if (buffer.length > MAX_INLINE_ATTACHMENT_BYTES) {
           return {
             success: false,
             path: null,
-            error: `File too large (max ${Math.floor(MAX_INLINE_ATTACHMENT_BYTES / (1024 * 1024))}MB)`,
+            error: `文件过大（最大 ${Math.floor(MAX_INLINE_ATTACHMENT_BYTES / (1024 * 1024))}MB）`,
           };
         }
 
@@ -1785,13 +1785,13 @@ if (!gotTheLock) {
         return {
           success: false,
           path: null,
-          error: error instanceof Error ? error.message : 'Failed to save inline file',
+          error: error instanceof Error ? error.message : '保存内联文件失败',
         };
       }
     }
   );
 
-  // Shell handlers - 打开文件/文件夹
+  // Shell 处理程序 - 打开文件/文件夹
   ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
     try {
       const normalizedPath = normalizeWindowsShellPath(filePath);
@@ -1802,7 +1802,7 @@ if (!gotTheLock) {
       }
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: error instanceof Error ? error.message : '未知错误' };
     }
   });
 
@@ -1812,7 +1812,7 @@ if (!gotTheLock) {
       shell.showItemInFolder(normalizedPath);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: error instanceof Error ? error.message : '未知错误' };
     }
   });
 
@@ -1821,7 +1821,7 @@ if (!gotTheLock) {
       await shell.openExternal(url);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: error instanceof Error ? error.message : '未知错误' };
     }
   });
 
@@ -1862,10 +1862,10 @@ if (!gotTheLock) {
       return {
         ok: false,
         status: 0,
-        statusText: error instanceof Error ? error.message : 'Network error',
+        statusText: error instanceof Error ? error.message : '网络错误',
         headers: {},
         data: null,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : '未知错误',
       };
     }
   });
@@ -1907,7 +1907,7 @@ if (!gotTheLock) {
         return {
           ok: false,
           status: response.status,
-          statusText: 'No response body',
+          statusText: '无响应体',
         };
       }
 
@@ -1931,7 +1931,7 @@ if (!gotTheLock) {
             event.sender.send(`api:stream:${options.requestId}:abort`);
           } else {
             event.sender.send(`api:stream:${options.requestId}:error`,
-              error instanceof Error ? error.message : 'Stream error');
+              error instanceof Error ? error.message : '流错误');
           }
         } finally {
           activeStreamControllers.delete(options.requestId);
@@ -1951,8 +1951,8 @@ if (!gotTheLock) {
       return {
         ok: false,
         status: 0,
-        statusText: error instanceof Error ? error.message : 'Network error',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        statusText: error instanceof Error ? error.message : '网络错误',
+        error: error instanceof Error ? error.message : '未知错误',
       };
     }
   });
@@ -2081,8 +2081,8 @@ if (!gotTheLock) {
 
     // 处理窗口关闭
     mainWindow.on('close', (e) => {
-      // In development, close should actually quit so `npm run electron:dev`
-      // restarts from a clean process. In production we keep tray behavior.
+      // 在开发环境中，关闭应该真正退出，以便 `npm run electron:dev`
+      // 从干净的进程重新启动。在生产环境中我们保持托盘行为。
       if (mainWindow && !isQuitting && !isDev) {
         e.preventDefault();
         mainWindow.hide();
@@ -2091,8 +2091,8 @@ if (!gotTheLock) {
 
     // 处理渲染进程崩溃或退出
     mainWindow.webContents.on('render-process-gone', (_event, details) => {
-      console.error('Window render process gone:', details);
-      scheduleReload('webContents-crashed');
+      console.error('窗口渲染进程已退出:', details);
+      scheduleReload('webContents崩溃');
     });
 
     if (isDev) {
@@ -2102,14 +2102,14 @@ if (!gotTheLock) {
 
       const tryLoadURL = () => {
         mainWindow?.loadURL(DEV_SERVER_URL).catch((err) => {
-          console.error('Failed to load URL:', err);
+          console.error('加载 URL 失败:', err);
           retryCount++;
           
           if (retryCount < maxRetries) {
-            console.log(`Retrying to load URL (${retryCount}/${maxRetries})...`);
+            console.log(`正在重试加载 URL (${retryCount}/${maxRetries})...`);
             setTimeout(tryLoadURL, 3000);
           } else {
-            console.error('Failed to load URL after maximum retries');
+            console.error('达到最大重试次数后仍无法加载 URL');
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.loadFile(path.join(__dirname, '../resources/error.html'));
             }
@@ -2128,11 +2128,11 @@ if (!gotTheLock) {
 
     // 添加错误处理
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-      console.error('Page failed to load:', errorCode, errorDescription);
+      console.error('页面加载失败:', errorCode, errorDescription);
       // 如果加载失败，尝试重新加载
       if (isDev) {
         setTimeout(() => {
-          scheduleReload('did-fail-load');
+          scheduleReload('加载失败');
         }, 3000);
       }
     });
@@ -2160,7 +2160,7 @@ if (!gotTheLock) {
       // 窗口就绪后创建系统托盘
       createTray(() => mainWindow, getStore());
 
-      // Start the scheduler
+      // 启动调度器
       getScheduler().start();
     });
   };
@@ -2169,32 +2169,32 @@ if (!gotTheLock) {
   let isCleanupInProgress = false;
 
   const runAppCleanup = async (): Promise<void> => {
-    console.log('[Main] App is quitting, starting cleanup...');
+    console.log('[主进程] 应用正在退出，开始清理...');
     destroyTray();
     skillManager?.stopWatching();
 
-    // Stop Cowork sessions without blocking shutdown.
+    // 停止协作会话而不阻塞关闭
     if (coworkRunner) {
-      console.log('[Main] Stopping cowork sessions...');
+      console.log('[主进程] 正在停止协作会话...');
       coworkRunner.stopAllSessions();
     }
 
     await stopCoworkOpenAICompatProxy().catch((error) => {
-      console.error('Failed to stop OpenAI compatibility proxy:', error);
+      console.error('停止 OpenAI 兼容代理失败:', error);
     });
 
-    // Stop skill services.
+    // 停止技能服务
     const skillServices = getSkillServiceManager();
     await skillServices.stopAll();
 
-    // Stop all IM gateways gracefully.
+    // 优雅地停止所有 IM 网关
     if (imGatewayManager) {
       await imGatewayManager.stopAll().catch(err => {
-        console.error('[IM Gateway] Error stopping gateways on quit:', err);
+        console.error('[IM 网关] 退出时停止网关错误:', err);
       });
     }
 
-    // Stop the scheduler
+    // 停止调度器
     if (scheduler) {
       scheduler.stop();
     }
@@ -2213,7 +2213,7 @@ if (!gotTheLock) {
 
     void runAppCleanup()
       .catch((error) => {
-        console.error('[Main] Cleanup error:', error);
+        console.error('[主进程] 清理错误:', error);
       })
       .finally(() => {
         isCleanupFinished = true;
@@ -2226,12 +2226,12 @@ if (!gotTheLock) {
     if (isCleanupFinished || isCleanupInProgress) {
       return;
     }
-    console.log(`[Main] Received ${signal}, running cleanup before exit...`);
+    console.log(`[主进程] 收到 ${signal} 信号，退出前运行清理...`);
     isCleanupInProgress = true;
     isQuitting = true;
     void runAppCleanup()
       .catch((error) => {
-        console.error(`[Main] Cleanup error during ${signal}:`, error);
+        console.error(`[主进程] ${signal} 期间清理错误:`, error);
       })
       .finally(() => {
         isCleanupFinished = true;
@@ -2249,30 +2249,30 @@ if (!gotTheLock) {
 
     migrateLegacyUserData();
 
-    // Note: Calendar permission is checked on-demand when calendar operations are requested
-    // We don't trigger permission dialogs at startup to avoid annoying users
+    // 注意: 日历权限在请求日历操作时按需检查
+    // 我们不在启动时触发权限对话框以避免打扰用户
 
-    // Ensure default working directory exists
+    // 确保默认工作目录存在
     const defaultProjectDir = path.join(os.homedir(), 'lobsterai', 'project');
     if (!fs.existsSync(defaultProjectDir)) {
       fs.mkdirSync(defaultProjectDir, { recursive: true });
-      console.log('Created default project directory:', defaultProjectDir);
+      console.log('已创建默认项目目录:', defaultProjectDir);
     }
 
     store = await initStore();
-    // Defensive recovery: app may be force-closed during execution and leave
-    // stale running flags in DB. Normalize them on startup.
+    // 防御性恢复: 应用可能在执行期间被强制关闭，并在数据库中留下
+    // 过期的运行标志。在启动时将它们标准化。
     const resetCount = getCoworkStore().resetRunningSessions();
     if (resetCount > 0) {
-      console.log(`[Main] Reset ${resetCount} stuck cowork session(s) from running -> idle`);
+      console.log(`[主进程] 已重置 ${resetCount} 个卡住的协作会话状态: running -> idle`);
     }
-    // Inject store getter into claudeSettings
+    // 将存储获取器注入到 claudeSettings
     setStoreGetter(() => store);
     const manager = getSkillManager();
     manager.syncBundledSkillsToUserData();
     manager.startWatching();
 
-    // Start skill services
+    // 启动技能服务
     const skillServices = getSkillServiceManager();
     await skillServices.startAll();
 
@@ -2282,10 +2282,10 @@ if (!gotTheLock) {
     console.log('已设置为跟随系统代理');
 
     await startCoworkOpenAICompatProxy().catch((error) => {
-      console.error('Failed to start OpenAI compatibility proxy:', error);
+      console.error('启动 OpenAI 兼容代理失败:', error);
     });
 
-    // Inject scheduled task dependencies into the proxy server
+    // 将计划任务依赖项注入代理服务器
     setScheduledTaskDeps({ getScheduledTaskStore, getScheduler });
 
     // 设置安全策略
@@ -2294,9 +2294,9 @@ if (!gotTheLock) {
     // 创建窗口
     createWindow();
 
-    // Auto-reconnect IM bots that were enabled before restart
+    // 自动重新连接重启前已启用的 IM 机器人
     getIMGatewayManager().startAllEnabled().catch((error) => {
-      console.error('[IM] Failed to auto-start enabled gateways:', error);
+      console.error('[IM] 自动启动已启用的网关失败:', error);
     });
 
     // 首次启动时默认开启开机自启动（先写标记再设置，避免崩溃后重复设置）

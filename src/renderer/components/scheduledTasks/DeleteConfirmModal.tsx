@@ -18,10 +18,10 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
       className="fixed inset-0 z-[9999] flex items-center justify-center"
       onClick={onCancel}
     >
-      {/* Backdrop */}
+      {/* 背景遮罩 */}
       <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
 
-      {/* Modal */}
+      {/* 模态框 */}
       <div
         className="relative w-80 rounded-xl shadow-2xl dark:bg-claude-darkSurface bg-white border dark:border-claude-darkBorder border-claude-border p-5"
         onClick={(e) => e.stopPropagation()}

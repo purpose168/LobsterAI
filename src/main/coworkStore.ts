@@ -12,7 +12,7 @@ import {
 } from './libs/coworkMemoryExtractor';
 import { judgeMemoryCandidate } from './libs/coworkMemoryJudge';
 
-// Default working directory for new users
+// 新用户的默认工作目录
 const getDefaultWorkingDirectory = (): string => {
   return path.join(os.homedir(), 'lobsterai', 'project');
 };
@@ -443,7 +443,7 @@ const getDefaultSystemPrompt = (): string => {
     const promptPath = path.join(app.getAppPath(), 'sandbox', 'agent-runner', 'AGENT_SYSTEM_PROMPT.md');
     cachedDefaultSystemPrompt = fs.readFileSync(promptPath, 'utf-8');
   } catch (error) {
-    console.warn('Failed to load default system prompt:', error);
+    console.warn('加载默认系统提示词失败：', error);
     cachedDefaultSystemPrompt = '';
   }
 
@@ -961,7 +961,7 @@ export class CoworkStore {
   }): { memory: CoworkUserMemory; created: boolean; updated: boolean } {
     const normalizedText = truncate(normalizeMemoryText(input.text), 360);
     if (!normalizedText) {
-      throw new Error('Memory text is required');
+      throw new Error('记忆文本不能为空');
     }
 
     const now = Date.now();
@@ -1019,7 +1019,7 @@ export class CoworkStore {
         WHERE id = ?
       `, [existing.id]);
       if (!memory) {
-        throw new Error('Failed to reload updated memory');
+        throw new Error('重新加载更新的记忆失败');
       }
       return { memory: this.mapMemoryRow(memory), created: false, updated: true };
     }
@@ -1038,7 +1038,7 @@ export class CoworkStore {
       WHERE id = ?
     `, [id]);
     if (!memory) {
-      throw new Error('Failed to load created memory');
+      throw new Error('加载创建的记忆失败');
     }
 
     return { memory: this.mapMemoryRow(memory), created: true, updated: false };
@@ -1113,7 +1113,7 @@ export class CoworkStore {
     const now = Date.now();
     const nextText = input.text !== undefined ? truncate(normalizeMemoryText(input.text), 360) : current.text;
     if (!nextText) {
-      throw new Error('Memory text is required');
+      throw new Error('记忆文本不能为空');
     }
     const nextConfidence = input.confidence !== undefined
       ? Math.max(0, Math.min(1, Number(input.confidence)))

@@ -1,7 +1,7 @@
 // 调度类型
 export interface ScheduleAt {
   type: 'at';
-  datetime: string; // ISO 8601
+  datetime: string; // ISO 8601 日期时间格式
 }
 
 export interface ScheduleInterval {

@@ -312,7 +312,7 @@ const getDefaultActiveProvider = (): ProviderType => {
 
 const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
   const dispatch = useDispatch();
-  // 状态
+  // 状态管理
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'general');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [language, setLanguage] = useState<LanguageType>('zh');
@@ -329,10 +329,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
   const initialLanguageRef = useRef<LanguageType>(i18nService.getLanguage());
   const didSaveRef = useRef(false);
 
-  // Add state for active provider
+  // 添加当前激活的提供商状态
   const [activeProvider, setActiveProvider] = useState<ProviderType>(getDefaultActiveProvider());
 
-  // Add state for providers configuration
+  // 添加提供商配置状态
   const [providers, setProviders] = useState<ProvidersConfig>(() => getDefaultProviders());
   
   // 创建引用来确保内容区域的滚动
@@ -346,7 +346,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     settings: 'Ctrl+,',
   });
 
-  // State for model editing
+  // 模型编辑相关状态
   const [isAddingModel, setIsAddingModel] = useState(false);
   const [isEditingModel, setIsEditingModel] = useState(false);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
@@ -392,7 +392,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         setCoworkSandboxProgress(status.progress);
       }
     } catch (loadError) {
-      console.error('Failed to load cowork sandbox status:', loadError);
+      console.error('加载沙箱状态失败:', loadError);
       setCoworkSandboxStatus(null);
     } finally {
       setCoworkSandboxLoading(false);
@@ -417,23 +417,23 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     try {
       const config = configService.getConfig();
       
-      // Set general settings
+      // 设置常规设置
       initialThemeRef.current = config.theme;
       initialLanguageRef.current = config.language;
       setTheme(config.theme);
       setLanguage(config.language);
 
-      // Load auto-launch setting
+      // 加载开机启动设置
       window.electron.autoLaunch.get().then(({ enabled }) => {
         setAutoLaunchState(enabled);
       }).catch(err => {
-        console.error('Failed to load auto-launch setting:', err);
+        console.error('加载开机启动设置失败:', err);
       });
       
-      // Set up providers based on saved config
+      // 根据已保存的配置设置提供商
       if (config.api) {
-        // For backward compatibility with older config
-        // Initialize active provider based on baseUrl
+        // 为了向后兼容旧版本配置
+        // 根据 baseUrl 初始化激活的提供商
         const normalizedApiBaseUrl = config.api.baseUrl.toLowerCase();
         if (normalizedApiBaseUrl.includes('openai')) {
           setActiveProvider('openai');
@@ -548,7 +548,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         }
       }
       
-      // Load provider-specific configurations if available
+      // 加载提供商特定配置（如果可用）
       // 合并已保存的配置和默认配置，确保新添加的 provider 能被显示
       if (config.providers) {
         setProviders(prev => {
@@ -583,7 +583,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         }));
       }
     } catch (error) {
-      setError('Failed to load settings');
+      setError('加载设置失败');
     }
   }, []);
 
@@ -614,7 +614,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     }
   }, [initialTab]);
 
-  // Subscribe to language changes
+  // 订阅语言变更
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
       setLanguage(i18nService.getLanguage());
@@ -622,7 +622,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     return unsubscribe;
   }, []);
 
-  // Compute visible providers based on language
+  // 根据语言计算可见的提供商
   const visibleProviders = useMemo(() => {
     const visibleKeys = getVisibleProviders(language);
     const filtered: Partial<ProvidersConfig> = {};
@@ -634,17 +634,17 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     return filtered as ProvidersConfig;
   }, [language, providers]);
 
-  // Ensure activeProvider is always in visibleProviders when language changes
+  // 确保当语言改变时，activeProvider 始终在 visibleProviders 中
   useEffect(() => {
     const visibleKeys = Object.keys(visibleProviders) as ProviderType[];
     if (visibleKeys.length > 0 && !visibleKeys.includes(activeProvider)) {
-      // If current activeProvider is not visible, switch to first visible provider
+      // 如果当前 activeProvider 不可见，切换到第一个可见的提供商
       const firstEnabledVisible = visibleKeys.find(key => visibleProviders[key]?.enabled);
       setActiveProvider(firstEnabledVisible ?? visibleKeys[0]);
     }
   }, [visibleProviders, activeProvider]);
 
-  // Handle provider change
+  // 处理提供商变更
   const handleProviderChange = (provider: ProviderType) => {
     setIsAddingModel(false);
     setIsEditingModel(false);
@@ -658,7 +658,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     setTestResult(null);
   };
 
-  // Handle provider configuration change
+  // 处理提供商配置变更
   const handleProviderConfigChange = (provider: ProviderType, field: string, value: string) => {
     setProviders(prev => {
       if (field === 'apiFormat') {
@@ -668,7 +668,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
           apiFormat: nextApiFormat,
         };
 
-        // Only auto-switch URL when current value is still a known default URL.
+        // 仅当当前值仍是已知默认 URL 时自动切换 URL
         if (shouldAutoSwitchProviderBaseUrl(provider, prev[provider].baseUrl)) {
           const defaultBaseUrl = getProviderDefaultBaseUrl(provider, nextApiFormat);
           if (defaultBaseUrl) {
@@ -751,7 +751,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
       setCoworkMemoryEntries(entries);
       setCoworkMemoryStats(stats);
     } catch (loadError) {
-      console.error('Failed to load cowork memory data:', loadError);
+      console.error('加载记忆数据失败:', loadError);
       setCoworkMemoryEntries([]);
       setCoworkMemoryStats(null);
     } finally {
@@ -841,7 +841,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     setShowMemoryModal(true);
   };
 
-  // Toggle provider enabled status
+  // 切换提供商启用状态
   const toggleProviderEnabled = (provider: ProviderType) => {
     const providerConfig = providers[provider];
     const isEnabling = !providerConfig.enabled;
@@ -877,7 +877,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         ])
       ) as ProvidersConfig;
 
-      // Find the first enabled provider to use as the primary API
+      // 查找第一个启用的提供商作为主要 API
       const firstEnabledProvider = Object.entries(normalizedProviders).find(
         ([_, config]) => config.enabled
       );
@@ -891,7 +891,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
           key: primaryProvider.apiKey,
           baseUrl: primaryProvider.baseUrl,
         },
-        providers: normalizedProviders, // Save all providers configuration
+        providers: normalizedProviders, // 保存所有提供商配置
         theme,
         language,
         shortcuts,
@@ -903,7 +903,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
       // 应用语言
       i18nService.setLanguage(language, { persist: false });
 
-      // Set API with the primary provider
+      // 使用主要提供商设置 API
       apiService.setConfig({
         apiKey: primaryProvider.apiKey,
         baseUrl: primaryProvider.baseUrl,
@@ -933,13 +933,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         });
       }
 
-      // Save IM config
+      // 保存即时通讯配置
       await imService.updateConfig(imConfig);
 
       didSaveRef.current = true;
       onClose();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save settings');
+      setError(error instanceof Error ? error.message : '保存设置失败');
     } finally {
       setIsSaving(false);
     }
@@ -972,7 +972,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
     e.stopPropagation();
   };
 
-  // Handlers for model operations
+  // 模型操作处理函数
   const handleAddModel = () => {
     setIsAddingModel(true);
     setIsEditingModel(false);
@@ -1240,7 +1240,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (err) {
-      console.error('Failed to export providers:', err);
+      console.error('导出提供商配置失败:', err);
       setError(i18nService.t('exportProvidersFailed'));
     } finally {
       setIsExportingProviders(false);
@@ -1275,13 +1275,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         return;
       }
 
-      // Check if it's version 2 (password-based encryption)
+      // 检查是否为版本 2（基于密码的加密）
       if (payload.version === 2 && payload.encryption?.keySource === 'password') {
         await processImportPayloadWithPassword(payload);
         return;
       }
 
-      // Version 1 (legacy local-store key) - try to decrypt with local key
+      // 版本 1（旧版本地存储密钥）- 尝试使用本地密钥解密
       if (payload.version === 1) {
         await processImportPayloadWithLocalKey(payload);
         return;
@@ -1289,7 +1289,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
 
       setError(i18nService.t('invalidProvidersFile'));
     } catch (err) {
-      console.error('Failed to import providers:', err);
+      console.error('导入提供商配置失败:', err);
       setError(i18nService.t('importProvidersFailed'));
     }
   };
@@ -1313,14 +1313,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
             apiKey = await decryptSecret(providerData.apiKey as EncryptedPayload);
           } catch (error) {
             hadDecryptFailure = true;
-            console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
+            console.warn(`解密提供商密钥失败 ${providerKey}`, error);
           }
         } else if (typeof providerData.apiKeyEncrypted === 'string' && typeof providerData.apiKeyIv === 'string') {
           try {
             apiKey = await decryptSecret({ encrypted: providerData.apiKeyEncrypted, iv: providerData.apiKeyIv });
           } catch (error) {
             hadDecryptFailure = true;
-            console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
+            console.warn(`解密提供商密钥失败 ${providerKey}`, error);
           }
         }
 
@@ -1355,7 +1355,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         setNoticeMessage(i18nService.t('decryptProvidersPartial'));
       }
     } catch (err) {
-      console.error('Failed to import providers:', err);
+      console.error('导入提供商配置失败:', err);
       const isDecryptError = err instanceof Error
         && (err.message === 'Invalid encrypted payload' || err.name === 'OperationError');
       const message = isDecryptError
@@ -1390,12 +1390,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         } else if (providerData.apiKey && typeof providerData.apiKey === 'object') {
           const apiKeyObj = providerData.apiKey as PasswordEncryptedPayload;
           if (apiKeyObj.salt) {
-            // Version 2 password-based encryption
+            // 版本 2 基于密码的加密
             try {
               apiKey = await decryptWithPassword(apiKeyObj, DEFAULT_EXPORT_PASSWORD);
             } catch (error) {
               hadDecryptFailure = true;
-              console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
+              console.warn(`解密提供商密钥失败 ${providerKey}`, error);
             }
           }
         }
@@ -1416,13 +1416,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         return;
       }
 
-      // Check if any key was successfully decrypted
+      // 检查是否有任何密钥被成功解密
       const anyKeyDecrypted = Object.entries(providerUpdates).some(
         ([key, update]) => update?.apiKey && update.apiKey !== providers[key]?.apiKey
       );
 
       if (!anyKeyDecrypted && hadDecryptFailure) {
-        // All decryptions failed - likely wrong password
+        // 所有解密都失败 - 可能是密码错误
         setError(i18nService.t('decryptProvidersFailed'));
         return;
       }
@@ -1442,7 +1442,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         setNoticeMessage(i18nService.t('decryptProvidersPartial'));
       }
     } catch (err) {
-      console.error('Failed to import providers:', err);
+      console.error('导入提供商配置失败:', err);
       const isDecryptError = err instanceof Error
         && (err.message === 'Invalid encrypted payload' || err.name === 'OperationError');
       const message = isDecryptError
@@ -1474,7 +1474,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
       case 'general':
         return (
           <div className="space-y-8">
-            {/* Language Section */}
+            {/* 语言设置区域 */}
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium dark:text-claude-darkText text-claude-text">
                 {i18nService.t('language')}
@@ -1496,7 +1496,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
               </div>
             </div>
 
-            {/* Auto-launch Section */}
+            {/* 开机启动区域 */}
             <div>
               <h4 className="text-sm font-medium dark:text-claude-darkText text-claude-text mb-3">
                 {i18nService.t('autoLaunch')}
@@ -1518,11 +1518,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
                       if (result.success) {
                         setAutoLaunchState(next);
                       } else {
-                        setError(result.error || 'Failed to update auto-launch setting');
+                        setError(result.error || '更新开机启动设置失败');
                       }
                     } catch (err) {
-                      console.error('Failed to set auto-launch:', err);
-                      setError('Failed to update auto-launch setting');
+                      console.error('设置开机启动失败:', err);
+                      setError('更新开机启动设置失败');
                     } finally {
                       setIsUpdatingAutoLaunch(false);
                     }
@@ -1545,7 +1545,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
               </label>
             </div>
 
-            {/* Appearance Section */}
+            {/* 外观设置区域 */}
             <div>
               <h4 className="text-sm font-medium dark:text-claude-darkText text-claude-text mb-3">
                 {i18nService.t('appearance')}
@@ -1618,7 +1618,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
                                 <rect x="60" y="0" width="60" height="80" />
                               </clipPath>
                             </defs>
-                            {/* Light half */}
+                            {/* 浅色半边 */}
                             <g clipPath="url(#left-half)">
                               <rect width="120" height="80" fill="#F8F9FB" />
                               <rect x="0" y="0" width="30" height="80" fill="#EBEDF0" />
@@ -1634,7 +1634,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
                               <rect x="42" y="46" width="40" height="4" rx="2" fill="#D5D7DB" />
                               <rect x="42" y="54" width="66" height="3" rx="1.5" fill="#E2E4E7" />
                             </g>
-                            {/* Dark half */}
+                            {/* 深色半边 */}
                             <g clipPath="url(#right-half)">
                               <rect width="120" height="80" fill="#0F1117" />
                               <rect x="0" y="0" width="30" height="80" fill="#151820" />
@@ -1650,7 +1650,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
                               <rect x="42" y="46" width="40" height="4" rx="2" fill="#3A3F4B" />
                               <rect x="42" y="54" width="66" height="3" rx="1.5" fill="#252930" />
                             </g>
-                            {/* Divider line */}
+                            {/* 分隔线 */}
                             <line x1="60" y1="0" x2="60" y2="80" stroke="#888" strokeWidth="0.5" />
                           </>
                         )}
@@ -1912,7 +1912,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
       case 'model':
         return (
           <div className="flex h-full">
-            {/* Provider List - Left Side */}
+            {/* 提供商列表 - 左侧 */}
             <div className="w-2/5 border-r dark:border-claude-darkBorder border-claude-border pr-3 space-y-1.5 overflow-y-auto">
               <div className="flex items-center justify-between mb-2 px-1">
                 <h3 className="text-sm font-medium dark:text-claude-darkText text-claude-text">
@@ -2001,7 +2001,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
               })}
             </div>
 
-            {/* Provider Settings - Right Side */}
+            {/* 提供商设置 - 右侧 */}
             <div className="w-3/5 pl-4 space-y-4 overflow-y-auto">
               <div className="flex items-center justify-between pb-2 border-b dark:border-claude-darkBorder border-claude-border">
                 <h3 className="text-base font-medium dark:text-claude-darkText text-claude-text">
@@ -2126,7 +2126,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
                   </button>
                 </div>
 
-                {/* Models List */}
+                {/* 模型列表 */}
                 <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                   {providers[activeProvider].models?.map(model => (
                     <div
@@ -2243,7 +2243,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
         className="flex w-[900px] h-[80vh] rounded-2xl dark:border-claude-darkBorder border-claude-border border shadow-modal overflow-hidden modal-content"
         onClick={handleSettingsClick}
       >
-        {/* Left sidebar */}
+        {/* 左侧边栏 */}
         <div className="w-[220px] shrink-0 flex flex-col dark:bg-claude-darkSurfaceMuted bg-claude-surfaceMuted border-r dark:border-claude-darkBorder border-claude-border rounded-l-2xl overflow-y-auto">
           <div className="px-5 pt-5 pb-3">
             <h2 className="text-lg font-semibold dark:text-claude-darkText text-claude-text">{i18nService.t('settings')}</h2>
@@ -2266,9 +2266,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
           </nav>
         </div>
 
-        {/* Right content */}
+        {/* 右侧内容区域 */}
         <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden dark:bg-claude-darkBg bg-claude-bg rounded-r-2xl">
-          {/* Content header */}
+          {/* 内容头部 */}
           <div className="flex justify-between items-center px-6 pt-5 pb-3 shrink-0">
             <h3 className="text-lg font-semibold dark:text-claude-darkText text-claude-text">{activeTabLabel}</h3>
             <button
@@ -2298,7 +2298,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            {/* Tab content */}
+            {/* 标签页内容 */}
             <div
               ref={contentRef}
               className="px-6 py-4 flex-1 overflow-y-auto"
@@ -2306,7 +2306,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
               {renderTabContent()}
             </div>
 
-            {/* Footer buttons */}
+            {/* 底部按钮 */}
             <div className="flex justify-end space-x-4 p-4 dark:border-claude-darkBorder border-claude-border border-t dark:bg-claude-darkBg bg-claude-bg shrink-0">
               <button
                 type="button"
@@ -2430,7 +2430,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice }) => {
             </div>
           )}
 
-          {/* Memory Modal */}
+          {/* 记忆模态框 */}
           {showMemoryModal && (
             <div
               className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4"

@@ -109,7 +109,7 @@ const App: React.FC = () => {
 
         setIsInitialized(true);
       } catch (error) {
-        console.error('Failed to initialize app:', error);
+        console.error('应用初始化失败:', error);
         setInitError(i18nService.t('initializationError'));
         setIsInitialized(true);
       }
@@ -127,15 +127,15 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Network status monitoring
+  // 网络状态监控
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[Renderer] Network online');
+      console.log('[渲染进程] 网络已连接');
       window.electron.networkStatus.send('online');
     };
 
     const handleOffline = () => {
-      console.log('[Renderer] Network offline');
+      console.log('[渲染进程] 网络已断开');
       window.electron.networkStatus.send('offline');
     };
 
@@ -220,7 +220,7 @@ const App: React.FC = () => {
         setShowUpdateModal(false);
       }
     } catch (error) {
-      console.error('Failed to check app update:', error);
+      console.error('检查应用更新失败:', error);
       setUpdateInfo(null);
       setShowUpdateModal(false);
     }
@@ -240,7 +240,7 @@ const App: React.FC = () => {
         showToast(i18nService.t('updateOpenFailed'));
       }
     } catch (error) {
-      console.error('Failed to open update url:', error);
+      console.error('打开更新链接失败:', error);
       showToast(i18nService.t('updateOpenFailed'));
     }
   }, [updateInfo, showToast]);
@@ -324,7 +324,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Listen for toast events from child components
+  // 监听子组件发出的 Toast 事件
   useEffect(() => {
     const handler = (e: Event) => {
       const message = (e as CustomEvent<string>).detail;

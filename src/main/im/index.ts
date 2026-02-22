@@ -1,6 +1,6 @@
 /**
- * IM Gateway Module Index
- * Re-exports all IM gateway related modules
+ * IM网关模块索引
+ * 重新导出所有IM网关相关模块
  */
 
 export * from './types';

@@ -11,6 +11,7 @@ import {
 import type { ScheduledTaskStore, ScheduledTaskInput } from '../scheduledTaskStore';
 import type { Scheduler } from './scheduler';
 
+// OpenAI兼容上游配置类型
 export type OpenAICompatUpstreamConfig = {
   baseURL: string;
   apiKey?: string;
@@ -18,8 +19,10 @@ export type OpenAICompatUpstreamConfig = {
   provider?: string;
 };
 
+// OpenAI兼容代理目标类型
 export type OpenAICompatProxyTarget = 'local' | 'sandbox';
 
+// OpenAI兼容代理状态类型
 export type OpenAICompatProxyStatus = {
   running: boolean;
   baseURL: string | null;
@@ -29,12 +32,14 @@ export type OpenAICompatProxyStatus = {
   lastError: string | null;
 };
 
+// 工具调用状态类型
 type ToolCallState = {
   id?: string;
   name?: string;
   extraContent?: unknown;
 };
 
+// 流状态类型
 type StreamState = {
   messageId: string | null;
   model: string | null;
@@ -46,8 +51,10 @@ type StreamState = {
   toolCalls: Record<number, ToolCallState>;
 };
 
+// 上游API类型
 type UpstreamAPIType = 'chat_completions' | 'responses';
 
+// Responses函数调用状态类型
 type ResponsesFunctionCallState = {
   outputIndex: number;
   callId: string;
@@ -60,6 +67,7 @@ type ResponsesFunctionCallState = {
   metadataEmitted: boolean;
 };
 
+// Responses流上下文类型
 type ResponsesStreamContext = {
   functionCallByOutputIndex: Map<number, ResponsesFunctionCallState>;
   functionCallByCallId: Map<string, ResponsesFunctionCallState>;
@@ -68,29 +76,49 @@ type ResponsesStreamContext = {
   hasAnyDelta: boolean;
 };
 
+// 代理绑定主机地址
 const PROXY_BIND_HOST = '0.0.0.0';
+// 本地主机地址
 const LOCAL_HOST = '127.0.0.1';
+// 沙箱主机地址
 const SANDBOX_HOST = '10.0.2.2';
+// Gemini回退思考签名
 const GEMINI_FALLBACK_THOUGHT_SIGNATURE = 'skip_thought_signature_validator';
 
+// 代理服务器实例
 let proxyServer: http.Server | null = null;
+// 代理端口
 let proxyPort: number | null = null;
+// 上游配置
 let upstreamConfig: OpenAICompatUpstreamConfig | null = null;
+// 最后的代理错误
 let lastProxyError: string | null = null;
+// 工具调用额外内容缓存（按ID索引）
 const toolCallExtraContentById = new Map<string, unknown>();
+// 工具调用额外内容缓存最大数量
 const MAX_TOOL_CALL_EXTRA_CONTENT_CACHE = 1024;
 
-// --- Scheduled task API dependencies ---
+// --- 计划任务API依赖 ---
 interface ScheduledTaskDeps {
   getScheduledTaskStore: () => ScheduledTaskStore;
   getScheduler: () => Scheduler;
 }
+// 计划任务依赖实例
 let scheduledTaskDeps: ScheduledTaskDeps | null = null;
 
+/**
+ * 设置计划任务依赖
+ * @param deps - 计划任务依赖对象
+ */
 export function setScheduledTaskDeps(deps: ScheduledTaskDeps): void {
   scheduledTaskDeps = deps;
 }
 
+/**
+ * 将值转换为可选对象
+ * @param value - 要转换的值
+ * @returns 如果是对象则返回该对象，否则返回null
+ */
 function toOptionalObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -98,14 +126,29 @@ function toOptionalObject(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
+/**
+ * 将值转换为字符串
+ * @param value - 要转换的值
+ * @returns 字符串形式的值
+ */
 function toString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * 将值转换为数组
+ * @param value - 要转换的值
+ * @returns 数组形式的值
+ */
 function toArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+/**
+ * 将值转换为数字
+ * @param value - 要转换的值
+ * @returns 如果是有效数字则返回该数字，否则返回null
+ */
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -113,6 +156,11 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
+/**
+ * 将未知值转换为字符串
+ * @param value - 要转换的值
+ * @returns 字符串形式的值
+ */
 function stringifyUnknown(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -124,6 +172,11 @@ function stringifyUnknown(value: unknown): string {
   }
 }
 
+/**
+ * 规范化函数参数
+ * @param value - 要规范化的值
+ * @returns 规范化后的字符串参数
+ */
 function normalizeFunctionArguments(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -138,18 +191,28 @@ function normalizeFunctionArguments(value: unknown): string {
   }
 }
 
+/**
+ * 规范化计划任务工作目录
+ * @param value - 要规范化的值
+ * @returns 规范化后的工作目录路径
+ */
 function normalizeScheduledTaskWorkingDirectory(value: unknown): string {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return '';
 
   const normalized = raw.replace(/\\/g, '/').replace(/\/+$/, '');
-  // Sandbox guest workspace roots are not valid host directories.
+  // 沙箱访客工作空间根目录不是有效的主机目录
   if (/^(?:[A-Za-z]:)?\/workspace(?:\/project)?$/i.test(normalized)) {
     return '';
   }
   return raw;
 }
 
+/**
+ * 规范化工具调用额外内容
+ * @param toolCallObj - 工具调用对象
+ * @returns 规范化后的额外内容
+ */
 function normalizeToolCallExtraContent(toolCallObj: Record<string, unknown>): unknown {
   if (toolCallObj.extra_content !== undefined) {
     return toolCallObj.extra_content;
@@ -172,6 +235,11 @@ function normalizeToolCallExtraContent(toolCallObj: Record<string, unknown>): un
   };
 }
 
+/**
+ * 缓存工具调用额外内容
+ * @param toolCallId - 工具调用ID
+ * @param extraContent - 额外内容
+ */
 function cacheToolCallExtraContent(toolCallId: string, extraContent: unknown): void {
   if (!toolCallId || extraContent === undefined) {
     return;
@@ -187,6 +255,10 @@ function cacheToolCallExtraContent(toolCallId: string, extraContent: unknown): v
   }
 }
 
+/**
+ * 从OpenAI工具调用缓存额外内容
+ * @param toolCalls - 工具调用数组
+ */
 function cacheToolCallExtraContentFromOpenAIToolCalls(toolCalls: unknown): void {
   for (const toolCall of toArray(toolCalls)) {
     const toolCallObj = toOptionalObject(toolCall);
@@ -200,6 +272,10 @@ function cacheToolCallExtraContentFromOpenAIToolCalls(toolCalls: unknown): void 
   }
 }
 
+/**
+ * 从OpenAI响应缓存工具调用额外内容
+ * @param body - 响应体
+ */
 function cacheToolCallExtraContentFromOpenAIResponse(body: unknown): void {
   const responseObj = toOptionalObject(body);
   if (!responseObj) {
@@ -219,6 +295,12 @@ function cacheToolCallExtraContentFromOpenAIResponse(body: unknown): void {
   cacheToolCallExtraContentFromOpenAIToolCalls(message.tool_calls);
 }
 
+/**
+ * 补充OpenAI请求中的工具调用信息
+ * @param body - 请求体
+ * @param provider - 提供商名称
+ * @param baseURL - 基础URL
+ */
 function hydrateOpenAIRequestToolCalls(
   body: Record<string, unknown>,
   provider?: string,
@@ -254,7 +336,7 @@ function hydrateOpenAIRequestToolCalls(
       }
 
       if (isGemini) {
-        // Gemini requires thought signatures for tool calls; use a documented fallback when missing.
+        // Gemini需要工具调用的思考签名；缺失时使用文档化的回退值
         toolCallObj.extra_content = {
           google: {
             thought_signature: GEMINI_FALLBACK_THOUGHT_SIGNATURE,
@@ -265,6 +347,12 @@ function hydrateOpenAIRequestToolCalls(
   }
 }
 
+/**
+ * 创建Anthropic错误响应体
+ * @param message - 错误消息
+ * @param type - 错误类型
+ * @returns 错误响应对象
+ */
 function createAnthropicErrorBody(message: string, type = 'api_error'): Record<string, unknown> {
   return {
     type: 'error',
@@ -275,9 +363,14 @@ function createAnthropicErrorBody(message: string, type = 'api_error'): Record<s
   };
 }
 
+/**
+ * 提取错误消息
+ * @param raw - 原始错误文本
+ * @returns 提取的错误消息
+ */
 function extractErrorMessage(raw: string): string {
   if (!raw) {
-    return 'Upstream API request failed';
+    return '上游API请求失败';
   }
 
   try {
@@ -293,16 +386,26 @@ function extractErrorMessage(raw: string): string {
       return parsed.message;
     }
   } catch {
-    // noop
+    // 忽略解析错误
   }
 
   return raw;
 }
 
+/**
+ * 解析上游API类型
+ * @param provider - 提供商名称
+ * @returns API类型
+ */
 function resolveUpstreamAPIType(provider?: string): UpstreamAPIType {
   return provider?.toLowerCase() === 'openai' ? 'responses' : 'chat_completions';
 }
 
+/**
+ * 构建OpenAI Responses URL
+ * @param baseURL - 基础URL
+ * @returns 完整的Responses API URL
+ */
 function buildOpenAIResponsesURL(baseURL: string): string {
   const normalized = baseURL.trim().replace(/\/+$/, '');
   if (!normalized) {
@@ -317,6 +420,12 @@ function buildOpenAIResponsesURL(baseURL: string): string {
   return `${normalized}/v1/responses`;
 }
 
+/**
+ * 构建上游目标URL列表
+ * @param baseURL - 基础URL
+ * @param apiType - API类型
+ * @returns 目标URL数组
+ */
 function buildUpstreamTargetUrls(baseURL: string, apiType: UpstreamAPIType): string[] {
   if (apiType === 'responses') {
     return [buildOpenAIResponsesURL(baseURL)];
@@ -336,6 +445,11 @@ function buildUpstreamTargetUrls(baseURL: string, apiType: UpstreamAPIType): str
   return Array.from(urls);
 }
 
+/**
+ * 从聊天内容中提取文本
+ * @param content - 内容值
+ * @returns 提取的文本
+ */
 function extractTextFromChatContent(content: unknown): string {
   if (typeof content === 'string') {
     return content;
@@ -355,6 +469,11 @@ function extractTextFromChatContent(content: unknown): string {
   return chunks.join('');
 }
 
+/**
+ * 将用户聊天内容转换为Responses输入格式
+ * @param content - 内容值
+ * @returns Responses输入数组
+ */
 function convertUserChatContentToResponsesInput(content: unknown): Array<Record<string, unknown>> {
   if (typeof content === 'string') {
     return content
@@ -390,6 +509,11 @@ function convertUserChatContentToResponsesInput(content: unknown): Array<Record<
   return parts;
 }
 
+/**
+ * 规范化聊天格式中的工具定义为Responses格式
+ * @param toolsInput - 工具输入
+ * @returns 规范化后的工具数组
+ */
 function normalizeResponsesToolsFromChat(toolsInput: unknown): Array<Record<string, unknown>> {
   const normalizedTools: Array<Record<string, unknown>> = [];
 
@@ -437,6 +561,11 @@ function normalizeResponsesToolsFromChat(toolsInput: unknown): Array<Record<stri
   return normalizedTools;
 }
 
+/**
+ * 规范化聊天格式中的工具选择为Responses格式
+ * @param toolChoice - 工具选择值
+ * @returns 规范化后的工具选择
+ */
 function normalizeResponsesToolChoiceFromChat(toolChoice: unknown): unknown {
   if (typeof toolChoice === 'string') {
     return toolChoice;
@@ -468,6 +597,11 @@ function normalizeResponsesToolChoiceFromChat(toolChoice: unknown): unknown {
   return toolChoice;
 }
 
+/**
+ * 将聊天完成请求转换为Responses请求
+ * @param chatRequest - 聊天完成请求
+ * @returns Responses请求对象
+ */
 function convertChatCompletionsRequestToResponsesRequest(
   chatRequest: Record<string, unknown>
 ): Record<string, unknown> {
@@ -604,13 +738,13 @@ function convertChatCompletionsRequestToResponsesRequest(
     if (callInfo.hasOutput) {
       continue;
     }
-    // OpenAI Responses requires each historical function_call to have a matching output.
-    // When upstream tool execution fails before producing a tool_result, auto-close it here.
+    // OpenAI Responses要求每个历史函数调用都有匹配的输出
+    // 当上游工具执行在产生工具结果之前失败时，在此处自动关闭
     input.push({
       type: 'function_call_output',
       call_id: callId,
       output: JSON.stringify({
-        error: `Missing tool output for function call "${callId}" (${callInfo.name || 'unknown'}). Auto-closed by compatibility proxy.`,
+        error: `函数调用"${callId}"(${callInfo.name || '未知'})缺少工具输出。已由兼容性代理自动关闭。`,
       }),
     });
   }
@@ -620,10 +754,20 @@ function convertChatCompletionsRequestToResponsesRequest(
   return request;
 }
 
+/**
+ * 规范化工具名称
+ * @param value - 工具名称值
+ * @returns 规范化后的工具名称
+ */
 function normalizeToolName(value: unknown): string {
   return toString(value).trim().toLowerCase();
 }
 
+/**
+ * 为特定提供商过滤OpenAI工具
+ * @param openAIRequest - OpenAI请求对象
+ * @param provider - 提供商名称
+ */
 function filterOpenAIToolsForProvider(
   openAIRequest: Record<string, unknown>,
   provider?: string
@@ -643,7 +787,7 @@ function filterOpenAIToolsForProvider(
     const functionObj = toOptionalObject(toolObj.function);
     const toolName = normalizeToolName(toolObj.name) || normalizeToolName(functionObj?.name);
     if (!toolName) return true;
-    // OpenAI path should use skills by reading SKILL.md via normal tools, not Skill tool.
+    // OpenAI路径应通过常规工具读取SKILL.md来使用技能，而不是Skill工具
     return toolName !== 'skill';
   });
 
@@ -660,6 +804,11 @@ function filterOpenAIToolsForProvider(
   }
 }
 
+/**
+ * 从错误消息中提取max_tokens范围
+ * @param errorMessage - 错误消息
+ * @returns max_tokens范围对象，如果未找到则返回null
+ */
 function extractMaxTokensRange(errorMessage: string): { min: number; max: number } | null {
   if (!errorMessage) {
     return null;
@@ -689,6 +838,12 @@ function extractMaxTokensRange(errorMessage: string): { min: number; max: number
   return null;
 }
 
+/**
+ * 根据错误消息限制max_tokens值
+ * @param openAIRequest - OpenAI请求对象
+ * @param errorMessage - 错误消息
+ * @returns 修改结果对象
+ */
 function clampMaxTokensFromError(
   openAIRequest: Record<string, unknown>,
   errorMessage: string
@@ -715,6 +870,11 @@ function clampMaxTokensFromError(
   return { changed: true, clampedTo: nextValue };
 }
 
+/**
+ * 判断模型是否应使用max_completion_tokens字段
+ * @param model - 模型名称
+ * @returns 是否应使用max_completion_tokens
+ */
 function shouldUseMaxCompletionTokensForModel(model: unknown): boolean {
   if (typeof model !== 'string') {
     return false;
@@ -729,6 +889,11 @@ function shouldUseMaxCompletionTokensForModel(model: unknown): boolean {
     || resolvedModel.startsWith('o4');
 }
 
+/**
+ * 为OpenAI提供商规范化max_tokens字段
+ * @param openAIRequest - OpenAI请求对象
+ * @param provider - 提供商名称
+ */
 function normalizeMaxTokensFieldForOpenAIProvider(
   openAIRequest: Record<string, unknown>,
   provider?: string
@@ -747,6 +912,11 @@ function normalizeMaxTokensFieldForOpenAIProvider(
   delete openAIRequest.max_tokens;
 }
 
+/**
+ * 判断是否为max_tokens不支持的错误
+ * @param errorMessage - 错误消息
+ * @returns 是否为max_tokens不支持错误
+ */
 function isMaxTokensUnsupportedError(errorMessage: string): boolean {
   const normalized = errorMessage.toLowerCase();
   return normalized.includes('max_tokens')
@@ -754,6 +924,11 @@ function isMaxTokensUnsupportedError(errorMessage: string): boolean {
     && normalized.includes('not supported');
 }
 
+/**
+ * 将max_tokens转换为max_completion_tokens
+ * @param openAIRequest - OpenAI请求对象
+ * @returns 转换结果对象
+ */
 function convertMaxTokensToMaxCompletionTokens(
   openAIRequest: Record<string, unknown>
 ): { changed: boolean; convertedTo?: number } {
@@ -766,6 +941,12 @@ function convertMaxTokensToMaxCompletionTokens(
   return { changed: true, convertedTo: maxTokens };
 }
 
+/**
+ * 写入JSON响应
+ * @param res - 服务器响应对象
+ * @param statusCode - HTTP状态码
+ * @param body - 响应体
+ */
 function writeJSON(
   res: http.ServerResponse,
   statusCode: number,
@@ -779,17 +960,32 @@ function writeJSON(
   res.end(payload);
 }
 
+/**
+ * 读取请求体
+ * @param req - HTTP请求对象
+ * @returns 请求体字符串的Promise
+ */
 function readRequestBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let totalBytes = 0;
     let settled = false;
 
+    /**
+     * 解码请求体
+     * @param raw - 原始缓冲区
+     * @returns 解码后的字符串
+     */
     const decodeBody = (raw: Buffer): string => {
       if (raw.length === 0) {
         return '';
       }
 
+      /**
+       * 收集字符串值
+       * @param input - 输入值
+       * @param out - 输出数组
+       */
       const collectStringValues = (input: unknown, out: string[]): void => {
         if (typeof input === 'string') {
           out.push(input);
@@ -806,6 +1002,11 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
         }
       };
 
+      /**
+       * 评分解码后的JSON文本
+       * @param text - 文本内容
+       * @returns 评分值
+       */
       const scoreDecodedJsonText = (text: string): number => {
         let parsed: unknown;
         try {
@@ -827,7 +1028,7 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
         return cjkCount * 4 + nonAsciiCount - replacementCount * 8 - mojibakeCount * 3;
       };
 
-      // BOM-aware decoding first.
+      // 首先进行BOM感知解码
       if (raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf) {
         return new TextDecoder('utf-8', { fatal: false }).decode(raw.subarray(3));
       }
@@ -838,7 +1039,7 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
         return new TextDecoder('utf-16be', { fatal: false }).decode(raw.subarray(2));
       }
 
-      // Try strict UTF-8 first.
+      // 首先尝试严格的UTF-8解码
       let utf8Decoded: string | null = null;
       try {
         utf8Decoded = new TextDecoder('utf-8', { fatal: true }).decode(raw);
@@ -846,8 +1047,8 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
         utf8Decoded = null;
       }
 
-      // On Windows local shells (especially Git Bash/curl paths), requests
-      // may be emitted in system codepage instead of UTF-8.
+      // 在Windows本地shell（特别是Git Bash/curl路径）中，请求
+      // 可能使用系统代码页而非UTF-8发出
       if (process.platform === 'win32') {
         let gbDecoded: string | null = null;
         try {
@@ -860,14 +1061,14 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
           const utf8Score = scoreDecodedJsonText(utf8Decoded);
           const gbScore = scoreDecodedJsonText(gbDecoded);
           if (gbScore > utf8Score) {
-            console.warn(`[CoworkProxy] Decoded request body using gb18030 (score ${gbScore} > utf8 ${utf8Score})`);
+            console.warn(`[CoworkProxy] 使用gb18030解码请求体 (评分 ${gbScore} > utf8 ${utf8Score})`);
             return gbDecoded;
           }
           return utf8Decoded;
         }
 
         if (gbDecoded && !utf8Decoded) {
-          console.warn('[CoworkProxy] Decoded request body using gb18030 fallback');
+          console.warn('[CoworkProxy] 使用gb18030回退解码请求体');
           return gbDecoded;
         }
       }
@@ -879,6 +1080,10 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
       return new TextDecoder('utf-8', { fatal: false }).decode(raw);
     };
 
+    /**
+     * 失败处理
+     * @param error - 错误对象
+     */
     const fail = (error: Error) => {
       if (settled) return;
       settled = true;
@@ -889,7 +1094,7 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
       if (settled) return;
       totalBytes += chunk.length;
       if (totalBytes > 20 * 1024 * 1024) {
-        fail(new Error('Request body too large'));
+        fail(new Error('请求体过大'));
         req.destroy();
         return;
       }
@@ -909,6 +1114,10 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
   });
 }
 
+/**
+ * 创建流状态对象
+ * @returns 初始化的流状态
+ */
 function createStreamState(): StreamState {
   return {
     messageId: null,
@@ -922,6 +1131,10 @@ function createStreamState(): StreamState {
   };
 }
 
+/**
+ * 创建Responses流上下文
+ * @returns 初始化的Responses流上下文
+ */
 function createResponsesStreamContext(): ResponsesStreamContext {
   return {
     functionCallByOutputIndex: new Map<number, ResponsesFunctionCallState>(),
@@ -932,6 +1145,11 @@ function createResponsesStreamContext(): ResponsesStreamContext {
   };
 }
 
+/**
+ * 解析Responses对象
+ * @param body - 响应体
+ * @returns Responses对象
+ */
 function resolveResponsesObject(body: unknown): Record<string, unknown> {
   const source = toOptionalObject(body);
   if (!source) {
@@ -944,6 +1162,11 @@ function resolveResponsesObject(body: unknown): Record<string, unknown> {
   return source;
 }
 
+/**
+ * 提取Responses推理文本
+ * @param itemObj - 项目对象
+ * @returns 推理文本
+ */
 function extractResponsesReasoningText(itemObj: Record<string, unknown>): string {
   const summaryTexts: string[] = [];
   for (const summaryItem of toArray(itemObj.summary)) {
@@ -967,6 +1190,11 @@ function extractResponsesReasoningText(itemObj: Record<string, unknown>): string
   return '';
 }
 
+/**
+ * 检测Responses完成原因
+ * @param responseObj - 响应对象
+ * @returns 完成原因字符串
+ */
 function detectResponsesFinishReason(responseObj: Record<string, unknown>): string {
   const output = toArray(responseObj.output);
   const hasFunctionCall = output.some((item) => toString(toOptionalObject(item)?.type) === 'function_call');
@@ -985,6 +1213,11 @@ function detectResponsesFinishReason(responseObj: Record<string, unknown>): stri
   return 'stop';
 }
 
+/**
+ * 将Responses响应转换为OpenAI响应格式
+ * @param body - 响应体
+ * @returns OpenAI格式的响应对象
+ */
 function convertResponsesToOpenAIResponse(body: unknown): Record<string, unknown> {
   const responseObj = resolveResponsesObject(body);
   const output = toArray(responseObj.output);
@@ -1081,6 +1314,10 @@ function convertResponsesToOpenAIResponse(body: unknown): Record<string, unknown
   };
 }
 
+/**
+ * 从Responses响应缓存工具调用额外内容
+ * @param body - 响应体
+ */
 function cacheToolCallExtraContentFromResponsesResponse(body: unknown): void {
   const responseObj = resolveResponsesObject(body);
   for (const item of toArray(responseObj.output)) {
@@ -1094,10 +1331,21 @@ function cacheToolCallExtraContentFromResponsesResponse(body: unknown): void {
   }
 }
 
+/**
+ * 发送SSE事件
+ * @param res - 服务器响应对象
+ * @param event - 事件名称
+ * @param data - 事件数据
+ */
 function emitSSE(res: http.ServerResponse, event: string, data: Record<string, unknown>): void {
   res.write(formatSSEEvent(event, data));
 }
 
+/**
+ * 如需要则关闭当前块
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ */
 function closeCurrentBlockIfNeeded(res: http.ServerResponse, state: StreamState): void {
   if (!state.currentBlockType) {
     return;
@@ -1113,6 +1361,12 @@ function closeCurrentBlockIfNeeded(res: http.ServerResponse, state: StreamState)
   state.activeToolIndex = null;
 }
 
+/**
+ * 确保消息开始事件已发送
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param chunk - OpenAI流块
+ */
 function ensureMessageStart(
   res: http.ServerResponse,
   state: StreamState,
@@ -1142,6 +1396,11 @@ function ensureMessageStart(
   state.hasMessageStart = true;
 }
 
+/**
+ * 确保思考块已开始
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ */
 function ensureThinkingBlock(res: http.ServerResponse, state: StreamState): void {
   if (state.currentBlockType === 'thinking') {
     return;
@@ -1161,6 +1420,11 @@ function ensureThinkingBlock(res: http.ServerResponse, state: StreamState): void
   state.currentBlockType = 'thinking';
 }
 
+/**
+ * 确保文本块已开始
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ */
 function ensureTextBlock(res: http.ServerResponse, state: StreamState): void {
   if (state.currentBlockType === 'text') {
     return;
@@ -1180,6 +1444,13 @@ function ensureTextBlock(res: http.ServerResponse, state: StreamState): void {
   state.currentBlockType = 'text';
 }
 
+/**
+ * 确保工具使用块已开始
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param index - 工具索引
+ * @param toolCall - 工具调用状态
+ */
 function ensureToolUseBlock(
   res: http.ServerResponse,
   state: StreamState,
@@ -1215,6 +1486,13 @@ function ensureToolUseBlock(
   state.activeToolIndex = index;
 }
 
+/**
+ * 发送消息增量事件
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param finishReason - 完成原因
+ * @param chunk - OpenAI流块
+ */
 function emitMessageDelta(
   res: http.ServerResponse,
   state: StreamState,
@@ -1236,6 +1514,12 @@ function emitMessageDelta(
   });
 }
 
+/**
+ * 处理OpenAI流块
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param chunk - OpenAI流块
+ */
 function processOpenAIChunk(
   res: http.ServerResponse,
   state: StreamState,
@@ -1320,6 +1604,11 @@ function processOpenAIChunk(
   }
 }
 
+/**
+ * 解析SSE数据包
+ * @param packet - 数据包字符串
+ * @returns 解析后的事件和载荷
+ */
 function parseSSEPacket(packet: string): { event: string; payload: string } {
   const lines = packet.split(/\r?\n/);
   const dataLines: string[] = [];
@@ -1341,6 +1630,11 @@ function parseSSEPacket(packet: string): { event: string; payload: string } {
   };
 }
 
+/**
+ * 查找SSE数据包边界
+ * @param buffer - 缓冲区字符串
+ * @returns 边界位置和分隔符长度，如果未找到则返回null
+ */
 function findSSEPacketBoundary(
   buffer: string
 ): { index: number; separatorLength: number } | null {
@@ -1355,6 +1649,12 @@ function findSSEPacketBoundary(
   };
 }
 
+/**
+ * 提取Responses函数调用元数据
+ * @param payloadObj - 载荷对象
+ * @param itemObj - 项目对象
+ * @returns 函数调用元数据
+ */
 function extractResponsesFunctionCallMetadata(
   payloadObj: Record<string, unknown>,
   itemObj: Record<string, unknown> | null
@@ -1379,6 +1679,13 @@ function extractResponsesFunctionCallMetadata(
   };
 }
 
+/**
+ * 注册Responses函数调用状态
+ * @param context - Responses流上下文
+ * @param payloadObj - 载荷对象
+ * @param itemObj - 项目对象
+ * @returns 函数调用状态
+ */
 function registerResponsesFunctionCallState(
   context: ResponsesStreamContext,
   payloadObj: Record<string, unknown>,
@@ -1441,6 +1748,12 @@ function registerResponsesFunctionCallState(
   return callState;
 }
 
+/**
+ * 同步工具调用状态与Responses函数调用
+ * @param state - 流状态
+ * @param callState - Responses函数调用状态
+ * @returns 工具调用状态
+ */
 function syncToolCallStateWithResponsesFunctionCall(
   state: StreamState,
   callState: ResponsesFunctionCallState
@@ -1466,6 +1779,13 @@ function syncToolCallStateWithResponsesFunctionCall(
   return toolCall;
 }
 
+/**
+ * 发送Responses函数调用块
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param callState - Responses函数调用状态
+ * @param options - 选项对象
+ */
 function emitResponsesFunctionCallChunk(
   res: http.ServerResponse,
   state: StreamState,
@@ -1513,6 +1833,15 @@ function emitResponsesFunctionCallChunk(
   });
 }
 
+/**
+ * 发送Responses函数调用元数据（仅一次）
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param context - Responses流上下文
+ * @param callState - Responses函数调用状态
+ * @param responseId - 响应ID
+ * @param model - 模型名称
+ */
 function emitResponsesFunctionCallMetadataOnce(
   res: http.ServerResponse,
   state: StreamState,
@@ -1537,6 +1866,16 @@ function emitResponsesFunctionCallMetadataOnce(
   context.hasAnyDelta = true;
 }
 
+/**
+ * 发送Responses函数调用参数（仅一次）
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param context - Responses流上下文
+ * @param callState - Responses函数调用状态
+ * @param argumentsText - 参数文本
+ * @param responseId - 响应ID
+ * @param model - 模型名称
+ */
 function emitResponsesFunctionCallArgumentsOnce(
   res: http.ServerResponse,
   state: StreamState,
@@ -1570,6 +1909,13 @@ function emitResponsesFunctionCallArgumentsOnce(
   context.hasAnyDelta = true;
 }
 
+/**
+ * 发送已完成的Responses函数调用
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param context - Responses流上下文
+ * @param responseObj - 响应对象
+ */
 function emitResponsesCompletedFunctionCalls(
   res: http.ServerResponse,
   state: StreamState,
@@ -1625,6 +1971,13 @@ function emitResponsesCompletedFunctionCalls(
   }
 }
 
+/**
+ * 发送Responses回退内容
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param responseObj - 响应对象
+ * @param context - Responses流上下文
+ */
 function emitResponsesFallbackContent(
   res: http.ServerResponse,
   state: StreamState,
@@ -1702,6 +2055,14 @@ function emitResponsesFallbackContent(
   }
 }
 
+/**
+ * 处理Responses流事件
+ * @param res - 服务器响应对象
+ * @param state - 流状态
+ * @param context - Responses流上下文
+ * @param event - 事件名称
+ * @param payloadObj - 载荷对象
+ */
 function processResponsesStreamEvent(
   res: http.ServerResponse,
   state: StreamState,
@@ -1838,6 +2199,11 @@ function processResponsesStreamEvent(
   }
 }
 
+/**
+ * 处理Responses流响应
+ * @param upstreamResponse - 上游响应
+ * @param res - 服务器响应对象
+ */
 async function handleResponsesStreamResponse(
   upstreamResponse: Response,
   res: http.ServerResponse
@@ -1849,7 +2215,7 @@ async function handleResponsesStreamResponse(
   });
 
   if (!upstreamResponse.body) {
-    emitSSE(res, 'error', createAnthropicErrorBody('Upstream returned empty stream', 'stream_error'));
+    emitSSE(res, 'error', createAnthropicErrorBody('上游返回空流', 'stream_error'));
     res.end();
     return;
   }
@@ -1862,6 +2228,9 @@ async function handleResponsesStreamResponse(
   let buffer = '';
   let sawDoneMarker = false;
 
+  /**
+   * 刷新完成标记
+   */
   const flushDone = () => {
     if (!state.hasMessageStart) {
       return;
@@ -1905,7 +2274,7 @@ async function handleResponsesStreamResponse(
         const parsed = JSON.parse(payload) as Record<string, unknown>;
         processResponsesStreamEvent(res, state, context, parsedPacket.event, parsed);
       } catch {
-        // Ignore malformed stream chunks.
+        // 忽略格式错误的流块
       }
 
       boundary = findSSEPacketBoundary(buffer);
@@ -1920,7 +2289,7 @@ async function handleResponsesStreamResponse(
     try {
       await reader.cancel();
     } catch {
-      // noop
+      // 忽略错误
     }
   }
 
@@ -1928,6 +2297,11 @@ async function handleResponsesStreamResponse(
   res.end();
 }
 
+/**
+ * 处理聊天完成流响应
+ * @param upstreamResponse - 上游响应
+ * @param res - 服务器响应对象
+ */
 async function handleChatCompletionsStreamResponse(
   upstreamResponse: Response,
   res: http.ServerResponse
@@ -1939,7 +2313,7 @@ async function handleChatCompletionsStreamResponse(
   });
 
   if (!upstreamResponse.body) {
-    emitSSE(res, 'error', createAnthropicErrorBody('Upstream returned empty stream', 'stream_error'));
+    emitSSE(res, 'error', createAnthropicErrorBody('上游返回空流', 'stream_error'));
     res.end();
     return;
   }
@@ -1951,6 +2325,9 @@ async function handleChatCompletionsStreamResponse(
   let buffer = '';
   let sawDoneMarker = false;
 
+  /**
+   * 刷新完成标记
+   */
   const flushDone = () => {
     if (!state.hasMessageStart) {
       return;
@@ -2002,7 +2379,7 @@ async function handleChatCompletionsStreamResponse(
         const parsed = JSON.parse(payload) as OpenAIStreamChunk;
         processOpenAIChunk(res, state, parsed);
       } catch {
-        // Ignore malformed stream chunks.
+        // 忽略格式错误的流块
       }
 
       boundary = findSSEPacketBoundary(buffer);
@@ -2017,7 +2394,7 @@ async function handleChatCompletionsStreamResponse(
     try {
       await reader.cancel();
     } catch {
-      // noop
+      // 忽略错误
     }
   }
 
@@ -2025,12 +2402,17 @@ async function handleChatCompletionsStreamResponse(
   res.end();
 }
 
+/**
+ * 处理创建计划任务请求
+ * @param req - HTTP请求对象
+ * @param res - 服务器响应对象
+ */
 async function handleCreateScheduledTask(
   req: http.IncomingMessage,
   res: http.ServerResponse
 ): Promise<void> {
   if (!scheduledTaskDeps) {
-    writeJSON(res, 503, { success: false, error: 'Scheduled task service not available' } as any);
+    writeJSON(res, 503, { success: false, error: '计划任务服务不可用' } as any);
     return;
   }
 
@@ -2038,7 +2420,7 @@ async function handleCreateScheduledTask(
   try {
     body = await readRequestBody(req);
   } catch {
-    writeJSON(res, 400, { success: false, error: 'Invalid request body' } as any);
+    writeJSON(res, 400, { success: false, error: '无效的请求体' } as any);
     return;
   }
 
@@ -2046,55 +2428,55 @@ async function handleCreateScheduledTask(
   try {
     input = JSON.parse(body);
   } catch {
-    writeJSON(res, 400, { success: false, error: 'Invalid JSON' } as any);
+    writeJSON(res, 400, { success: false, error: '无效的JSON格式' } as any);
     return;
   }
 
-  // Validate required fields
+  // 验证必填字段
   if (!input.name?.trim()) {
-    writeJSON(res, 400, { success: false, error: 'Missing required field: name' } as any);
+    writeJSON(res, 400, { success: false, error: '缺少必填字段: name' } as any);
     return;
   }
   if (!input.prompt?.trim()) {
-    writeJSON(res, 400, { success: false, error: 'Missing required field: prompt' } as any);
+    writeJSON(res, 400, { success: false, error: '缺少必填字段: prompt' } as any);
     return;
   }
   if (!input.schedule?.type) {
-    writeJSON(res, 400, { success: false, error: 'Missing required field: schedule.type' } as any);
+    writeJSON(res, 400, { success: false, error: '缺少必填字段: schedule.type' } as any);
     return;
   }
   if (!['at', 'interval', 'cron'].includes(input.schedule.type)) {
-    writeJSON(res, 400, { success: false, error: 'Invalid schedule type. Must be: at, interval, cron' } as any);
+    writeJSON(res, 400, { success: false, error: '无效的计划类型。必须是: at, interval, cron' } as any);
     return;
   }
   if (input.schedule.type === 'cron' && !input.schedule.expression) {
-    writeJSON(res, 400, { success: false, error: 'Cron schedule requires expression field' } as any);
+    writeJSON(res, 400, { success: false, error: 'Cron计划需要expression字段' } as any);
     return;
   }
   if (input.schedule.type === 'at' && !input.schedule.datetime) {
-    writeJSON(res, 400, { success: false, error: 'At schedule requires datetime field' } as any);
+    writeJSON(res, 400, { success: false, error: 'At计划需要datetime字段' } as any);
     return;
   }
 
-  // Validate: "at" type must be in the future
+  // 验证: "at"类型必须是将来的时间
   if (input.schedule.type === 'at' && input.schedule.datetime) {
     const targetMs = new Date(input.schedule.datetime).getTime();
     if (targetMs <= Date.now()) {
-      writeJSON(res, 400, { success: false, error: 'Execution time must be in the future for one-time (at) tasks' } as any);
+      writeJSON(res, 400, { success: false, error: '一次性(at)任务的执行时间必须是将来的时间' } as any);
       return;
     }
   }
 
-  // Validate: expiresAt must not be in the past
+  // 验证: expiresAt不能是过去的时间
   if (input.expiresAt) {
     const todayStr = new Date().toISOString().slice(0, 10);
     if (input.expiresAt <= todayStr) {
-      writeJSON(res, 400, { success: false, error: 'Expiration date must be in the future' } as any);
+      writeJSON(res, 400, { success: false, error: '过期日期必须是将来的日期' } as any);
       return;
     }
   }
 
-  // Build ScheduledTaskInput with defaults
+  // 构建带有默认值的ScheduledTaskInput
   const taskInput: ScheduledTaskInput = {
     name: input.name.trim(),
     description: input.description || '',
@@ -2112,7 +2494,7 @@ async function handleCreateScheduledTask(
     const task = scheduledTaskDeps.getScheduledTaskStore().createTask(taskInput);
     scheduledTaskDeps.getScheduler().reschedule();
 
-    // Notify renderer to refresh task list
+    // 通知渲染器刷新任务列表
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send('scheduledTask:statusUpdate', {
         taskId: task.id,
@@ -2120,14 +2502,19 @@ async function handleCreateScheduledTask(
       });
     }
 
-    console.log(`[CoworkProxy] Scheduled task created via API: ${task.id} "${task.name}"`);
+    console.log(`[CoworkProxy] 通过API创建计划任务: ${task.id} "${task.name}"`);
     writeJSON(res, 201, { success: true, task } as any);
   } catch (err: any) {
-    console.error('[CoworkProxy] Failed to create scheduled task:', err);
+    console.error('[CoworkProxy] 创建计划任务失败:', err);
     writeJSON(res, 500, { success: false, error: err.message } as any);
   }
 }
 
+/**
+ * 处理HTTP请求
+ * @param req - HTTP请求对象
+ * @param res - 服务器响应对象
+ */
 async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse
@@ -2145,14 +2532,14 @@ async function handleRequest(
     return;
   }
 
-  // Scheduled task creation API
+  // 计划任务创建API
   if (method === 'POST' && url.pathname === '/api/scheduled-tasks') {
     await handleCreateScheduledTask(req, res);
     return;
   }
 
   if (method !== 'POST' || url.pathname !== '/v1/messages') {
-    writeJSON(res, 404, createAnthropicErrorBody('Not found', 'not_found_error'));
+    writeJSON(res, 404, createAnthropicErrorBody('未找到', 'not_found_error'));
     return;
   }
 
@@ -2160,7 +2547,7 @@ async function handleRequest(
     writeJSON(
       res,
       503,
-      createAnthropicErrorBody('OpenAI compatibility proxy is not configured', 'service_unavailable')
+      createAnthropicErrorBody('OpenAI兼容性代理未配置', 'service_unavailable')
     );
     return;
   }
@@ -2169,7 +2556,7 @@ async function handleRequest(
   try {
     requestBodyRaw = await readRequestBody(req);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Invalid request body';
+    const message = error instanceof Error ? error.message : '无效的请求体';
     writeJSON(res, 400, createAnthropicErrorBody(message, 'invalid_request_error'));
     return;
   }
@@ -2178,7 +2565,7 @@ async function handleRequest(
   try {
     parsedRequestBody = JSON.parse(requestBodyRaw);
   } catch {
-    writeJSON(res, 400, createAnthropicErrorBody('Request body must be valid JSON', 'invalid_request_error'));
+    writeJSON(res, 400, createAnthropicErrorBody('请求体必须是有效的JSON', 'invalid_request_error'));
     return;
   }
 
@@ -2209,6 +2596,12 @@ async function handleRequest(
   const targetURLs = buildUpstreamTargetUrls(upstreamConfig.baseURL, upstreamAPIType);
   let currentTargetURL = targetURLs[0];
 
+  /**
+   * 发送上游请求
+   * @param payload - 请求载荷
+   * @param targetURL - 目标URL
+   * @returns 响应Promise
+   */
   const sendUpstreamRequest = async (
     payload: Record<string, unknown>,
     targetURL: string
@@ -2225,7 +2618,7 @@ async function handleRequest(
   try {
     upstreamResponse = await sendUpstreamRequest(upstreamRequest, targetURLs[0]);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Network error';
+    const message = error instanceof Error ? error.message : '网络错误';
     lastProxyError = message;
     writeJSON(res, 502, createAnthropicErrorBody(message));
     return;
@@ -2238,7 +2631,7 @@ async function handleRequest(
         try {
           upstreamResponse = await sendUpstreamRequest(upstreamRequest, retryURL);
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Network error';
+          const message = error instanceof Error ? error.message : '网络错误';
           lastProxyError = message;
           writeJSON(res, 502, createAnthropicErrorBody(message));
           return;
@@ -2252,8 +2645,8 @@ async function handleRequest(
     if (!upstreamResponse.ok) {
       const firstErrorText = await upstreamResponse.text();
       let firstErrorMessage = extractErrorMessage(firstErrorText);
-      if (firstErrorMessage === 'Upstream API request failed') {
-        firstErrorMessage = `Upstream API request failed (${upstreamResponse.status}) ${currentTargetURL}`;
+      if (firstErrorMessage === '上游API请求失败') {
+        firstErrorMessage = `上游API请求失败 (${upstreamResponse.status}) ${currentTargetURL}`;
       }
 
       if (upstreamAPIType === 'chat_completions' && upstreamResponse.status === 400) {
@@ -2267,12 +2660,12 @@ async function handleRequest(
                 firstErrorMessage = extractErrorMessage(retryErrorText);
               } else {
                 console.info(
-                  '[cowork-openai-compat-proxy] Retried request with max_completion_tokens '
-                    + `converted from max_tokens=${convertResult.convertedTo}`
+                  '[cowork-openai-compat-proxy] 已使用max_completion_tokens重试请求 '
+                    + `转换自max_tokens=${convertResult.convertedTo}`
                 );
               }
             } catch (error) {
-              const message = error instanceof Error ? error.message : 'Network error';
+              const message = error instanceof Error ? error.message : '网络错误';
               lastProxyError = message;
               writeJSON(res, 502, createAnthropicErrorBody(message));
               return;
@@ -2280,8 +2673,8 @@ async function handleRequest(
           }
         }
 
-        // Some OpenAI-compatible providers (e.g. DeepSeek) enforce strict max_tokens ranges.
-        // Retry once with a clamped value when the upstream response includes the allowed range.
+        // 某些OpenAI兼容提供商（如DeepSeek）强制执行严格的max_tokens范围
+        // 当上游响应包含允许范围时，使用限制后的值重试一次
         if (!upstreamResponse.ok) {
           const clampResult = clampMaxTokensFromError(upstreamRequest, firstErrorMessage);
           if (clampResult.changed) {
@@ -2292,11 +2685,11 @@ async function handleRequest(
                 firstErrorMessage = extractErrorMessage(retryErrorText);
               } else {
                 console.info(
-                  `[cowork-openai-compat-proxy] Retried request with clamped max_tokens=${clampResult.clampedTo}`
+                  `[cowork-openai-compat-proxy] 已使用限制后的max_tokens=${clampResult.clampedTo}重试请求`
                 );
               }
             } catch (error) {
-              const message = error instanceof Error ? error.message : 'Network error';
+              const message = error instanceof Error ? error.message : '网络错误';
               lastProxyError = message;
               writeJSON(res, 502, createAnthropicErrorBody(message));
               return;
@@ -2328,8 +2721,8 @@ async function handleRequest(
   try {
     upstreamJSON = await upstreamResponse.json();
   } catch {
-    lastProxyError = 'Failed to parse upstream JSON response';
-    writeJSON(res, 502, createAnthropicErrorBody('Failed to parse upstream JSON response'));
+    lastProxyError = '解析上游JSON响应失败';
+    writeJSON(res, 502, createAnthropicErrorBody('解析上游JSON响应失败'));
     return;
   }
 
@@ -2348,6 +2741,7 @@ async function handleRequest(
   writeJSON(res, 200, anthropicResponse);
 }
 
+// 测试工具导出
 export const __openAICompatProxyTestUtils = {
   createStreamState,
   createResponsesStreamContext,
@@ -2357,6 +2751,9 @@ export const __openAICompatProxyTestUtils = {
   filterOpenAIToolsForProvider,
 };
 
+/**
+ * 启动Cowork OpenAI兼容性代理
+ */
 export async function startCoworkOpenAICompatProxy(): Promise<void> {
   if (proxyServer) {
     return;
@@ -2365,7 +2762,7 @@ export async function startCoworkOpenAICompatProxy(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const server = http.createServer((req, res) => {
       void handleRequest(req, res).catch((error) => {
-        const message = error instanceof Error ? error.message : 'Internal proxy error';
+        const message = error instanceof Error ? error.message : '内部代理错误';
         lastProxyError = message;
         if (!res.headersSent) {
           writeJSON(res, 500, createAnthropicErrorBody(message));
@@ -2383,7 +2780,7 @@ export async function startCoworkOpenAICompatProxy(): Promise<void> {
     server.listen(0, PROXY_BIND_HOST, () => {
       const addr = server.address();
       if (!addr || typeof addr === 'string') {
-        reject(new Error('Failed to bind OpenAI compatibility proxy port'));
+        reject(new Error('绑定OpenAI兼容性代理端口失败'));
         return;
       }
 
@@ -2395,6 +2792,9 @@ export async function startCoworkOpenAICompatProxy(): Promise<void> {
   });
 }
 
+/**
+ * 停止Cowork OpenAI兼容性代理
+ */
 export async function stopCoworkOpenAICompatProxy(): Promise<void> {
   if (!proxyServer) {
     return;
@@ -2415,6 +2815,10 @@ export async function stopCoworkOpenAICompatProxy(): Promise<void> {
   });
 }
 
+/**
+ * 配置Cowork OpenAI兼容性代理
+ * @param config - 上游配置
+ */
 export function configureCoworkOpenAICompatProxy(config: OpenAICompatUpstreamConfig): void {
   upstreamConfig = {
     ...config,
@@ -2424,6 +2828,11 @@ export function configureCoworkOpenAICompatProxy(config: OpenAICompatUpstreamCon
   lastProxyError = null;
 }
 
+/**
+ * 获取Cowork OpenAI兼容性代理基础URL
+ * @param target - 代理目标类型
+ * @returns 代理基础URL，如果未运行则返回null
+ */
 export function getCoworkOpenAICompatProxyBaseURL(target: OpenAICompatProxyTarget = 'local'): string | null {
   if (!proxyServer || !proxyPort) {
     return null;
@@ -2433,14 +2842,19 @@ export function getCoworkOpenAICompatProxyBaseURL(target: OpenAICompatProxyTarge
 }
 
 /**
- * Get the proxy base URL for internal API use (scheduled tasks, etc.).
- * Unlike getCoworkOpenAICompatProxyBaseURL which is for the LLM proxy,
- * this always returns the local proxy URL regardless of API format.
+ * 获取内部API使用的基础URL（计划任务等）
+ * 与用于LLM代理的getCoworkOpenAICompatProxyBaseURL不同，
+ * 此函数始终返回本地代理URL，无论API格式如何。
+ * @returns 内部API基础URL，如果未运行则返回null
  */
 export function getInternalApiBaseURL(): string | null {
   return getCoworkOpenAICompatProxyBaseURL('local');
 }
 
+/**
+ * 获取Cowork OpenAI兼容性代理状态
+ * @returns 代理状态对象
+ */
 export function getCoworkOpenAICompatProxyStatus(): OpenAICompatProxyStatus {
   return {
     running: Boolean(proxyServer),

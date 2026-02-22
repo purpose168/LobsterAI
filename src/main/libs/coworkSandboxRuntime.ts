@@ -64,8 +64,8 @@ const SANDBOX_IMAGE_SHA256 = process.env.COWORK_SANDBOX_IMAGE_SHA256;
 const SANDBOX_IMAGE_SHA256_ARM64 = process.env.COWORK_SANDBOX_IMAGE_SHA256_ARM64;
 const SANDBOX_IMAGE_SHA256_AMD64 = process.env.COWORK_SANDBOX_IMAGE_SHA256_AMD64;
 
-// Default sandbox resources for different architectures
-// Note: macOS binaries are statically linked, Windows requires full QEMU installation
+// 不同架构的默认沙箱资源
+// 注意：macOS 二进制文件是静态链接的，Windows 需要完整的 QEMU 安装
 const DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_ARM64 = 'https://ydhardwarecommon.nosdn.127.net/f23e57c47e4356c31b5bf1012f10a53e.gz';
 const DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64 = 'https://ydhardwarecommon.nosdn.127.net/20a9f6a34705ca51dbd9fb8c7695c1e5.gz';
 const DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64 = 'https://ydhardwarecommon.nosdn.127.net/02a016878c4457bd819e11e55b7b6884.gz';
@@ -85,8 +85,8 @@ const downloadState: {
   error: null,
 };
 
-// Cache the resolved system QEMU path (Windows only) so getSandboxStatus()
-// can report runtimeReady=true when using a system-installed QEMU.
+// 缓存已解析的系统 QEMU 路径（仅限 Windows），以便 getSandboxStatus()
+// 在使用系统安装的 QEMU 时可以报告 runtimeReady=true。
 let _resolvedSystemQemuPath: string | null = null;
 
 const sandboxEvents = new EventEmitter();
@@ -138,11 +138,11 @@ function getRuntimeUrl(platformKey: string): string | null {
   if (platformKey === 'darwin-x64' && DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64) {
     return DEFAULT_SANDBOX_RUNTIME_URL_DARWIN_AMD64;
   }
-  // Windows x64: use NSIS installer package from CDN
+  // Windows x64：使用来自 CDN 的 NSIS 安装程序包
   if (platformKey === 'win32-x64' && DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64) {
     return DEFAULT_SANDBOX_RUNTIME_URL_WIN32_AMD64;
   }
-  // Windows arm64: no default URL yet
+  // Windows arm64：尚无默认 URL
   if (platformKey.startsWith('win32')) {
     return null;
   }
@@ -237,7 +237,7 @@ function getInitrdPathOverride(): string | null {
 async function downloadFile(url: string, destination: string, stage: CoworkSandboxProgress['stage']): Promise<void> {
   const response = await session.defaultSession.fetch(url);
   if (!response.ok) {
-    throw new Error(`Download failed (${response.status}): ${url}`);
+    throw new Error(`下载失败 (${response.status}): ${url}`);
   }
 
   await fs.promises.mkdir(path.dirname(destination), { recursive: true });
@@ -304,14 +304,14 @@ async function verifySha256(filePath: string, expected?: string | null): Promise
   if (!expected) return;
   const actual = await sha256File(filePath);
   if (actual.toLowerCase() !== expected.toLowerCase()) {
-    throw new Error(`Checksum mismatch for ${path.basename(filePath)}`);
+    throw new Error(`${path.basename(filePath)} 的校验和不匹配`);
   }
 }
 
 function extractTarArchive(archivePath: string, destDir: string): void {
   const result = spawnSync('tar', ['-xf', archivePath, '-C', destDir], { stdio: 'pipe' });
   if (result.status !== 0) {
-    throw new Error(result.stderr?.toString() || 'Failed to extract tar archive');
+    throw new Error(result.stderr?.toString() || '解压 tar 归档文件失败');
   }
 }
 
@@ -324,12 +324,12 @@ function extractArchive(archivePath: string, destDir: string): void {
         { stdio: 'pipe' }
       );
       if (result.status !== 0) {
-        throw new Error(result.stderr?.toString() || 'Failed to extract zip archive');
+        throw new Error(result.stderr?.toString() || '解压 zip 归档文件失败');
       }
     } else {
       const result = spawnSync('unzip', ['-q', archivePath, '-d', destDir], { stdio: 'pipe' });
       if (result.status !== 0) {
-        throw new Error(result.stderr?.toString() || 'Failed to extract zip archive');
+        throw new Error(result.stderr?.toString() || '解压 zip 归档文件失败');
       }
     }
     return;
@@ -343,12 +343,12 @@ function extractArchive(archivePath: string, destDir: string): void {
   if (archivePath.endsWith('.tar.gz') || archivePath.endsWith('.tgz')) {
     const result = spawnSync('tar', ['-xzf', archivePath, '-C', destDir], { stdio: 'pipe' });
     if (result.status !== 0) {
-      throw new Error(result.stderr?.toString() || 'Failed to extract tar archive');
+      throw new Error(result.stderr?.toString() || '解压 tar 归档文件失败');
     }
     return;
   }
 
-  throw new Error('Unsupported runtime archive format');
+  throw new Error('不支持的运行时归档格式');
 }
 
 async function extractGzipBinary(archivePath: string, targetPath: string): Promise<void> {
@@ -368,7 +368,7 @@ async function isTarFile(filePath: string): Promise<boolean> {
     const magic = buffer.subarray(257, 262).toString('utf8');
     return magic === 'ustar';
   } catch (error) {
-    console.warn('Failed to probe sandbox runtime archive:', error);
+    console.warn('探测沙箱运行时归档文件失败:', error);
     return false;
   }
 }
@@ -381,7 +381,7 @@ async function isGzipFile(filePath: string): Promise<boolean> {
     await handle.close();
     return buffer[0] === 0x1f && buffer[1] === 0x8b;
   } catch (error) {
-    console.warn('Failed to probe sandbox runtime binary:', error);
+    console.warn('探测沙箱运行时二进制文件失败:', error);
     return false;
   }
 }
@@ -392,44 +392,44 @@ async function isPEFile(filePath: string): Promise<boolean> {
     const buffer = Buffer.alloc(2);
     await handle.read(buffer, 0, 2, 0);
     await handle.close();
-    // MZ magic number for PE/COFF executables
+    // MZ 魔数，用于 PE/COFF 可执行文件
     return buffer[0] === 0x4d && buffer[1] === 0x5a;
   } catch (error) {
-    console.warn('Failed to probe file for PE header:', error);
+    console.warn('探测文件 PE 头失败:', error);
     return false;
   }
 }
 
 /**
- * Launch an NSIS installer interactively (like double-click) and wait for it to finish.
- * Uses PowerShell Start-Process which calls ShellExecute internally, properly handling
- * UAC elevation — the user sees the standard Windows elevation prompt and installer UI.
+ * 以交互方式启动 NSIS 安装程序（类似于双击）并等待其完成。
+ * 使用 PowerShell Start-Process，该命令内部调用 ShellExecute，
+ * 能够正确处理 UAC 提升权限 —— 用户将看到标准的 Windows 提升权限提示和安装程序界面。
  */
 async function runNsisInstaller(installerPath: string, targetDir: string): Promise<void> {
   await fs.promises.mkdir(targetDir, { recursive: true });
 
-  console.log(`[Sandbox] Launching QEMU installer interactively: ${installerPath}`);
-  console.log(`[Sandbox] Suggested install directory: ${targetDir}`);
+  console.log(`[沙箱] 正在以交互方式启动 QEMU 安装程序: ${installerPath}`);
+  console.log(`[沙箱] 建议的安装目录: ${targetDir}`);
 
-  // Start-Process uses ShellExecute which handles UAC elevation automatically.
-  // -Wait blocks until the installer exits.
-  // /D= pre-sets the installation directory in the NSIS UI (user can still change it).
+  // Start-Process 使用 ShellExecute，可以自动处理 UAC 提升权限。
+  // -Wait 会阻塞直到安装程序退出。
+  // /D= 在 NSIS UI 中预设安装目录（用户仍可更改）。
   const result = spawnSync('powershell.exe', [
     '-NoProfile', '-Command',
     `Start-Process -FilePath '${installerPath}' -ArgumentList '/D=${targetDir}' -Wait`,
   ], { stdio: 'pipe', timeout: 600000 }); // 10-minute timeout
 
   if (result.error) {
-    throw new Error(`Failed to launch installer: ${result.error.message}`);
+    throw new Error(`启动安装程序失败: ${result.error.message}`);
   }
   if (result.status !== 0) {
     const stderr = result.stderr?.toString().trim() || '';
     throw new Error(
-      `Installer failed (exit code ${result.status}): ${stderr || 'User may have cancelled the installation or denied elevation.'}`
+      `安装程序失败（退出代码 ${result.status}）: ${stderr || '用户可能取消了安装或拒绝了提升权限请求。'}`
     );
   }
 
-  console.log('[Sandbox] QEMU installer process completed');
+  console.log('[沙箱] QEMU 安装程序进程已完成');
 }
 
 function resolveRuntimeBinary(runtimeDir: string, expectedPath: string): string | null {
@@ -461,7 +461,7 @@ function resolveRuntimeBinary(runtimeDir: string, expectedPath: string): string 
 }
 
 /**
- * Try to find QEMU in system PATH on Windows
+ * 尝试在 Windows 系统路径中查找 QEMU
  */
 function findSystemQemu(): string | null {
   if (process.platform !== 'win32') {
@@ -470,25 +470,25 @@ function findSystemQemu(): string | null {
 
   const qemuName = getRuntimeBinaryName();
 
-  // Check if QEMU is in PATH
+  // 检查 QEMU 是否在 PATH 中
   const result = spawnSync('where', [qemuName], { stdio: 'pipe' });
   if (result.status === 0 && result.stdout) {
     const paths = result.stdout.toString().trim().split('\n');
     for (const qemuPath of paths) {
       const trimmedPath = qemuPath.trim();
       if (fs.existsSync(trimmedPath)) {
-        // Verify it's executable by testing --version
+        // 通过测试 --version 来验证其是否可执行
         const testResult = spawnSync(trimmedPath, ['--version'], { stdio: 'pipe', timeout: 5000 });
         if (testResult.status === 0 || testResult.status === 3221225781) {
-          // Status 0 = success, 3221225781 = DLL issue but binary exists
-          // For DLL issue, we still return the path but validation will fail later
+          // 状态码 0 = 成功，3221225781 = DLL 问题但二进制文件存在
+          // 对于 DLL 问题，我们仍然返回路径，但验证将在稍后失败
           return trimmedPath;
         }
       }
     }
   }
 
-  // Check common installation paths
+  // 检查常见安装路径
   const commonPaths = [
     'C:\\Program Files\\qemu',
     'C:\\Program Files (x86)\\qemu',
@@ -506,61 +506,61 @@ function findSystemQemu(): string | null {
 }
 
 /**
- * Validate that a QEMU binary can actually run (not just exist)
+ * 验证 QEMU 二进制文件是否可以实际运行（不仅仅是存在）
  */
 function validateQemuBinary(binaryPath: string): { valid: boolean; error?: string } {
   if (!fs.existsSync(binaryPath)) {
-    return { valid: false, error: 'Binary not found' };
+    return { valid: false, error: '未找到二进制文件' };
   }
 
-  // Try to run --version to verify the binary works
+  // 尝试运行 --version 以验证二进制文件是否正常工作
   const result = spawnSync(binaryPath, ['--version'], { stdio: 'pipe', timeout: 5000 });
 
-  // Exit code 0 means success
+  // 退出代码 0 表示成功
   if (result.status === 0) {
     return { valid: true };
   }
 
-  // Exit code 3221225781 (0xC0000135) = STATUS_DLL_NOT_FOUND
+  // 退出代码 3221225781 (0xC0000135) = STATUS_DLL_NOT_FOUND
   if (result.status === 3221225781) {
     return {
       valid: false,
-      error: 'QEMU binary is missing required DLL files. Please install QEMU properly or use a complete QEMU package.',
+      error: 'QEMU 二进制文件缺少所需的 DLL 文件。请正确安装 QEMU 或使用完整的 QEMU 安装包。',
     };
   }
 
-  // Other non-zero exit codes
+  // 其他非零退出代码
   if (result.status !== null && result.status !== 0) {
     return {
       valid: false,
-      error: `QEMU binary failed to run (exit code: ${result.status}). ${result.stderr?.toString() || ''}`.trim(),
+      error: `QEMU 二进制文件运行失败（退出代码: ${result.status}）。${result.stderr?.toString() || ''}`.trim(),
     };
   }
 
-  // Timeout or signal
+  // 超时或信号
   if (result.error) {
     return {
       valid: false,
-      error: `Failed to run QEMU: ${result.error.message}`,
+      error: `运行 QEMU 失败: ${result.error.message}`,
     };
   }
 
-  return { valid: false, error: 'Unknown error validating QEMU binary' };
+  return { valid: false, error: '验证 QEMU 二进制文件时出现未知错误' };
 }
 
 /**
- * Check whether a QEMU binary has virtfs (9p filesystem) support compiled in.
- * The sandbox relies on `-virtfs` for host–guest file sharing; without it the VM
- * cannot communicate with the host.
+ * 检查 QEMU 二进制文件是否已编译支持 virtfs（9p 文件系统）。
+ * 沙箱依赖 `-virtfs` 进行主机与虚拟机之间的文件共享；如果没有它，
+ * 虚拟机将无法与主机通信。
  *
- * On Windows, virtfs is typically not supported, so we skip this check and use
- * virtio-serial as an alternative IPC channel.
+ * 在 Windows 上，virtfs 通常不受支持，因此我们跳过此检查，
+ * 并使用 virtio-serial 作为替代的 IPC 通道。
  */
 function checkQemuVirtfsSupport(binaryPath: string): boolean {
-  // On Windows, QEMU typically doesn't support virtfs (9p filesystem)
-  // We use virtio-serial IPC instead, so we skip this check
+  // 在 Windows 上，QEMU 通常不支持 virtfs（9p 文件系统）
+  // 我们改用 virtio-serial IPC，因此跳过此检查
   if (process.platform === 'win32') {
-    return true; // Return true to allow Windows QEMU to be used
+    return true; // 返回 true 以允许使用 Windows QEMU
   }
 
   const result = spawnSync(binaryPath, ['-help'], { stdio: 'pipe', timeout: 5000 });
@@ -601,7 +601,7 @@ function ensureHypervisorEntitlement(binaryPath: string, runtimeDir: string): vo
   try {
     fs.writeFileSync(entitlementsPath, entitlements);
   } catch (error) {
-    console.warn('Failed to write hypervisor entitlements file:', error);
+    console.warn('写入虚拟机监控程序权限文件失败:', error);
     return;
   }
 
@@ -612,14 +612,14 @@ function ensureHypervisorEntitlement(binaryPath: string, runtimeDir: string): vo
   );
   if (sign.status !== 0) {
     const stderr = sign.stderr?.toString() || sign.stdout?.toString() || 'Unknown codesign error';
-    console.warn('Failed to codesign sandbox runtime for HVF:', stderr.trim());
+    console.warn('为 HVF 签名沙箱运行时代码失败:', stderr.trim());
   }
 }
 
 async function ensureRuntime(): Promise<string> {
   const platformKey = getPlatformKey();
   if (!platformKey) {
-    throw new Error('Sandbox VM is not supported on this platform.');
+    throw new Error('此平台不支持沙箱虚拟机。');
   }
 
   const { runtimeDir, runtimeBinary } = getSandboxPaths();
@@ -634,7 +634,7 @@ async function ensureRuntime(): Promise<string> {
         try {
           await fs.promises.unlink(resolvedBinary);
         } catch (error) {
-          console.warn('Failed to remove sandbox runtime gzip archive:', error);
+          console.warn('删除沙箱运行时 gzip 归档文件失败:', error);
         }
       } else {
         await fs.promises.rename(tempPath, resolvedBinary);
@@ -644,50 +644,50 @@ async function ensureRuntime(): Promise<string> {
       try {
         await fs.promises.unlink(resolvedBinary);
       } catch (error) {
-        console.warn('Failed to remove sandbox runtime tar archive:', error);
+        console.warn('删除沙箱运行时 tar 归档文件失败:', error);
       }
     }
 
     const finalResolved = resolveRuntimeBinary(runtimeDir, runtimeBinary);
     if (!finalResolved) {
-      throw new Error('Sandbox runtime binary not found after extraction.');
+      throw new Error('解压后未找到沙箱运行时二进制文件。');
     }
 
-    // Log validation result but do not delete or re-download — if the binary
-    // is broken the error will surface when the VM is actually started.
+    // 记录验证结果但不删除或重新下载 —— 如果二进制文件
+    // 损坏，错误将在虚拟机实际启动时显现。
     const validation = validateQemuBinary(finalResolved);
     if (!validation.valid) {
-      console.warn(`[Sandbox] QEMU binary validation warning: ${validation.error}`);
+      console.warn(`[沙箱] QEMU 二进制文件验证警告: ${validation.error}`);
     }
 
     if (process.platform !== 'win32') {
       try {
         fs.chmodSync(finalResolved, 0o755);
       } catch (error) {
-        console.warn('Failed to chmod sandbox runtime binary:', error);
+        console.warn('修改沙箱运行时二进制文件权限失败:', error);
       }
     }
     ensureHypervisorEntitlement(finalResolved, runtimeDir);
     return finalResolved;
   }
 
-  // On Windows, try to find system-installed QEMU before downloading
+  // 在 Windows 上，尝试在下载之前查找系统安装的 QEMU
   if (process.platform === 'win32') {
     const systemQemu = findSystemQemu();
     if (systemQemu) {
-      console.log(`[Sandbox] Found system QEMU at: ${systemQemu}`);
+      console.log(`[沙箱] 在系统中找到 QEMU: ${systemQemu}`);
       const validation = validateQemuBinary(systemQemu);
       if (validation.valid) {
-        // On Windows, checkQemuVirtfsSupport always returns true since we use virtio-serial IPC instead
+        // 在 Windows 上，checkQemuVirtfsSupport 总是返回 true，因为我们使用 virtio-serial IPC 替代
         if (checkQemuVirtfsSupport(systemQemu)) {
-          console.log('[Sandbox] Using system QEMU installation');
+          console.log('[沙箱] 使用系统安装的 QEMU');
           _resolvedSystemQemuPath = systemQemu;
           return systemQemu;
         }
-        // This branch will never be reached on Windows due to the check above
-        console.warn('[Sandbox] System QEMU lacks virtfs (9p) support, will download a compatible build');
+        // 由于上面的检查，此分支在 Windows 上永远不会被执行
+        console.warn('[沙箱] 系统 QEMU 缺少 virtfs (9p) 支持，将下载兼容版本');
       } else {
-        console.warn(`[Sandbox] System QEMU found but invalid: ${validation.error}`);
+        console.warn(`[沙箱] 找到系统 QEMU 但无效: ${validation.error}`);
       }
     }
   }
@@ -697,18 +697,18 @@ async function ensureRuntime(): Promise<string> {
     let errorMsg: string;
     if (platformKey === 'win32-x64' || platformKey === 'win32-arm64') {
       errorMsg = [
-        'Windows sandbox requires QEMU to be installed.',
+        'Windows 沙箱需要安装 QEMU。',
         '',
-        'Please install QEMU using one of these methods:',
-        '1. Download and install from: https://qemu.weilnetz.de/w64/',
-        '2. Install via scoop: scoop install qemu',
-        '3. Install via chocolatey: choco install qemu',
+        '请使用以下方法之一安装 QEMU：',
+        '1. 从以下地址下载并安装: https://qemu.weilnetz.de/w64/',
+        '2. 通过 scoop 安装: scoop install qemu',
+        '3. 通过 chocolatey 安装: choco install qemu',
         '',
-        'After installation, QEMU should be available in your system PATH.',
-        'Alternatively, set the COWORK_SANDBOX_RUNTIME_URL environment variable to a QEMU package URL.',
+        '安装后，QEMU 应该在您的系统 PATH 中可用。',
+        '或者，将 COWORK_SANDBOX_RUNTIME_URL 环境变量设置为 QEMU 安装包 URL。',
       ].join('\n');
     } else {
-      errorMsg = 'Sandbox runtime download URL is not configured.';
+      errorMsg = '沙箱运行时下载 URL 未配置。';
     }
     throw new Error(errorMsg);
   }
@@ -730,49 +730,49 @@ async function ensureRuntime(): Promise<string> {
       extractTarArchive(tempPath, runtimeDir);
       await fs.promises.unlink(tempPath);
     } else if (process.platform === 'win32' && await isPEFile(tempPath)) {
-      // Decompressed file is a Windows executable — determine if it's the QEMU binary
-      // itself or an installer (NSIS/Inno etc.)
+      // 解压后的文件是 Windows 可执行文件 —— 判断它是 QEMU 二进制文件
+      // 本身还是安装程序（NSIS/Inno 等）
       const fileStats = await fs.promises.stat(tempPath);
-      console.log(`[Sandbox] Decompressed PE file: ${fileStats.size} bytes`);
+      console.log(`[沙箱] 解压后的 PE 文件: ${fileStats.size} 字节`);
 
-      // Quick check: try --version to see if it's already a QEMU binary
+      // 快速检查：尝试 --version 以查看它是否已经是 QEMU 二进制文件
       const versionProbe = spawnSync(tempPath, ['--version'], { stdio: 'pipe', timeout: 5000 });
       const versionOutput = versionProbe.stdout?.toString().trim() || '';
-      console.log(`[Sandbox] PE --version probe: exit=${versionProbe.status}, stdout="${versionOutput.slice(0, 120)}"`);
+      console.log(`[沙箱] PE --version 探测: 退出=${versionProbe.status}, 输出="${versionOutput.slice(0, 120)}"`);
 
       if (versionProbe.status === 0 && versionOutput.toLowerCase().includes('qemu')) {
-        // It's the QEMU binary itself, not an installer
-        console.log('[Sandbox] Downloaded file is a QEMU binary, renaming directly');
+        // 它是 QEMU 二进制文件本身，不是安装程序
+        console.log('[沙箱] 下载的文件是 QEMU 二进制文件，直接重命名');
         await fs.promises.rename(tempPath, runtimeBinary);
       } else {
-        // Treat as an installer (NSIS)
+        // 视为安装程序（NSIS）
         const installerPath = path.join(runtimeDir, 'qemu-installer.exe');
         await fs.promises.rename(tempPath, installerPath);
         try {
-          console.log(`[Sandbox] Running QEMU NSIS installer to: ${runtimeDir}`);
+          console.log(`[沙箱] 正在运行 QEMU NSIS 安装程序到: ${runtimeDir}`);
           await runNsisInstaller(installerPath, runtimeDir);
-          console.log('[Sandbox] QEMU NSIS installer completed successfully');
+          console.log('[沙箱] QEMU NSIS 安装程序成功完成');
         } catch (error) {
-          // Log directory contents for debugging
+          // 记录目录内容以便调试
           try {
             const entries = fs.readdirSync(runtimeDir);
-            console.log(`[Sandbox] Runtime dir contents after failed install: ${JSON.stringify(entries)}`);
+            console.log(`[沙箱] 安装失败后的运行时目录内容: ${JSON.stringify(entries)}`);
           } catch { /* ignore */ }
           try { await fs.promises.unlink(installerPath); } catch { /* ignore */ }
           throw new Error(
-            `Failed to install QEMU: ${error instanceof Error ? error.message : String(error)}`
+            `安装 QEMU 失败: ${error instanceof Error ? error.message : String(error)}`
           );
         }
-        // Log directory contents after successful install
+        // 记录安装成功后的目录内容
         try {
           const entries = fs.readdirSync(runtimeDir);
-          console.log(`[Sandbox] Runtime dir contents after install: ${JSON.stringify(entries)}`);
+          console.log(`[沙箱] 安装后的运行时目录内容: ${JSON.stringify(entries)}`);
         } catch { /* ignore */ }
-        // Clean up the installer executable
+        // 清理安装程序可执行文件
         try {
           await fs.promises.unlink(installerPath);
         } catch (error) {
-          console.warn('[Sandbox] Failed to remove QEMU installer after installation:', error);
+          console.warn('[沙箱] 安装后删除 QEMU 安装程序失败:', error);
         }
       }
     } else {
@@ -785,7 +785,7 @@ async function ensureRuntime(): Promise<string> {
 
   const finalBinary = resolveRuntimeBinary(runtimeDir, runtimeBinary);
   if (!finalBinary) {
-    // Log directory contents to help diagnose why binary wasn't found
+    // 记录目录内容以帮助诊断为何未找到二进制文件
     try {
       const listDir = (dir: string, prefix = ''): string[] => {
         const results: string[] = [];
@@ -798,24 +798,24 @@ async function ensureRuntime(): Promise<string> {
         }
         return results;
       };
-      console.log(`[Sandbox] Binary not found. Looking for: ${path.basename(runtimeBinary)}`);
-      console.log(`[Sandbox] Runtime dir tree:\n${listDir(runtimeDir).join('\n')}`);
+      console.log(`[沙箱] 未找到二进制文件。正在查找: ${path.basename(runtimeBinary)}`);
+      console.log(`[沙箱] 运行时目录树:\n${listDir(runtimeDir).join('\n')}`);
     } catch { /* ignore */ }
-    throw new Error('Sandbox runtime binary not found after extraction.');
+    throw new Error('解压后未找到沙箱运行时二进制文件。');
   }
-  console.log(`[Sandbox] Resolved runtime binary: ${finalBinary}`);
+  console.log(`[沙箱] 已解析的运行时二进制文件: ${finalBinary}`);
 
-  // Log validation result but do not block — errors will surface at VM start time
+  // 记录验证结果但不阻塞 —— 错误将在虚拟机启动时显现
   const validation = validateQemuBinary(finalBinary);
   if (!validation.valid) {
-    console.warn(`[Sandbox] QEMU binary validation warning: ${validation.error}`);
+    console.warn(`[沙箱] QEMU 二进制文件验证警告: ${validation.error}`);
   }
 
   if (process.platform !== 'win32') {
     try {
       fs.chmodSync(finalBinary, 0o755);
     } catch (error) {
-      console.warn('Failed to chmod sandbox runtime binary:', error);
+      console.warn('修改沙箱运行时二进制文件权限失败:', error);
     }
   }
   ensureHypervisorEntitlement(finalBinary, runtimeDir);
@@ -832,8 +832,8 @@ async function ensureImage(): Promise<string> {
   const url = getImageUrl();
   if (!url) {
     const errorMsg = process.platform === 'win32'
-      ? 'Windows sandbox image is not yet configured. Please set COWORK_SANDBOX_IMAGE_URL or COWORK_SANDBOX_BASE_URL environment variable, or wait for default Windows image support.'
-      : 'Sandbox image download URL is not configured.';
+      ? 'Windows 沙箱镜像尚未配置。请设置 COWORK_SANDBOX_IMAGE_URL 或 COWORK_SANDBOX_BASE_URL 环境变量，或等待默认 Windows 镜像支持。'
+      : '沙箱镜像下载 URL 未配置。';
     throw new Error(errorMsg);
   }
 
@@ -928,7 +928,7 @@ function resolveAvailableRuntimeBinary(): string | null {
     return localRuntime;
   }
 
-  // On Windows, also check for system-installed QEMU (e.g. C:\Program Files\qemu\)
+  // 在 Windows 上，还要检查系统安装的 QEMU（例如 C:\Program Files\qemu\）
   if (process.platform === 'win32') {
     if (_resolvedSystemQemuPath && fs.existsSync(_resolvedSystemQemuPath)) {
       return _resolvedSystemQemuPath;
@@ -946,8 +946,8 @@ function resolveAvailableRuntimeBinary(): string | null {
   return null;
 }
 
-// Singleton promise for ensureSandboxReady to prevent concurrent installations.
-// Two simultaneous NSIS installers writing to the same directory will deadlock.
+// ensureSandboxReady 的单例 Promise，用于防止并发安装。
+// 两个同时运行的 NSIS 安装程序写入同一目录会导致死锁。
 let _ensureSandboxReadyPromise: Promise<SandboxCheckResult> | null = null;
 
 export function ensureSandboxReady(): Promise<SandboxCheckResult> {
@@ -964,10 +964,10 @@ export function ensureSandboxReady(): Promise<SandboxCheckResult> {
 async function _ensureSandboxReadyImpl(): Promise<SandboxCheckResult> {
   const platformKey = getPlatformKey();
   if (!platformKey) {
-    return { ok: false, error: 'Sandbox VM is not supported on this platform.' };
+    return { ok: false, error: '此平台不支持沙箱虚拟机。' };
   }
 
-  coworkLog('INFO', 'ensureSandboxReady', 'Checking sandbox readiness', {
+  coworkLog('INFO', 'ensureSandboxReady', '正在检查沙箱就绪状态', {
     platformKey,
     platform: process.platform,
     arch: process.arch,
@@ -992,14 +992,14 @@ async function _ensureSandboxReadyImpl(): Promise<SandboxCheckResult> {
       kernelPath = await ensureKernel();
       initrdPath = await ensureInitrd();
     } catch (error) {
-      console.warn('Failed to download sandbox kernel/initrd:', error);
+      console.warn('下载沙箱内核/initrd 失败:', error);
     }
 
     const { baseDir } = getSandboxPaths();
     downloadState.error = null;
     downloadState.progress = undefined;
 
-    coworkLog('INFO', 'ensureSandboxReady', 'Sandbox ready', {
+    coworkLog('INFO', 'ensureSandboxReady', '沙箱已就绪', {
       runtimeBinary,
       runtimeExists: fs.existsSync(runtimeBinary),
       imagePath,
@@ -1024,7 +1024,7 @@ async function _ensureSandboxReadyImpl(): Promise<SandboxCheckResult> {
     downloadState.error = error instanceof Error ? error.message : String(error);
     downloadState.runtime = null;
     downloadState.image = null;
-    coworkLog('ERROR', 'ensureSandboxReady', 'Sandbox not ready', {
+    coworkLog('ERROR', 'ensureSandboxReady', '沙箱未就绪', {
       error: downloadState.error,
     });
     return { ok: false, error: downloadState.error };
@@ -1035,17 +1035,17 @@ export function getSandboxRuntimeInfoIfReady():
 { ok: true; runtimeInfo: SandboxRuntimeInfo } | { ok: false; error: string } {
   const platformKey = getPlatformKey();
   if (!platformKey) {
-    return { ok: false, error: 'Sandbox VM is not supported on this platform.' };
+    return { ok: false, error: '此平台不支持沙箱虚拟机。' };
   }
 
   const runtimeBinary = resolveAvailableRuntimeBinary();
   if (!runtimeBinary) {
-    return { ok: false, error: 'Sandbox runtime is not installed.' };
+    return { ok: false, error: '沙箱运行时未安装。' };
   }
 
   const { baseDir, imagePath } = getSandboxPaths();
   if (!fs.existsSync(imagePath)) {
-    return { ok: false, error: 'Sandbox image is not installed.' };
+    return { ok: false, error: '沙箱镜像未安装。' };
   }
 
   return {

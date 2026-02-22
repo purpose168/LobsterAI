@@ -11,6 +11,16 @@ import { skillService } from '../../services/skill';
 
 const SKILL_ID = 'imap-smtp-email';
 
+/**
+ * 邮件服务提供商预设配置接口
+ * @property label - 提供商显示名称
+ * @property imapHost - IMAP 服务器地址
+ * @property imapPort - IMAP 服务器端口
+ * @property smtpHost - SMTP 服务器地址
+ * @property smtpPort - SMTP 服务器端口
+ * @property smtpSecure - SMTP 是否使用 SSL/TLS 安全连接
+ * @property hint - 提示信息的国际化键值（可选）
+ */
 interface ProviderPreset {
   label: string;
   imapHost: string;
@@ -21,6 +31,13 @@ interface ProviderPreset {
   hint?: string;
 }
 
+/**
+ * 邮件连接性检查结果
+ * @property code - 检查类型：IMAP 连接或 SMTP 连接
+ * @property level - 检查结果级别：通过或失败
+ * @property message - 检查结果消息
+ * @property durationMs - 检查耗时（毫秒）
+ */
 type EmailConnectivityCheck = {
   code: 'imap_connection' | 'smtp_connection';
   level: 'pass' | 'fail';
@@ -28,12 +45,22 @@ type EmailConnectivityCheck = {
   durationMs: number;
 };
 
+/**
+ * 邮件连接性测试结果
+ * @property testedAt - 测试时间戳
+ * @property verdict - 总体判定：通过或失败
+ * @property checks - 各项检查结果列表
+ */
 type EmailConnectivityTestResult = {
   testedAt: number;
   verdict: 'pass' | 'fail';
   checks: EmailConnectivityCheck[];
 };
 
+/**
+ * 邮件服务提供商预设配置
+ * 包含常用邮件服务商的 IMAP/SMTP 服务器配置信息
+ */
 const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   gmail: {
     label: 'Gmail',
@@ -89,6 +116,11 @@ const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   },
 };
 
+/**
+ * 根据配置信息检测邮件服务提供商
+ * @param config - 邮件配置对象
+ * @returns 提供商标识符（如 'gmail'、'outlook'、'163'、'126'、'qq'、'custom' 或空字符串）
+ */
 const detectProvider = (config: Record<string, string>): string => {
   const imapHost = (config.IMAP_HOST || '').toLowerCase();
   if (imapHost.includes('gmail')) return 'gmail';
@@ -100,34 +132,66 @@ const detectProvider = (config: Record<string, string>): string => {
   return '';
 };
 
+/**
+ * 邮件技能配置组件属性接口
+ * @property onClose - 关闭回调函数（可选）
+ */
 interface EmailSkillConfigProps {
   onClose?: () => void;
 }
 
+/**
+ * 邮件技能配置组件
+ * 用于配置 IMAP/SMTP 邮件连接参数，支持多种邮件服务提供商预设配置
+ */
 const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
+  // 邮件服务提供商选择状态
   const [provider, setProvider] = useState('');
+  // 邮箱地址
   const [email, setEmail] = useState('');
+  // 邮箱密码/授权码
   const [password, setPassword] = useState('');
+  // 是否显示高级设置
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // IMAP 服务器地址
   const [imapHost, setImapHost] = useState('');
+  // IMAP 服务器端口
   const [imapPort, setImapPort] = useState('993');
+  // SMTP 服务器地址
   const [smtpHost, setSmtpHost] = useState('');
+  // SMTP 服务器端口
   const [smtpPort, setSmtpPort] = useState('587');
+  // SMTP 是否使用 SSL 安全连接
   const [smtpSecure, setSmtpSecure] = useState('false');
+  // IMAP 是否使用 TLS 加密
   const [imapTls, setImapTls] = useState('true');
+  // 默认邮箱文件夹
   const [mailbox, setMailbox] = useState('INBOX');
+  // 加载状态
   const [loading, setLoading] = useState(true);
+  // 是否正在保存配置
   const [isPersisting, setIsPersisting] = useState(false);
+  // 保存错误信息
   const [persistError, setPersistError] = useState<string | null>(null);
+  // 是否正在测试连接
   const [isTesting, setIsTesting] = useState(false);
+  // 连接测试结果
   const [connectivityResult, setConnectivityResult] = useState<EmailConnectivityTestResult | null>(null);
+  // 连接测试错误信息
   const [connectivityError, setConnectivityError] = useState<string | null>(null);
 
+  // 组件挂载状态引用
   const isMountedRef = useRef(true);
+  // 是否正在保存中的引用
   const persistInFlightRef = useRef(false);
+  // 是否有待保存队列的引用
   const persistQueuedRef = useRef(false);
+  // 最新配置引用
   const latestConfigRef = useRef<Record<string, string>>({});
 
+  /**
+   * 组件挂载时加载已保存的邮件配置
+   */
   useEffect(() => {
     const loadConfig = async () => {
       const config = await skillService.getSkillConfig(SKILL_ID);
@@ -149,12 +213,19 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
     loadConfig();
   }, []);
 
+  /**
+   * 组件卸载时清理挂载状态
+   */
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
+  /**
+   * 构建邮件配置对象
+   * @returns 包含所有 IMAP/SMTP 配置参数的对象
+   */
   const buildConfig = useCallback((): Record<string, string> => ({
     IMAP_HOST: imapHost,
     IMAP_PORT: imapPort,
@@ -182,10 +253,17 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
     smtpSecure,
   ]);
 
+  /**
+   * 同步更新最新配置引用
+   */
   useEffect(() => {
     latestConfigRef.current = buildConfig();
   }, [buildConfig]);
 
+  /**
+   * 执行保存队列中的配置持久化操作
+   * 使用队列机制避免频繁保存请求
+   */
   const flushPersistQueue = useCallback(async () => {
     if (persistInFlightRef.current) {
       return;
@@ -214,12 +292,21 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
     }
   }, []);
 
+  /**
+   * 将配置保存操作加入队列
+   * 更新最新配置并触发异步保存
+   */
   const queuePersist = useCallback(() => {
     latestConfigRef.current = buildConfig();
     persistQueuedRef.current = true;
     void flushPersistQueue();
   }, [buildConfig, flushPersistQueue]);
 
+  /**
+   * 处理邮件服务提供商选择变更
+   * 当选择预设提供商时，自动填充对应的服务器配置
+   * @param newProvider - 新选择的提供商标识符
+   */
   const handleProviderChange = (newProvider: string) => {
     setProvider(newProvider);
     if (newProvider && newProvider !== 'custom') {
@@ -235,6 +322,10 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
     }
   };
 
+  /**
+   * 处理邮件连接性测试
+   * 测试 IMAP 和 SMTP 服务器的连接状态
+   */
   const handleConnectivityTest = async () => {
     setConnectivityError(null);
     setConnectivityResult(null);
@@ -248,14 +339,21 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
     setIsTesting(false);
   };
 
+  // 获取当前提供商预设配置
   const currentPreset = provider ? PROVIDER_PRESETS[provider] : null;
+  // 提示信息的国际化键值
   const hintKey = currentPreset?.hint;
+  // 是否可以进行连接测试（邮箱和密码已填写）
   const canTest = Boolean(email && password && imapHost && smtpHost);
+  // 连接测试是否通过
   const connectivityPassed = connectivityResult?.verdict === 'pass';
 
+  // 输入框样式类名
   const inputClassName = 'block w-full rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset dark:border-claude-darkBorder border-claude-border border focus:border-claude-accent focus:ring-1 focus:ring-claude-accent/30 dark:text-claude-darkText text-claude-text px-3 py-2 text-xs';
+  // 标签样式类名
   const labelClassName = 'block text-xs font-medium dark:text-claude-darkText text-claude-text mb-1';
 
+  // 加载中状态显示
   if (loading) {
     return (
       <div className="p-4 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary">
@@ -286,7 +384,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         </div>
       )}
 
-      {/* Provider Selection */}
+      {/* 提供商选择 */}
       <div>
         <label className={labelClassName}>{i18nService.t('emailProvider')}</label>
         <select
@@ -304,14 +402,14 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         </select>
       </div>
 
-      {/* Hint */}
+      {/* 提示信息 */}
       {hintKey && (
         <div className="text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
           {i18nService.t(hintKey)}
         </div>
       )}
 
-      {/* Email */}
+      {/* 邮箱地址 */}
       <div>
         <label className={labelClassName}>{i18nService.t('emailAddress')}</label>
         <input
@@ -324,7 +422,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         />
       </div>
 
-      {/* Password */}
+      {/* 邮箱密码 */}
       <div>
         <label className={labelClassName}>{i18nService.t('emailPassword')}</label>
         <input
@@ -337,7 +435,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         />
       </div>
 
-      {/* Advanced Settings Toggle */}
+      {/* 高级设置切换按钮 */}
       <button
         type="button"
         onClick={() => setShowAdvanced(!showAdvanced)}
@@ -351,12 +449,12 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         {i18nService.t('emailAdvancedSettings')}
       </button>
 
-      {/* Advanced Settings */}
+      {/* 高级设置面板 */}
       {showAdvanced && (
         <div className="space-y-3 pl-2 border-l-2 border-claude-border dark:border-claude-darkBorder">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClassName}>IMAP Host</label>
+              <label className={labelClassName}>IMAP 服务器</label>
               <input
                 type="text"
                 value={imapHost}
@@ -367,7 +465,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
               />
             </div>
             <div>
-              <label className={labelClassName}>IMAP Port</label>
+              <label className={labelClassName}>IMAP 端口</label>
               <input
                 type="text"
                 value={imapPort}
@@ -381,7 +479,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClassName}>SMTP Host</label>
+              <label className={labelClassName}>SMTP 服务器</label>
               <input
                 type="text"
                 value={smtpHost}
@@ -392,7 +490,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
               />
             </div>
             <div>
-              <label className={labelClassName}>SMTP Port</label>
+              <label className={labelClassName}>SMTP 端口</label>
               <input
                 type="text"
                 value={smtpPort}
@@ -413,7 +511,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
                 onBlur={queuePersist}
                 className="h-3.5 w-3.5 text-claude-accent focus:ring-claude-accent rounded"
               />
-              IMAP TLS
+              IMAP TLS 加密
             </label>
             <label className="flex items-center gap-2 text-xs dark:text-claude-darkText text-claude-text">
               <input
@@ -423,7 +521,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
                 onBlur={queuePersist}
                 className="h-3.5 w-3.5 text-claude-accent focus:ring-claude-accent rounded"
               />
-              SMTP SSL
+              SMTP SSL 加密
             </label>
           </div>
 
@@ -441,7 +539,7 @@ const EmailSkillConfig: React.FC<EmailSkillConfigProps> = ({ onClose }) => {
         </div>
       )}
 
-      {/* Connectivity Test */}
+      {/* 连接测试 */}
       <div className="space-y-3 pt-1">
         <button
           type="button"

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Command line tool to validate Office document XML files against XSD schemas and tracked changes.
+用于根据 XSD 架构和修订痕迹验证 Office 文档 XML 文件的命令行工具。
 
-Usage:
-    python validate.py <dir> --original <original_file>
+用法：
+    python validate.py <目录> --original <原始文件>
 """
 
 import argparse
@@ -14,45 +14,45 @@ from validation import DOCXSchemaValidator, PPTXSchemaValidator, RedliningValida
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate Office document XML files")
+    parser = argparse.ArgumentParser(description="验证 Office 文档 XML 文件")
     parser.add_argument(
         "unpacked_dir",
-        help="Path to unpacked Office document directory",
+        help="解压后的 Office 文档目录路径",
     )
     parser.add_argument(
         "--original",
         required=True,
-        help="Path to original file (.docx/.pptx/.xlsx)",
+        help="原始文件路径 (.docx/.pptx/.xlsx)",
     )
     parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable verbose output",
+        help="启用详细输出",
     )
     args = parser.parse_args()
 
-    # Validate paths
+    # 验证路径
     unpacked_dir = Path(args.unpacked_dir)
     original_file = Path(args.original)
     file_extension = original_file.suffix.lower()
-    assert unpacked_dir.is_dir(), f"Error: {unpacked_dir} is not a directory"
-    assert original_file.is_file(), f"Error: {original_file} is not a file"
+    assert unpacked_dir.is_dir(), f"错误：{unpacked_dir} 不是目录"
+    assert original_file.is_file(), f"错误：{original_file} 不是文件"
     assert file_extension in [".docx", ".pptx", ".xlsx"], (
-        f"Error: {original_file} must be a .docx, .pptx, or .xlsx file"
+        f"错误：{original_file} 必须是 .docx、.pptx 或 .xlsx 文件"
     )
 
-    # Run validations
+    # 运行验证
     match file_extension:
         case ".docx":
             validators = [DOCXSchemaValidator, RedliningValidator]
         case ".pptx":
             validators = [PPTXSchemaValidator]
         case _:
-            print(f"Error: Validation not supported for file type {file_extension}")
+            print(f"错误：不支持 {file_extension} 文件类型的验证")
             sys.exit(1)
 
-    # Run validators
+    # 运行验证器
     success = True
     for V in validators:
         validator = V(unpacked_dir, original_file, verbose=args.verbose)
@@ -60,7 +60,7 @@ def main():
             success = False
 
     if success:
-        print("All validations PASSED!")
+        print("所有验证通过！")
 
     sys.exit(0 if success else 1)
 

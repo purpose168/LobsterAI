@@ -3,27 +3,42 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+// 导入 OpenAI 兼容代理模块
 const proxyModule = require('../dist-electron/libs/coworkOpenAICompatProxy.js');
+// 获取测试工具函数
 const testUtils = proxyModule.__openAICompatProxyTestUtils;
 
 if (!testUtils) {
-  throw new Error('__openAICompatProxyTestUtils is not available');
+  throw new Error('__openAICompatProxyTestUtils 不可用');
 }
 
+/**
+ * 创建模拟响应对象
+ * 用于测试中捕获输出数据
+ */
 function createMockResponse() {
   let output = '';
   return {
+    // 写入数据块到输出缓冲区
     write(chunk) {
       output += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
       return true;
     },
+    // 获取累积的输出内容
     getOutput() {
       return output;
     },
   };
 }
 
+/**
+ * 解析 SSE（Server-Sent Events）事件
+ * 将原始 SSE 格式字符串解析为事件对象数组
+ * @param {string} raw - 原始 SSE 格式字符串
+ * @returns {Array} 解析后的事件对象数组
+ */
 function parseSSEEvents(raw) {
+  // 按双换行符分割数据包
   const packets = raw.split('\n\n').filter(Boolean);
   const events = [];
 
@@ -32,6 +47,7 @@ function parseSSEEvents(raw) {
     let eventName = '';
     const dataLines = [];
 
+    // 解析每一行，提取事件名称和数据
     for (const line of lines) {
       if (line.startsWith('event:')) {
         eventName = line.slice(6).trimStart();
@@ -40,16 +56,19 @@ function parseSSEEvents(raw) {
       }
     }
 
+    // 合并数据行
     const dataRaw = dataLines.join('\n');
+    // 跳过空数据或结束标记
     if (!dataRaw || dataRaw === '[DONE]') {
       continue;
     }
 
+    // 尝试解析 JSON 数据
     let dataParsed = dataRaw;
     try {
       dataParsed = JSON.parse(dataRaw);
     } catch {
-      // Keep original raw string.
+      // 解析失败时保留原始字符串
     }
 
     events.push({
@@ -61,6 +80,12 @@ function parseSSEEvents(raw) {
   return events;
 }
 
+/**
+ * 收集输入 JSON 增量数据
+ * 从事件列表中提取所有 input_json_delta 类型的数据
+ * @param {Array} events - 事件对象数组
+ * @returns {Array<string>} 输入 JSON 增量字符串数组
+ */
 function collectInputJsonDeltas(events) {
   return events
     .filter((event) => event.event === 'content_block_delta')
@@ -69,6 +94,12 @@ function collectInputJsonDeltas(events) {
     .map((data) => String(data.delta.partial_json ?? ''));
 }
 
+/**
+ * 收集工具使用开始事件
+ * 从事件列表中提取所有 tool_use 类型的内容块开始事件
+ * @param {Array} events - 事件对象数组
+ * @returns {Array<Object>} 工具使用对象数组，包含 id 和 name
+ */
 function collectToolUseStarts(events) {
   return events
     .filter((event) => event.event === 'content_block_start')
@@ -80,11 +111,18 @@ function collectToolUseStarts(events) {
     }));
 }
 
+/**
+ * 运行响应序列
+ * 按顺序处理事件序列并返回解析后的事件结果
+ * @param {Array} sequence - 事件序列数组
+ * @returns {Object} 包含事件、输入 JSON 增量和工具使用开始信息的结果对象
+ */
 function runResponsesSequence(sequence) {
   const response = createMockResponse();
   const state = testUtils.createStreamState();
   const context = testUtils.createResponsesStreamContext();
 
+  // 按顺序处理每个事件步骤
   for (const step of sequence) {
     testUtils.processResponsesStreamEvent(
       response,
@@ -103,7 +141,7 @@ function runResponsesSequence(sequence) {
   };
 }
 
-test('A: added -> delta* -> done emits exactly one final arguments payload', () => {
+test('A: added -> delta* -> done 仅发出一个最终的参数载荷', () => {
   const responseId = 'resp_a';
   const model = 'gpt-5.2';
   const finalArguments = '{"questions":[{"header":"安全确认","question":"继续?","options":[{"label":"允许","description":"ok"},{"label":"拒绝","description":"no"}]}],"answers":{}}';
@@ -179,7 +217,7 @@ test('A: added -> delta* -> done emits exactly one final arguments payload', () 
   assert.equal(result.inputJsonDeltas[0], finalArguments);
 });
 
-test('B: output_item.done with item.arguments works without function_call_arguments events', () => {
+test('B: output_item.done 携带 item.arguments 时无需 function_call_arguments 事件即可工作', () => {
   const responseId = 'resp_b';
   const model = 'gpt-5.2';
   const finalArguments = '{"skill":"web-search"}';
@@ -226,7 +264,7 @@ test('B: output_item.done with item.arguments works without function_call_argume
   assert.equal(result.inputJsonDeltas[0], finalArguments);
 });
 
-test('C: delta before added keeps correct name/id and does not lose arguments', () => {
+test('C: delta 在 added 之前时保持正确的 name/id 且不丢失参数', () => {
   const responseId = 'resp_c';
   const model = 'gpt-5.2';
   const finalArguments = '{"skill":"web-search"}';
@@ -293,7 +331,7 @@ test('C: delta before added keeps correct name/id and does not lose arguments', 
   assert.ok(result.toolUseStarts.some((item) => item.name === 'Skill'));
 });
 
-test('D: output_item.done + function_call_arguments.done emits arguments only once', () => {
+test('D: output_item.done + function_call_arguments.done 仅发出一次参数', () => {
   const responseId = 'resp_d';
   const model = 'gpt-5.2';
   const finalArguments = '{"questions":[{"question":"Q","options":[{"label":"Y"}]}]}';
@@ -350,7 +388,7 @@ test('D: output_item.done + function_call_arguments.done emits arguments only on
   assert.equal(result.inputJsonDeltas[0], finalArguments);
 });
 
-test('E: mixed item_id/call_id mapping does not duplicate or mismatch calls', () => {
+test('E: 混合 item_id/call_id 映射不会导致调用重复或错配', () => {
   const responseId = 'resp_e';
   const model = 'gpt-5.2';
   const finalArguments = '{"command":"rm -rf build"}';
@@ -416,7 +454,7 @@ test('E: mixed item_id/call_id mapping does not duplicate or mismatch calls', ()
   assert.equal(result.inputJsonDeltas[0], finalArguments);
 });
 
-test('F: two interleaved function calls keep arguments isolated', () => {
+test('F: 两个交错函数调用保持参数隔离', () => {
   const responseId = 'resp_f';
   const model = 'gpt-5.2';
   const args1 = '{"skill":"web-search"}';
@@ -536,7 +574,7 @@ test('F: two interleaved function calls keep arguments isolated', () => {
   assert.equal(result.inputJsonDeltas.filter((item) => item === args2).length, 1);
 });
 
-test('G: convertChatCompletionsRequestToResponsesRequest auto-injects missing function_call_output', () => {
+test('G: convertChatCompletionsRequestToResponsesRequest 自动注入缺失的 function_call_output', () => {
   const request = testUtils.convertChatCompletionsRequestToResponsesRequest({
     model: 'gpt-5.2',
     stream: true,
@@ -565,11 +603,11 @@ test('G: convertChatCompletionsRequestToResponsesRequest auto-injects missing fu
     && item?.call_id === 'call_missing_output'
   ));
 
-  assert.ok(autoInjected, 'expected proxy to auto-inject function_call_output');
+  assert.ok(autoInjected, '期望代理自动注入 function_call_output');
   assert.equal(typeof autoInjected.output, 'string');
 });
 
-test('H: filterOpenAIToolsForProvider removes Skill tool and normalizes tool_choice', () => {
+test('H: filterOpenAIToolsForProvider 移除 Skill 工具并规范化 tool_choice', () => {
   const openAIRequest = {
     tools: [
       {

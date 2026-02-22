@@ -1,20 +1,20 @@
 ---
 name: text-animations
-description: Typography and text animation patterns for Remotion.
+description: Remotion 的排版和文本动画模式。
 metadata:
   tags: typography, text, typewriter, highlighter ken
 ---
 
-## Text animations
+## 文本动画
 
-Based on `useCurrentFrame()`, reduce the string character by character to create a typewriter effect.
+基于 `useCurrentFrame()`，逐字符减少字符串以创建打字机效果。
 
-## Typewriter Effect
+## 打字机效果
 
-See [Typewriter](assets/text-animations-typewriter.tsx) for an advanced example with a blinking cursor and a pause after the first sentence.
+请参阅 [Typewriter](assets/text-animations-typewriter.tsx) 查看高级示例，其中包含闪烁光标和首句后的暂停效果。
 
-Always use string slicing for typewriter effects. Never use per-character opacity.
+打字机效果始终使用字符串切片。切勿使用逐字符透明度。
 
-## Word Highlighting
+## 单词高亮
 
-See [Word Highlight](assets/text-animations-word-highlight.tsx) for an example for how a word highlight is animated, like with a highlighter pen.
+请参阅 [Word Highlight](assets/text-animations-word-highlight.tsx) 查看单词高亮动画示例，类似于荧光笔效果。

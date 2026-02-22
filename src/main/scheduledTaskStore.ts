@@ -2,7 +2,7 @@ import { Database } from 'sql.js';
 import { v4 as uuidv4 } from 'uuid';
 import { CronExpressionParser } from 'cron-parser';
 
-// Types for scheduled tasks (main process side)
+// 计划任务类型定义（主进程端）
 export type TaskLastStatus = 'success' | 'error' | 'running' | null;
 
 export interface TaskState {
@@ -68,7 +68,7 @@ export interface ScheduledTaskInput {
   enabled: boolean;
 }
 
-// Raw DB row types
+// 原始数据库行类型
 interface TaskRow {
   id: string;
   name: string;
@@ -114,7 +114,7 @@ export class ScheduledTaskStore {
     this.resetStuckRunningTasks();
   }
 
-  // Helper method to get a single row from query result
+  // 辅助方法：从查询结果中获取单行数据
   private getOne<T>(sql: string, params: (string | number | null)[] = []): T | undefined {
     const result = this.db.exec(sql, params);
     if (!result[0]?.values[0]) return undefined;
@@ -127,7 +127,7 @@ export class ScheduledTaskStore {
     return row as T;
   }
 
-  // Helper method to get all rows from query result
+  // 辅助方法：从查询结果中获取所有行数据
   private getAll<T>(sql: string, params: (string | number | null)[] = []): T[] {
     const result = this.db.exec(sql, params);
     if (!result[0]?.values) return [];
@@ -141,35 +141,35 @@ export class ScheduledTaskStore {
     });
   }
 
-  // --- Startup ---
+  // --- 启动初始化 ---
 
   private resetStuckRunningTasks(): void {
     try {
-      // Reset stuck runs
+      // 重置卡住的运行记录
       this.db.run(`
         UPDATE scheduled_task_runs
         SET status = 'error',
             finished_at = ?,
-            error = 'Application was closed during execution'
+            error = '应用程序在执行期间被关闭'
         WHERE status = 'running'
       `, [new Date().toISOString()]);
 
-      // Reset stuck task states
+      // 重置卡住的任务状态
       this.db.run(`
         UPDATE scheduled_tasks
         SET running_at_ms = NULL,
             last_status = 'error',
-            last_error = 'Application was closed during execution'
+            last_error = '应用程序在执行期间被关闭'
         WHERE running_at_ms IS NOT NULL
       `);
 
       this.saveDb();
     } catch (error) {
-      console.warn('Failed to reset stuck running tasks:', error);
+      console.warn('重置卡住的运行任务失败:', error);
     }
   }
 
-  // --- Task CRUD ---
+  // --- 任务增删改查操作 ---
 
   listTasks(): ScheduledTask[] {
     const rows = this.getAll<TaskRow>(
@@ -229,7 +229,7 @@ export class ScheduledTaskStore {
     const expiresAt = input.expiresAt !== undefined ? input.expiresAt : existing.expiresAt;
     const notifyPlatforms = input.notifyPlatforms !== undefined ? input.notifyPlatforms : existing.notifyPlatforms;
 
-    // Recalculate next run if schedule or enabled changed
+    // 如果调度计划或启用状态发生变化，重新计算下次运行时间
     let nextRunAtMs = existing.state.nextRunAtMs;
     if (input.schedule !== undefined || input.enabled !== undefined) {
       nextRunAtMs = enabled
@@ -260,7 +260,7 @@ export class ScheduledTaskStore {
   }
 
   deleteTask(id: string): boolean {
-    // Delete runs first (CASCADE may not work with sql.js)
+    // 先删除运行记录（sql.js 可能不支持 CASCADE）
     this.db.run('DELETE FROM scheduled_task_runs WHERE task_id = ?', [id]);
     this.db.run('DELETE FROM scheduled_tasks WHERE id = ?', [id]);
     this.saveDb();
@@ -276,14 +276,14 @@ export class ScheduledTaskStore {
   }
 
   /**
-   * Check if a task can meaningfully run after being enabled.
-   * Returns a warning string if the task will never fire, null otherwise.
+   * 检查任务在启用后是否能够有效运行。
+   * 如果任务永远不会触发，则返回警告字符串，否则返回 null。
    */
   validateTaskActivation(task: ScheduledTask): string | null {
     const now = Date.now();
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    // Check: "at" type task with past datetime → will never fire
+    // 检查："at" 类型任务的时间已过 → 永远不会触发
     if (task.schedule.type === 'at' && task.schedule.datetime) {
       const targetMs = new Date(task.schedule.datetime).getTime();
       if (targetMs <= now) {
@@ -291,7 +291,7 @@ export class ScheduledTaskStore {
       }
     }
 
-    // Check: expiresAt is today or in the past → task expired
+    // 检查：过期时间是今天或已过去 → 任务已过期
     if (task.expiresAt && task.expiresAt <= todayStr) {
       return 'TASK_EXPIRED';
     }
@@ -299,7 +299,7 @@ export class ScheduledTaskStore {
     return null;
   }
 
-  // --- Task State Updates (called by Scheduler) ---
+  // --- 任务状态更新（由调度器调用） ---
 
   markTaskRunning(id: string, runningAtMs: number): void {
     this.db.run(`
@@ -347,7 +347,7 @@ export class ScheduledTaskStore {
     this.saveDb();
   }
 
-  // --- Run History ---
+  // --- 运行历史记录 ---
 
   createRun(taskId: string, trigger: 'scheduled' | 'manual'): ScheduledTaskRun {
     const id = uuidv4();
@@ -417,7 +417,7 @@ export class ScheduledTaskStore {
   }
 
   pruneRuns(taskId: string, keepCount: number = 100): void {
-    // Get IDs of the runs to keep
+    // 获取要保留的运行记录 ID
     const keepRows = this.getAll<{ id: string }>(
       'SELECT id FROM scheduled_task_runs WHERE task_id = ? ORDER BY started_at DESC LIMIT ?',
       [taskId, keepCount]
@@ -426,7 +426,7 @@ export class ScheduledTaskStore {
 
     if (keepIds.length === 0) return;
 
-    // Delete all runs not in the keep list
+    // 删除不在保留列表中的所有运行记录
     const placeholders = keepIds.map(() => '?').join(',');
     this.db.run(
       `DELETE FROM scheduled_task_runs WHERE task_id = ? AND id NOT IN (${placeholders})`,
@@ -435,7 +435,7 @@ export class ScheduledTaskStore {
     this.saveDb();
   }
 
-  // --- Scheduler Queries ---
+  // --- 调度器查询 ---
 
   getDueTasks(nowMs: number): ScheduledTask[] {
     const todayStr = new Date(nowMs).toISOString().slice(0, 10);
@@ -465,7 +465,7 @@ export class ScheduledTaskStore {
     return row?.min_time ?? null;
   }
 
-  // --- Helpers ---
+  // --- 辅助方法 ---
 
   calculateNextRunTime(schedule: Schedule, lastRunAtMs: number | null): number | null {
     const now = Date.now();

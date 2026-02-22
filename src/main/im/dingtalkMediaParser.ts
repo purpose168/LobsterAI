@@ -1,5 +1,5 @@
 /**
- * DingTalk Media Marker Parser
+ * 钉钉媒体标记解析器
  * 解析文本中的媒体标记
  */
 import type { MediaMarker } from './types';

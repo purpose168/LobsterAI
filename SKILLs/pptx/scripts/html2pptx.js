@@ -1,28 +1,28 @@
 /**
- * html2pptx - Convert HTML slide to pptxgenjs slide with positioned elements
+ * html2pptx - 将HTML幻灯片转换为pptxgenjs幻灯片，保留元素定位
  *
- * USAGE:
+ * 使用方法:
  *   const pptx = new pptxgen();
- *   pptx.layout = 'LAYOUT_16x9';  // Must match HTML body dimensions
+ *   pptx.layout = 'LAYOUT_16x9';  // 必须与HTML body尺寸匹配
  *
  *   const { slide, placeholders } = await html2pptx('slide.html', pptx);
  *   slide.addChart(pptx.charts.LINE, data, placeholders[0]);
  *
  *   await pptx.writeFile('output.pptx');
  *
- * FEATURES:
- *   - Converts HTML to PowerPoint with accurate positioning
- *   - Supports text, images, shapes, and bullet lists
- *   - Extracts placeholder elements (class="placeholder") with positions
- *   - Handles CSS gradients, borders, and margins
+ * 功能特性:
+ *   - 将HTML转换为PowerPoint，定位精确
+ *   - 支持文本、图片、形状和项目符号列表
+ *   - 提取占位符元素（class="placeholder"）及其位置
+ *   - 处理CSS渐变、边框和边距
  *
- * VALIDATION:
- *   - Uses body width/height from HTML for viewport sizing
- *   - Throws error if HTML dimensions don't match presentation layout
- *   - Throws error if content overflows body (with overflow details)
+ * 验证规则:
+ *   - 使用HTML中的body宽度/高度进行视口尺寸设置
+ *   - 如果HTML尺寸与演示文稿布局不匹配，抛出错误
+ *   - 如果内容溢出body（附带溢出详情），抛出错误
  *
- * RETURNS:
- *   { slide, placeholders } where placeholders is an array of { id, x, y, w, h }
+ * 返回值:
+ *   { slide, placeholders } 其中placeholders是{ id, x, y, w, h }数组
  */
 
 const { chromium } = require('playwright');
@@ -33,7 +33,7 @@ const PT_PER_PX = 0.75;
 const PX_PER_IN = 96;
 const EMU_PER_IN = 914400;
 
-// Helper: Get body dimensions and check for overflow
+// 辅助函数：获取body尺寸并检查溢出
 async function getBodyDimensions(page) {
   const bodyDimensions = await page.evaluate(() => {
     const body = document.body;
@@ -56,16 +56,16 @@ async function getBodyDimensions(page) {
 
   if (widthOverflowPt > 0 || heightOverflowPt > 0) {
     const directions = [];
-    if (widthOverflowPt > 0) directions.push(`${widthOverflowPt.toFixed(1)}pt horizontally`);
-    if (heightOverflowPt > 0) directions.push(`${heightOverflowPt.toFixed(1)}pt vertically`);
-    const reminder = heightOverflowPt > 0 ? ' (Remember: leave 0.5" margin at bottom of slide)' : '';
-    errors.push(`HTML content overflows body by ${directions.join(' and ')}${reminder}`);
+    if (widthOverflowPt > 0) directions.push(`水平方向${widthOverflowPt.toFixed(1)}pt`);
+    if (heightOverflowPt > 0) directions.push(`垂直方向${heightOverflowPt.toFixed(1)}pt`);
+    const reminder = heightOverflowPt > 0 ? '（提示：幻灯片底部需保留0.5英寸边距）' : '';
+    errors.push(`HTML内容溢出body ${directions.join('，')}${reminder}`);
   }
 
   return { ...bodyDimensions, errors };
 }
 
-// Helper: Validate dimensions match presentation layout
+// 辅助函数：验证尺寸是否匹配演示文稿布局
 function validateDimensions(bodyDimensions, pres) {
   const errors = [];
   const widthInches = bodyDimensions.width / PX_PER_IN;
@@ -77,8 +77,8 @@ function validateDimensions(bodyDimensions, pres) {
 
     if (Math.abs(layoutWidth - widthInches) > 0.1 || Math.abs(layoutHeight - heightInches) > 0.1) {
       errors.push(
-        `HTML dimensions (${widthInches.toFixed(1)}" × ${heightInches.toFixed(1)}") ` +
-        `don't match presentation layout (${layoutWidth.toFixed(1)}" × ${layoutHeight.toFixed(1)}")`
+        `HTML尺寸（${widthInches.toFixed(1)}" × ${heightInches.toFixed(1)}"）` +
+        `与演示文稿布局（${layoutWidth.toFixed(1)}" × ${layoutHeight.toFixed(1)}"）不匹配`
       );
     }
   }
@@ -88,10 +88,10 @@ function validateDimensions(bodyDimensions, pres) {
 function validateTextBoxPosition(slideData, bodyDimensions) {
   const errors = [];
   const slideHeightInches = bodyDimensions.height / PX_PER_IN;
-  const minBottomMargin = 0.5; // 0.5 inches from bottom
+  const minBottomMargin = 0.5; // 距离底部0.5英寸
 
   for (const el of slideData.elements) {
-    // Check text elements (p, h1-h6, list)
+    // 检查文本元素（p, h1-h6, list）
     if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'list'].includes(el.type)) {
       const fontSize = el.style?.fontSize || 0;
       const bottomEdge = el.position.y + el.position.h;
@@ -107,8 +107,8 @@ function validateTextBoxPosition(slideData, bodyDimensions) {
         const textPrefix = getText().substring(0, 50) + (getText().length > 50 ? '...' : '');
 
         errors.push(
-          `Text box "${textPrefix}" ends too close to bottom edge ` +
-          `(${distanceFromBottom.toFixed(2)}" from bottom, minimum ${minBottomMargin}" required)`
+          `文本框"${textPrefix}"距离底部边缘太近 ` +
+          `（距离底部${distanceFromBottom.toFixed(2)}"，要求至少${minBottomMargin}"）`
         );
       }
     }
@@ -117,7 +117,7 @@ function validateTextBoxPosition(slideData, bodyDimensions) {
   return errors;
 }
 
-// Helper: Add background to slide
+// 辅助函数：为幻灯片添加背景
 async function addBackground(slideData, targetSlide, tmpDir) {
   if (slideData.background.type === 'image' && slideData.background.path) {
     let imagePath = slideData.background.path.startsWith('file://')
@@ -129,7 +129,7 @@ async function addBackground(slideData, targetSlide, tmpDir) {
   }
 }
 
-// Helper: Add elements to slide
+// 辅助函数：向幻灯片添加元素
 function addElements(slideData, targetSlide, pres) {
   for (const el of slideData.elements) {
     if (el.type === 'image') {
@@ -186,28 +186,28 @@ function addElements(slideData, targetSlide, pres) {
       if (el.style.margin) listOptions.margin = el.style.margin;
       targetSlide.addText(el.items, listOptions);
     } else {
-      // Check if text is single-line (height suggests one line)
+      // 检查文本是否为单行（高度表明只有一行）
       const lineHeight = el.style.lineSpacing || el.style.fontSize * 1.2;
       const isSingleLine = el.position.h <= lineHeight * 1.5;
 
       let adjustedX = el.position.x;
       let adjustedW = el.position.w;
 
-      // Make single-line text 2% wider to account for underestimate
+      // 将单行文本宽度增加2%以补偿低估
       if (isSingleLine) {
         const widthIncrease = el.position.w * 0.02;
         const align = el.style.align;
 
         if (align === 'center') {
-          // Center: expand both sides
+          // 居中对齐：两侧扩展
           adjustedX = el.position.x - (widthIncrease / 2);
           adjustedW = el.position.w + widthIncrease;
         } else if (align === 'right') {
-          // Right: expand to the left
+          // 右对齐：向左扩展
           adjustedX = el.position.x - widthIncrease;
           adjustedW = el.position.w + widthIncrease;
         } else {
-          // Left (default): expand to the right
+          // 左对齐（默认）：向右扩展
           adjustedW = el.position.w + widthIncrease;
         }
       }
@@ -227,7 +227,7 @@ function addElements(slideData, targetSlide, pres) {
         lineSpacing: el.style.lineSpacing,
         paraSpaceBefore: el.style.paraSpaceBefore,
         paraSpaceAfter: el.style.paraSpaceAfter,
-        inset: 0  // Remove default PowerPoint internal padding
+        inset: 0  // 移除PowerPoint默认内边距
       };
 
       if (el.style.align) textOptions.align = el.style.align;
@@ -240,28 +240,28 @@ function addElements(slideData, targetSlide, pres) {
   }
 }
 
-// Helper: Extract slide data from HTML page
+// 辅助函数：从HTML页面提取幻灯片数据
 async function extractSlideData(page) {
   return await page.evaluate(() => {
     const PT_PER_PX = 0.75;
     const PX_PER_IN = 96;
 
-    // Fonts that are single-weight and should not have bold applied
-    // (applying bold causes PowerPoint to use faux bold which makes text wider)
+    // 单字重字体，不应应用粗体
+    // （应用粗体会导致PowerPoint使用伪粗体，使文本变宽）
     const SINGLE_WEIGHT_FONTS = ['impact'];
 
-    // Helper: Check if a font should skip bold formatting
+    // 辅助函数：检查字体是否应跳过粗体格式
     const shouldSkipBold = (fontFamily) => {
       if (!fontFamily) return false;
       const normalizedFont = fontFamily.toLowerCase().replace(/['"]/g, '').split(',')[0].trim();
       return SINGLE_WEIGHT_FONTS.includes(normalizedFont);
     };
 
-    // Unit conversion helpers
+    // 单位转换辅助函数
     const pxToInch = (px) => px / PX_PER_IN;
     const pxToPoints = (pxStr) => parseFloat(pxStr) * PT_PER_PX;
     const rgbToHex = (rgbStr) => {
-      // Handle transparent backgrounds by defaulting to white
+      // 透明背景默认为白色
       if (rgbStr === 'rgba(0, 0, 0, 0)' || rgbStr === 'transparent') return 'FFFFFF';
 
       const match = rgbStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -285,60 +285,60 @@ async function extractSlideData(page) {
       return text;
     };
 
-    // Extract rotation angle from CSS transform and writing-mode
+    // 从CSS transform和writing-mode提取旋转角度
     const getRotation = (transform, writingMode) => {
       let angle = 0;
 
-      // Handle writing-mode first
-      // PowerPoint: 90° = text rotated 90° clockwise (reads top to bottom, letters upright)
-      // PowerPoint: 270° = text rotated 270° clockwise (reads bottom to top, letters upright)
+      // 首先处理writing-mode
+      // PowerPoint: 90° = 文本顺时针旋转90°（从上到下阅读，字母直立）
+      // PowerPoint: 270° = 文本顺时针旋转270°（从下到上阅读，字母直立）
       if (writingMode === 'vertical-rl') {
-        // vertical-rl alone = text reads top to bottom = 90° in PowerPoint
+        // vertical-rl 单独使用 = 文本从上到下阅读 = PowerPoint中的90°
         angle = 90;
       } else if (writingMode === 'vertical-lr') {
-        // vertical-lr alone = text reads bottom to top = 270° in PowerPoint
+        // vertical-lr 单独使用 = 文本从下到上阅读 = PowerPoint中的270°
         angle = 270;
       }
 
-      // Then add any transform rotation
+      // 然后添加任何transform旋转
       if (transform && transform !== 'none') {
-        // Try to match rotate() function
+        // 尝试匹配rotate()函数
         const rotateMatch = transform.match(/rotate\((-?\d+(?:\.\d+)?)deg\)/);
         if (rotateMatch) {
           angle += parseFloat(rotateMatch[1]);
         } else {
-          // Browser may compute as matrix - extract rotation from matrix
+          // 浏览器可能计算为矩阵 - 从矩阵中提取旋转角度
           const matrixMatch = transform.match(/matrix\(([^)]+)\)/);
           if (matrixMatch) {
             const values = matrixMatch[1].split(',').map(parseFloat);
-            // matrix(a, b, c, d, e, f) where rotation = atan2(b, a)
+            // matrix(a, b, c, d, e, f) 其中旋转角度 = atan2(b, a)
             const matrixAngle = Math.atan2(values[1], values[0]) * (180 / Math.PI);
             angle += Math.round(matrixAngle);
           }
         }
       }
 
-      // Normalize to 0-359 range
+      // 标准化到0-359范围
       angle = angle % 360;
       if (angle < 0) angle += 360;
 
       return angle === 0 ? null : angle;
     };
 
-    // Get position/dimensions accounting for rotation
+    // 获取考虑旋转的位置/尺寸
     const getPositionAndSize = (el, rect, rotation) => {
       if (rotation === null) {
         return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
       }
 
-      // For 90° or 270° rotations, swap width and height
-      // because PowerPoint applies rotation to the original (unrotated) box
+      // 对于90°或270°旋转，交换宽度和高度
+      // 因为PowerPoint将旋转应用于原始（未旋转的）框
       const isVertical = rotation === 90 || rotation === 270;
 
       if (isVertical) {
-        // The browser shows us the rotated dimensions (tall box for vertical text)
-        // But PowerPoint needs the pre-rotation dimensions (wide box that will be rotated)
-        // So we swap: browser's height becomes PPT's width, browser's width becomes PPT's height
+        // 浏览器显示旋转后的尺寸（垂直文本的高框）
+        // 但PowerPoint需要旋转前的尺寸（将被旋转的宽框）
+        // 所以我们交换：浏览器的高度成为PPT的宽度，浏览器的宽度成为PPT的高度
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
@@ -350,7 +350,7 @@ async function extractSlideData(page) {
         };
       }
 
-      // For other rotations, use element's offset dimensions
+      // 对于其他旋转，使用元素的offset尺寸
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       return {
@@ -361,23 +361,23 @@ async function extractSlideData(page) {
       };
     };
 
-    // Parse CSS box-shadow into PptxGenJS shadow properties
+    // 将CSS box-shadow解析为PptxGenJS阴影属性
     const parseBoxShadow = (boxShadow) => {
       if (!boxShadow || boxShadow === 'none') return null;
 
-      // Browser computed style format: "rgba(0, 0, 0, 0.3) 2px 2px 8px 0px [inset]"
-      // CSS format: "[inset] 2px 2px 8px 0px rgba(0, 0, 0, 0.3)"
+      // 浏览器计算样式格式："rgba(0, 0, 0, 0.3) 2px 2px 8px 0px [inset]"
+      // CSS格式："[inset] 2px 2px 8px 0px rgba(0, 0, 0, 0.3)"
 
       const insetMatch = boxShadow.match(/inset/);
 
-      // IMPORTANT: PptxGenJS/PowerPoint doesn't properly support inset shadows
-      // Only process outer shadows to avoid file corruption
+      // 重要：PptxGenJS/PowerPoint不能正确支持内阴影
+      // 只处理外阴影以避免文件损坏
       if (insetMatch) return null;
 
-      // Extract color first (rgba or rgb at start)
+      // 首先提取颜色（开头的rgba或rgb）
       const colorMatch = boxShadow.match(/rgba?\([^)]+\)/);
 
-      // Extract numeric values (handles both px and pt units)
+      // 提取数值（处理px和pt单位）
       const parts = boxShadow.match(/([-\d.]+)(px|pt)/g);
 
       if (!parts || parts.length < 2) return null;
@@ -386,17 +386,17 @@ async function extractSlideData(page) {
       const offsetY = parseFloat(parts[1]);
       const blur = parts.length > 2 ? parseFloat(parts[2]) : 0;
 
-      // Calculate angle from offsets (in degrees, 0 = right, 90 = down)
+      // 从偏移量计算角度（度数，0 = 右，90 = 下）
       let angle = 0;
       if (offsetX !== 0 || offsetY !== 0) {
         angle = Math.atan2(offsetY, offsetX) * (180 / Math.PI);
         if (angle < 0) angle += 360;
       }
 
-      // Calculate offset distance (hypotenuse)
+      // 计算偏移距离（斜边）
       const offset = Math.sqrt(offsetX * offsetX + offsetY * offsetY) * PT_PER_PX;
 
-      // Extract opacity from rgba
+      // 从rgba提取不透明度
       let opacity = 0.5;
       if (colorMatch) {
         const opacityMatch = colorMatch[0].match(/[\d.]+\)$/);
@@ -408,14 +408,14 @@ async function extractSlideData(page) {
       return {
         type: 'outer',
         angle: Math.round(angle),
-        blur: blur * 0.75, // Convert to points
+        blur: blur * 0.75, // 转换为点
         color: colorMatch ? rgbToHex(colorMatch[0]) : '000000',
         offset: offset,
         opacity
       };
     };
 
-    // Parse inline formatting tags (<b>, <i>, <u>, <strong>, <em>, <span>) into text runs
+    // 将内联格式标签（<b>, <i>, <u>, <strong>, <em>, <span>）解析为文本运行
     const parseInlineFormatting = (element, baseOptions = {}, runs = [], baseTextTransform = (x) => x) => {
       let prevNodeIsText = false;
 
@@ -436,7 +436,7 @@ async function extractSlideData(page) {
           const options = { ...baseOptions };
           const computed = window.getComputedStyle(node);
 
-          // Handle inline elements with computed styles
+          // 处理带有计算样式的内联元素
           if (node.tagName === 'SPAN' || node.tagName === 'B' || node.tagName === 'STRONG' || node.tagName === 'I' || node.tagName === 'EM' || node.tagName === 'U') {
             const isBold = computed.fontWeight === 'bold' || parseInt(computed.fontWeight) >= 600;
             if (isBold && !shouldSkipBold(computed.fontFamily)) options.bold = true;
@@ -449,27 +449,27 @@ async function extractSlideData(page) {
             }
             if (computed.fontSize) options.fontSize = pxToPoints(computed.fontSize);
 
-            // Apply text-transform on the span element itself
+            // 在span元素本身应用text-transform
             if (computed.textTransform && computed.textTransform !== 'none') {
               const transformStr = computed.textTransform;
               textTransform = (text) => applyTextTransform(text, transformStr);
             }
 
-            // Validate: Check for margins on inline elements
+            // 验证：检查内联元素上的边距
             if (computed.marginLeft && parseFloat(computed.marginLeft) > 0) {
-              errors.push(`Inline element <${node.tagName.toLowerCase()}> has margin-left which is not supported in PowerPoint. Remove margin from inline elements.`);
+              errors.push(`内联元素<${node.tagName.toLowerCase()}>有margin-left，PowerPoint不支持。请从内联元素中移除边距。`);
             }
             if (computed.marginRight && parseFloat(computed.marginRight) > 0) {
-              errors.push(`Inline element <${node.tagName.toLowerCase()}> has margin-right which is not supported in PowerPoint. Remove margin from inline elements.`);
+              errors.push(`内联元素<${node.tagName.toLowerCase()}>有margin-right，PowerPoint不支持。请从内联元素中移除边距。`);
             }
             if (computed.marginTop && parseFloat(computed.marginTop) > 0) {
-              errors.push(`Inline element <${node.tagName.toLowerCase()}> has margin-top which is not supported in PowerPoint. Remove margin from inline elements.`);
+              errors.push(`内联元素<${node.tagName.toLowerCase()}>有margin-top，PowerPoint不支持。请从内联元素中移除边距。`);
             }
             if (computed.marginBottom && parseFloat(computed.marginBottom) > 0) {
-              errors.push(`Inline element <${node.tagName.toLowerCase()}> has margin-bottom which is not supported in PowerPoint. Remove margin from inline elements.`);
+              errors.push(`内联元素<${node.tagName.toLowerCase()}>有margin-bottom，PowerPoint不支持。请从内联元素中移除边距。`);
             }
 
-            // Recursively process the child node. This will flatten nested spans into multiple runs.
+            // 递归处理子节点。这将把嵌套的span扁平化为多个运行。
             parseInlineFormatting(node, options, runs, textTransform);
           }
         }
@@ -477,7 +477,7 @@ async function extractSlideData(page) {
         prevNodeIsText = isText;
       });
 
-      // Trim leading space from first run and trailing space from last run
+      // 去除第一个运行的前导空格和最后一个运行的尾随空格
       if (runs.length > 0) {
         runs[0].text = runs[0].text.replace(/^\s+/, '');
         runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\s+$/, '');
@@ -486,26 +486,26 @@ async function extractSlideData(page) {
       return runs.filter(r => r.text.length > 0);
     };
 
-    // Extract background from body (image or color)
+    // 从body提取背景（图片或颜色）
     const body = document.body;
     const bodyStyle = window.getComputedStyle(body);
     const bgImage = bodyStyle.backgroundImage;
     const bgColor = bodyStyle.backgroundColor;
 
-    // Collect validation errors
+    // 收集验证错误
     const errors = [];
 
-    // Validate: Check for CSS gradients
+    // 验证：检查CSS渐变
     if (bgImage && (bgImage.includes('linear-gradient') || bgImage.includes('radial-gradient'))) {
       errors.push(
-        'CSS gradients are not supported. Use Sharp to rasterize gradients as PNG images first, ' +
-        'then reference with background-image: url(\'gradient.png\')'
+        '不支持CSS渐变。请先使用Sharp将渐变栅格化为PNG图片，' +
+        '然后使用background-image: url(\'gradient.png\')引用'
       );
     }
 
     let background;
     if (bgImage && bgImage !== 'none') {
-      // Extract URL from url("...") or url(...)
+      // 从url("...")或url(...)中提取URL
       const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
       if (urlMatch) {
         background = {
@@ -525,7 +525,7 @@ async function extractSlideData(page) {
       };
     }
 
-    // Process all elements
+    // 处理所有元素
     const elements = [];
     const placeholders = [];
     const textTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI'];
@@ -534,7 +534,7 @@ async function extractSlideData(page) {
     document.querySelectorAll('*').forEach((el) => {
       if (processed.has(el)) return;
 
-      // Validate text elements don't have backgrounds, borders, or shadows
+      // 验证文本元素没有背景、边框或阴影
       if (textTags.includes(el.tagName)) {
         const computed = window.getComputedStyle(el);
         const hasBg = computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)';
@@ -547,19 +547,19 @@ async function extractSlideData(page) {
 
         if (hasBg || hasBorder || hasShadow) {
           errors.push(
-            `Text element <${el.tagName.toLowerCase()}> has ${hasBg ? 'background' : hasBorder ? 'border' : 'shadow'}. ` +
-            'Backgrounds, borders, and shadows are only supported on <div> elements, not text elements.'
+            `文本元素<${el.tagName.toLowerCase()}>有${hasBg ? '背景' : hasBorder ? '边框' : '阴影'}。` +
+            '背景、边框和阴影仅在<div>元素上支持，文本元素不支持。'
           );
           return;
         }
       }
 
-      // Extract placeholder elements (for charts, etc.)
+      // 提取占位符元素（用于图表等）
       if (el.className && el.className.includes('placeholder')) {
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
           errors.push(
-            `Placeholder "${el.id || 'unnamed'}" has ${rect.width === 0 ? 'width: 0' : 'height: 0'}. Check the layout CSS.`
+            `占位符"${el.id || '未命名'}"${rect.width === 0 ? '宽度为0' : '高度为0'}。请检查布局CSS。`
           );
         } else {
           placeholders.push({
@@ -574,7 +574,7 @@ async function extractSlideData(page) {
         return;
       }
 
-      // Extract images
+      // 提取图片
       if (el.tagName === 'IMG') {
         const rect = el.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
@@ -593,36 +593,36 @@ async function extractSlideData(page) {
         }
       }
 
-      // Extract DIVs with backgrounds/borders as shapes
+      // 提取带有背景/边框的DIV作为形状
       const isContainer = el.tagName === 'DIV' && !textTags.includes(el.tagName);
       if (isContainer) {
         const computed = window.getComputedStyle(el);
         const hasBg = computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)';
 
-        // Validate: Check for unwrapped text content in DIV
+        // 验证：检查DIV中未包装的文本内容
         for (const node of el.childNodes) {
           if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent.trim();
             if (text) {
               errors.push(
-                `DIV element contains unwrapped text "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}". ` +
-                'All text must be wrapped in <p>, <h1>-<h6>, <ul>, or <ol> tags to appear in PowerPoint.'
+                `DIV元素包含未包装的文本"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"。` +
+                '所有文本必须包装在<p>、<h1>-<h6>、<ul>或<ol>标签中才能在PowerPoint中显示。'
               );
             }
           }
         }
 
-        // Check for background images on shapes
+        // 检查形状上的背景图片
         const bgImage = computed.backgroundImage;
         if (bgImage && bgImage !== 'none') {
           errors.push(
-            'Background images on DIV elements are not supported. ' +
-            'Use solid colors or borders for shapes, or use slide.addImage() in PptxGenJS to layer images.'
+            'DIV元素上的背景图片不受支持。' +
+            '请使用纯色或边框作为形状，或在PptxGenJS中使用slide.addImage()来分层图片。'
           );
           return;
         }
 
-        // Check for borders - both uniform and partial
+        // 检查边框 - 包括统一和部分边框
         const borderTop = computed.borderTopWidth;
         const borderRight = computed.borderRightWidth;
         const borderBottom = computed.borderBottomWidth;
@@ -639,10 +639,10 @@ async function extractSlideData(page) {
           const w = pxToInch(rect.width);
           const h = pxToInch(rect.height);
 
-          // Collect lines to add after shape (inset by half the line width to center on edge)
+          // 收集要在形状后添加的线条（向内缩进线宽的一半以在边缘居中）
           if (parseFloat(borderTop) > 0) {
             const widthPt = pxToPoints(borderTop);
-            const inset = (widthPt / 72) / 2; // Convert points to inches, then half
+            const inset = (widthPt / 72) / 2; // 将点转换为英寸，然后减半
             borderLines.push({
               type: 'line',
               x1: x, y1: y + inset, x2: x + w, y2: y + inset,
@@ -687,11 +687,11 @@ async function extractSlideData(page) {
           if (rect.width > 0 && rect.height > 0) {
             const shadow = parseBoxShadow(computed.boxShadow);
 
-            // Only add shape if there's background or uniform border
+            // 仅在有背景或统一边框时添加形状
             if (hasBg || hasUniformBorder) {
               elements.push({
                 type: 'shape',
-                text: '',  // Shape only - child text elements render on top
+                text: '',  // 仅形状 - 子文本元素在上方渲染
                 position: {
                   x: pxToInch(rect.left),
                   y: pxToInch(rect.top),
@@ -705,10 +705,10 @@ async function extractSlideData(page) {
                     color: rgbToHex(computed.borderColor),
                     width: pxToPoints(computed.borderWidth)
                   } : null,
-                  // Convert border-radius to rectRadius (in inches)
-                  // % values: 50%+ = circle (1), <50% = percentage of min dimension
-                  // pt values: divide by 72 (72pt = 1 inch)
-                  // px values: divide by 96 (96px = 1 inch)
+                  // 将border-radius转换为rectRadius（英寸）
+                  // %值：50%+ = 圆形（1），<50% = 最小尺寸的百分比
+                  // pt值：除以72（72pt = 1英寸）
+                  // px值：除以96（96px = 1英寸）
                   rectRadius: (() => {
                     const radius = computed.borderRadius;
                     const radiusValue = parseFloat(radius);
@@ -716,7 +716,7 @@ async function extractSlideData(page) {
 
                     if (radius.includes('%')) {
                       if (radiusValue >= 50) return 1;
-                      // Calculate percentage of smaller dimension
+                      // 计算较小尺寸的百分比
                       const minDim = Math.min(rect.width, rect.height);
                       return (radiusValue / 100) * pxToInch(minDim);
                     }
@@ -729,7 +729,7 @@ async function extractSlideData(page) {
               });
             }
 
-            // Add partial border lines
+            // 添加部分边框线条
             elements.push(...borderLines);
 
             processed.add(el);
@@ -738,7 +738,7 @@ async function extractSlideData(page) {
         }
       }
 
-      // Extract bullet lists as single text block
+      // 提取项目符号列表作为单个文本块
       if (el.tagName === 'UL' || el.tagName === 'OL') {
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
@@ -748,7 +748,7 @@ async function extractSlideData(page) {
         const ulComputed = window.getComputedStyle(el);
         const ulPaddingLeftPt = pxToPoints(ulComputed.paddingLeft);
 
-        // Split: margin-left for bullet position, indent for text position
+        // 拆分：margin-left用于项目符号位置，indent用于文本位置
         // margin-left + indent = ul padding-left
         const marginLeft = ulPaddingLeftPt * 0.5;
         const textIndent = ulPaddingLeftPt * 0.5;
@@ -756,12 +756,12 @@ async function extractSlideData(page) {
         liElements.forEach((li, idx) => {
           const isLast = idx === liElements.length - 1;
           const runs = parseInlineFormatting(li, { breakLine: false });
-          // Clean manual bullets from first run
+          // 从第一个运行中清除手动项目符号
           if (runs.length > 0) {
             runs[0].text = runs[0].text.replace(/^[•\-\*▪▸]\s*/, '');
             runs[0].options.bullet = { indent: textIndent };
           }
-          // Set breakLine on last run
+          // 在最后一个运行上设置breakLine
           if (runs.length > 0 && !isLast) {
             runs[runs.length - 1].options.breakLine = true;
           }
@@ -788,7 +788,7 @@ async function extractSlideData(page) {
             lineSpacing: computed.lineHeight && computed.lineHeight !== 'normal' ? pxToPoints(computed.lineHeight) : null,
             paraSpaceBefore: 0,
             paraSpaceAfter: pxToPoints(computed.marginBottom),
-            // PptxGenJS margin array is [left, right, bottom, top]
+            // PptxGenJS边距数组为[left, right, bottom, top]
             margin: [marginLeft, 0, 0, 0]
           }
         });
@@ -798,18 +798,18 @@ async function extractSlideData(page) {
         return;
       }
 
-      // Extract text elements (P, H1, H2, etc.)
+      // 提取文本元素（P, H1, H2等）
       if (!textTags.includes(el.tagName)) return;
 
       const rect = el.getBoundingClientRect();
       const text = el.textContent.trim();
       if (rect.width === 0 || rect.height === 0 || !text) return;
 
-      // Validate: Check for manual bullet symbols in text elements (not in lists)
+      // 验证：检查文本元素中的手动项目符号（不在列表中）
       if (el.tagName !== 'LI' && /^[•\-\*▪▸○●◆◇■□]\s/.test(text.trimStart())) {
         errors.push(
-          `Text element <${el.tagName.toLowerCase()}> starts with bullet symbol "${text.substring(0, 20)}...". ` +
-          'Use <ul> or <ol> lists instead of manual bullet symbols.'
+          `文本元素<${el.tagName.toLowerCase()}>以项目符号"${text.substring(0, 20)}..."开头。` +
+          '请使用<ul>或<ol>列表代替手动项目符号。'
         );
         return;
       }
@@ -826,7 +826,7 @@ async function extractSlideData(page) {
         lineSpacing: pxToPoints(computed.lineHeight),
         paraSpaceBefore: pxToPoints(computed.marginTop),
         paraSpaceAfter: pxToPoints(computed.marginBottom),
-        // PptxGenJS margin array is [left, right, bottom, top] (not [top, right, bottom, left] as documented)
+        // PptxGenJS边距数组为[left, right, bottom, top]（而非文档中的[top, right, bottom, left]）
         margin: [
           pxToPoints(computed.paddingLeft),
           pxToPoints(computed.paddingRight),
@@ -843,11 +843,11 @@ async function extractSlideData(page) {
       const hasFormatting = el.querySelector('b, i, u, strong, em, span, br');
 
       if (hasFormatting) {
-        // Text with inline formatting
+        // 带有内联格式的文本
         const transformStr = computed.textTransform;
         const runs = parseInlineFormatting(el, {}, [], (str) => applyTextTransform(str, transformStr));
 
-        // Adjust lineSpacing based on largest fontSize in runs
+        // 根据运行中最大的fontSize调整lineSpacing
         const adjustedStyle = { ...baseStyle };
         if (adjustedStyle.lineSpacing) {
           const maxFontSize = Math.max(
@@ -867,7 +867,7 @@ async function extractSlideData(page) {
           style: adjustedStyle
         });
       } else {
-        // Plain text - inherit CSS formatting
+        // 纯文本 - 继承CSS格式
         const textTransform = computed.textTransform;
         const transformedText = applyTextTransform(text, textTransform);
 
@@ -900,7 +900,7 @@ async function html2pptx(htmlFile, pres, options = {}) {
   } = options;
 
   try {
-    // Use Chrome on macOS, default Chromium on Unix
+    // 在macOS上使用Chrome，在Unix上使用默认Chromium
     const launchOptions = { env: { TMPDIR: tmpDir } };
     if (process.platform === 'darwin') {
       launchOptions.channel = 'chrome';
@@ -917,8 +917,8 @@ async function html2pptx(htmlFile, pres, options = {}) {
     try {
       const page = await browser.newPage();
       page.on('console', (msg) => {
-        // Log the message text to your test runner's console
-        console.log(`Browser console: ${msg.text()}`);
+        // 将消息文本记录到测试运行器的控制台
+        console.log(`浏览器控制台: ${msg.text()}`);
       });
 
       await page.goto(`file://${filePath}`);
@@ -935,7 +935,7 @@ async function html2pptx(htmlFile, pres, options = {}) {
       await browser.close();
     }
 
-    // Collect all validation errors
+    // 收集所有验证错误
     if (bodyDimensions.errors && bodyDimensions.errors.length > 0) {
       validationErrors.push(...bodyDimensions.errors);
     }
@@ -954,11 +954,11 @@ async function html2pptx(htmlFile, pres, options = {}) {
       validationErrors.push(...slideData.errors);
     }
 
-    // Throw all errors at once if any exist
+    // 如果存在错误，一次性抛出所有错误
     if (validationErrors.length > 0) {
       const errorMessage = validationErrors.length === 1
         ? validationErrors[0]
-        : `Multiple validation errors found:\n${validationErrors.map((e, i) => `  ${i + 1}. ${e}`).join('\n')}`;
+        : `发现多个验证错误:\n${validationErrors.map((e, i) => `  ${i + 1}. ${e}`).join('\n')}`;
       throw new Error(errorMessage);
     }
 

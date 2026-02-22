@@ -1,236 +1,236 @@
 ---
 name: skill-creator
-description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Manus's capabilities with specialized knowledge, workflows, or tool integrations.
-license: Complete terms in LICENSE.txt
+description: 创建高效技能的指南。当用户想要创建新的技能（或更新现有技能）以通过专业知识、工作流程或工具集成来扩展 Manus 的能力时，应使用此技能。
+license: 完整条款见 LICENSE.txt
 ---
 
-# Skill Creator
+# 技能创建器
 
-This skill provides guidance for creating effective skills.
+本技能提供创建高效技能的指导。
 
-## About Skills
+## 关于技能
 
-Skills are modular, self-contained packages that extend Manus's capabilities by providing specialized knowledge, workflows, and tools. Think of them as "onboarding guides" for specific domains or tasks—they transform Manus from a general-purpose agent into a specialized agent equipped with procedural knowledge that no model can fully possess.
+技能是模块化、自包含的包，通过提供专业知识、工作流程和工具来扩展 Manus 的能力。可以将它们视为特定领域或任务的"入职指南"——它们将 Manus 从通用代理转变为配备程序性知识的专业代理，而这些知识是任何模型都无法完全掌握的。
 
-### What Skills Provide
+### 技能提供的内容
 
-1. Specialized workflows - Multi-step procedures for specific domains
-2. Tool integrations - Instructions for working with specific file formats or APIs
-3. Domain expertise - Company-specific knowledge, schemas, business logic
-4. Bundled resources - Scripts, references, and assets for complex and repetitive tasks
+1. 专业化工作流程 - 针对特定领域的多步骤流程
+2. 工具集成 - 处理特定文件格式或 API 的说明
+3. 领域专业知识 - 公司特定的知识、模式、业务逻辑
+4. 打包资源 - 用于复杂和重复任务的脚本、参考资料和资产
 
-## Core Principles
+## 核心原则
 
-### Concise is Key
+### 简洁至上
 
-The context window is a public good. Skills share the context window with everything else Manus needs: system prompt, conversation history, other Skills' metadata, and the actual user request.
+上下文窗口是公共资源。技能与 Manus 需要的其他内容共享上下文窗口：系统提示、对话历史、其他技能的元数据以及实际的用户请求。
 
-**Default assumption: Manus is already very smart.** Only add context Manus doesn't already have. Challenge each piece of information: "Does Manus really need this explanation?" and "Does this paragraph justify its token cost?"
+**默认假设：Manus 已经非常智能。** 只添加 Manus 尚未掌握的上下文。对每条信息都要质疑："Manus 真的需要这个解释吗？"以及"这一段是否值得占用这些 token？"
 
-Prefer concise examples over verbose explanations.
+优先使用简洁的示例而非冗长的解释。
 
-### Set Appropriate Degrees of Freedom
+### 设置适当的自由度
 
-Match the level of specificity to the task's fragility and variability:
+根据任务的脆弱性和可变性匹配具体程度：
 
-**High freedom (text-based instructions)**: Use when multiple approaches are valid, decisions depend on context, or heuristics guide the approach.
+**高自由度（基于文本的指令）**：当多种方法都有效、决策取决于上下文或启发式方法指导流程时使用。
 
-**Medium freedom (pseudocode or scripts with parameters)**: Use when a preferred pattern exists, some variation is acceptable, or configuration affects behavior.
+**中等自由度（伪代码或带参数的脚本）**：当存在首选模式、允许一定变化或配置影响行为时使用。
 
-**Low freedom (specific scripts, few parameters)**: Use when operations are fragile and error-prone, consistency is critical, or a specific sequence must be followed.
+**低自由度（特定脚本，少量参数）**：当操作脆弱且容易出错、一致性至关重要或必须遵循特定顺序时使用。
 
-Think of Manus as exploring a path: a narrow bridge with cliffs needs specific guardrails (low freedom), while an open field allows many routes (high freedom).
+将 Manus 想象成在探索路径：悬崖边的狭窄桥梁需要特定的护栏（低自由度），而开阔的原野允许许多路线（高自由度）。
 
-### Anatomy of a Skill
+### 技能的结构
 
-Every skill consists of a required SKILL.md file and optional bundled resources:
+每个技能由必需的 SKILL.md 文件和可选的打包资源组成：
 
 ```
 skill-name/
-├── SKILL.md (required)
-│   ├── YAML frontmatter metadata (required)
-│   │   ├── name: (required)
-│   │   └── description: (required)
-│   └── Markdown instructions (required)
-└── Bundled Resources (optional)
-    ├── scripts/          - Executable code (Python/Bash/etc.)
-    ├── references/       - Documentation intended to be loaded into context as needed
-    └── templates/        - Files used in output (templates, icons, fonts, etc.)
+├── SKILL.md (必需)
+│   ├── YAML 前置元数据 (必需)
+│   │   ├── name: (必需)
+│   │   └── description: (必需)
+│   └── Markdown 指令 (必需)
+└── 打包资源 (可选)
+    ├── scripts/          - 可执行代码（Python/Bash 等）
+    ├── references/       - 需要时加载到上下文中的文档
+    └── templates/        - 用于输出的文件（模板、图标、字体等）
 ```
 
-#### SKILL.md (required)
+#### SKILL.md（必需）
 
-Every SKILL.md consists of:
+每个 SKILL.md 由以下部分组成：
 
-- **Frontmatter** (YAML): Contains `name` and `description` fields. These are the only fields that Manus reads to determine when the skill gets used, thus it is very important to be clear and comprehensive in describing what the skill is, and when it should be used.
-- **Body** (Markdown): Instructions and guidance for using the skill. Only loaded AFTER the skill triggers (if at all).
+- **前置元数据**（YAML）：包含 `name` 和 `description` 字段。这是 Manus 判断何时使用技能的唯一依据，因此清晰全面地描述技能是什么以及何时使用非常重要。
+- **正文**（Markdown）：使用技能的说明和指导。仅在技能触发后加载（如果触发的话）。
 
-#### Bundled Resources (optional)
+#### 打包资源（可选）
 
-- **`scripts/`** - Executable code for repetitive or deterministic tasks (e.g., `rotate_pdf.py`). Token efficient, can run without loading into context.
-- **`references/`** - Documentation loaded as needed (schemas, API docs, policies). Keeps SKILL.md lean. For large files (>10k words), include grep patterns in SKILL.md.
-- **`templates/`** - Output assets not loaded into context (logos, fonts, boilerplate code).
+- **`scripts/`** - 用于重复或确定性任务的可执行代码（例如 `rotate_pdf.py`）。节省 token，无需加载到上下文即可运行。
+- **`references/`** - 按需加载的文档（模式、API 文档、策略）。保持 SKILL.md 精简。对于大文件（>1万字），在 SKILL.md 中包含 grep 模式。
+- **`templates/`** - 不加载到上下文的输出资产（标志、字体、样板代码）。
 
-**Avoid duplication**: Information lives in SKILL.md OR references, not both.
+**避免重复**：信息只存在于 SKILL.md 或 references 中，不要两者都有。
 
-**Do NOT include**: README.md, CHANGELOG.md, or other auxiliary documentation. Skills are for AI agents, not users.
+**不要包含**：README.md、CHANGELOG.md 或其他辅助文档。技能是为 AI 代理设计的，不是为用户设计的。
 
-### Progressive Disclosure
+### 渐进式披露
 
-Three-level loading system:
-1. **Metadata** - Always in context (~100 words)
-2. **SKILL.md body** - When skill triggers (<500 lines)
-3. **Bundled resources** - As needed
+三级加载系统：
+1. **元数据** - 始终在上下文中（约100字）
+2. **SKILL.md 正文** - 技能触发时加载（<500行）
+3. **打包资源** - 按需加载
 
-Keep SKILL.md under 500 lines. When splitting content to references, clearly describe when to read them.
+保持 SKILL.md 在500行以内。当将内容拆分到 references 时，要清楚描述何时读取它们。
 
-**Key principle:** Keep core workflow in SKILL.md; move variant-specific details to reference files.
+**关键原则：** 将核心工作流程保留在 SKILL.md 中；将特定变体的细节移至参考文件。
 
-Example structure for multi-domain skills:
+多领域技能的示例结构：
 
 ```
 bigquery-skill/
-├── SKILL.md (overview + navigation)
+├── SKILL.md (概述 + 导航)
 └── references/
     ├── finance.md
     ├── sales.md
     └── product.md
 ```
 
-Manus only loads the relevant reference file when needed.
+Manus 仅在需要时加载相关的参考文件。
 
-## Skill Creation Process
+## 技能创建流程
 
-Skill creation involves these steps:
+技能创建包括以下步骤：
 
-1. Understand the skill with concrete examples
-2. Plan reusable skill contents (scripts, references, templates)
-3. Initialize the skill (run init_skill.py)
-4. Edit the skill (implement resources and write SKILL.md)
-5. Deliver the skill (send SKILL.md path via notify_user)
-6. Iterate based on real usage
+1. 通过具体示例理解技能
+2. 规划可复用的技能内容（脚本、参考资料、模板）
+3. 初始化技能（运行 init_skill.py）
+4. 编辑技能（实现资源并编写 SKILL.md）
+5. 交付技能（通过 notify_user 发送 SKILL.md 路径）
+6. 基于实际使用进行迭代
 
-Follow these steps in order, skipping only if there is a clear reason why they are not applicable.
+按顺序执行这些步骤，仅在有明确理由不适用时才跳过。
 
-### Step 1: Understanding the Skill with Concrete Examples
+### 步骤 1：通过具体示例理解技能
 
-Skip this step only when the skill's usage patterns are already clearly understood.
+仅当技能的使用模式已经清晰理解时才跳过此步骤。
 
-Gather concrete examples of how the skill will be used. Ask questions like:
-- "What functionality should this skill support?"
-- "Can you give examples of how it would be used?"
+收集技能如何使用的具体示例。提出如下问题：
+- "这个技能应该支持什么功能？"
+- "你能举例说明它会如何使用吗？"
 
-Avoid asking too many questions at once. Conclude when you have a clear sense of the functionality.
+避免一次提出太多问题。当对功能有清晰认识时结束提问。
 
-### Step 2: Planning the Reusable Skill Contents
+### 步骤 2：规划可复用的技能内容
 
-For each example, identify reusable resources:
+对于每个示例，识别可复用的资源：
 
-| Resource Type | When to Use                     | Example                               |
-| ------------- | ------------------------------- | ------------------------------------- |
-| `scripts/`    | Code rewritten repeatedly       | `rotate_pdf.py` for PDF rotation      |
-| `templates/`  | Same boilerplate each time      | HTML/React starter for webapp builder |
-| `references/` | Documentation needed repeatedly | Database schemas for BigQuery skill   |
+| 资源类型      | 使用场景                         | 示例                                   |
+| ------------- | -------------------------------- | -------------------------------------- |
+| `scripts/`    | 反复重写的代码                   | 用于 PDF 旋转的 `rotate_pdf.py`        |
+| `templates/`  | 每次使用相同的样板代码           | 用于 webapp 构建器的 HTML/React 起始模板 |
+| `references/` | 反复需要的文档                   | BigQuery 技能的数据库模式              |
 
-### Step 3: Initializing the Skill
+### 步骤 3：初始化技能
 
-At this point, it is time to actually create the skill.
+此时，是时候实际创建技能了。
 
-Skip this step only if the skill being developed already exists, and iteration or packaging is needed. In this case, continue to the next step.
+仅当正在开发的技能已经存在且需要迭代或打包时才跳过此步骤。在这种情况下，继续下一步。
 
-When creating a new skill from scratch, always run the `init_skill.py` script. The script conveniently generates a new template skill directory that automatically includes everything a skill requires, making the skill creation process much more efficient and reliable.
+从头创建新技能时，始终运行 `init_skill.py` 脚本。该脚本方便地生成新的模板技能目录，自动包含技能所需的所有内容，使技能创建过程更加高效可靠。
 
-Usage:
+用法：
 
 ```bash
 python /home/ubuntu/skills/skill-creator/scripts/init_skill.py <skill-name>
 ```
 
-The script:
+该脚本：
 
-- Creates the skill directory at `/home/ubuntu/skills/<skill-name>/`
-- Generates a SKILL.md template with proper frontmatter and TODO placeholders
-- Creates example resource directories: `scripts/`, `references/`, and `templates/`
-- Adds example files in each directory that can be customized or deleted
+- 在 `/home/ubuntu/skills/<skill-name>/` 创建技能目录
+- 生成带有正确前置元数据和 TODO 占位符的 SKILL.md 模板
+- 创建示例资源目录：`scripts/`、`references/` 和 `templates/`
+- 在每个目录中添加可以自定义或删除的示例文件
 
-After initialization, customize or remove the generated SKILL.md and example files as needed.
+初始化后，根据需要自定义或删除生成的 SKILL.md 和示例文件。
 
-### Step 4: Edit the Skill
+### 步骤 4：编辑技能
 
-When editing the (newly-generated or existing) skill, remember that the skill is being created for another instance of Manus to use. Include information that would be beneficial and non-obvious to Manus. Consider what procedural knowledge, domain-specific details, or reusable assets would help another Manus instance execute these tasks more effectively.
+编辑（新生成或现有的）技能时，请记住该技能是为 Manus 的另一个实例创建的。包含对 Manus 有益且非显而易见的信息。考虑哪些程序性知识、领域特定细节或可复用资产可以帮助另一个 Manus 实例更有效地执行这些任务。
 
-#### Learn Proven Design Patterns
+#### 学习经过验证的设计模式
 
-Consult these helpful guides based on your skill's needs:
+根据技能需求参考以下有用的指南：
 
-- **Multi-step processes**: See `/home/ubuntu/skills/skill-creator/references/workflows.md` for sequential workflows and conditional logic
-- **Output formats or quality standards**: See `/home/ubuntu/skills/skill-creator/references/output-patterns.md` for template and example patterns
-- **Progressive Disclosure Patterns**: See `/home/ubuntu/skills/skill-creator/references/progressive-disclosure-patterns.md` for splitting content across files.
+- **多步骤流程**：参见 `/home/ubuntu/skills/skill-creator/references/workflows.md` 了解顺序工作流程和条件逻辑
+- **输出格式或质量标准**：参见 `/home/ubuntu/skills/skill-creator/references/output-patterns.md` 了解模板和示例模式
+- **渐进式披露模式**：参见 `/home/ubuntu/skills/skill-creator/references/progressive-disclosure-patterns.md` 了解如何跨文件拆分内容
 
-These files contain established best practices for effective skill design.
+这些文件包含有效技能设计的既定最佳实践。
 
-#### Start with Reusable Skill Contents
+#### 从可复用的技能内容开始
 
-Begin with the `scripts/`, `references/`, and `templates/` files identified in Step 2. This may require user input (e.g., brand assets for `templates/`, documentation for `references/`).
+从步骤 2 中识别的 `scripts/`、`references/` 和 `templates/` 文件开始。这可能需要用户输入（例如，`templates/` 的品牌资产，`references/` 的文档）。
 
-Test added scripts by running them to ensure they work correctly. For many similar scripts, test a representative sample.
+通过运行添加的脚本来测试它们，确保正常工作。对于许多类似的脚本，测试代表性样本。
 
-Delete any unused example files from initialization.
+删除初始化时生成的任何未使用的示例文件。
 
-#### Update SKILL.md
+#### 更新 SKILL.md
 
-**Writing Guidelines:** Always use imperative/infinitive form.
+**编写指南：** 始终使用祈使句/不定式形式。
 
-##### Frontmatter
+##### 前置元数据
 
-Write the YAML frontmatter with `name` and `description`:
+编写包含 `name` 和 `description` 的 YAML 前置元数据：
 
-- `name`: The skill name
-- `description`: Primary trigger mechanism. Must include what the skill does AND when to use it (body only loads after triggering).
-  - Example: "Document creation and editing with tracked changes. Use for: creating .docx files, modifying content, working with tracked changes."
+- `name`：技能名称
+- `description`：主要触发机制。必须包含技能做什么以及何时使用（正文仅在触发后加载）。
+  - 示例："文档创建和编辑，支持修订跟踪。用于：创建 .docx 文件、修改内容、处理修订跟踪。"
 
-##### Body
+##### 正文
 
-Write instructions for using the skill and its bundled resources.
+编写使用技能及其打包资源的说明。
 
-### Step 5: Delivering the Skill
+### 步骤 5：交付技能
 
-Once development of the skill is complete, validate and deliver it to the user.
+技能开发完成后，验证并交付给用户。
 
-#### Validate the Skill
+#### 验证技能
 
-Run the validation script to ensure the skill meets all requirements:
+运行验证脚本确保技能满足所有要求：
 
 ```bash
 python /home/ubuntu/skills/skill-creator/scripts/quick_validate.py <skill-name>
 ```
 
-If validation fails, fix the errors and run validation again.
+如果验证失败，修复错误并再次运行验证。
 
-#### Deliver to User
+#### 交付给用户
 
-Use `message` tool to send the SKILL.md file as attachment:
+使用 `message` 工具将 SKILL.md 文件作为附件发送：
 
 ```
 /home/ubuntu/skills/{skill-name}/SKILL.md
 ```
 
-The system will automatically:
+系统将自动：
 
-1. Detect the path pattern `/home/ubuntu/skills/*/SKILL.md`
-2. Package the skill directory into a `.skill` file
-3. Send to frontend as a special card with options:
-   - Add to My Skills
-   - Download
-   - Preview
+1. 检测路径模式 `/home/ubuntu/skills/*/SKILL.md`
+2. 将技能目录打包为 `.skill` 文件
+3. 作为特殊卡片发送到前端，提供以下选项：
+   - 添加到我的技能
+   - 下载
+   - 预览
 
-### Step 6: Iterate
+### 步骤 6：迭代
 
-After testing the skill, users may request improvements. Often this happens right after using the skill, with fresh context of how the skill performed.
+测试技能后，用户可能会请求改进。这通常发生在使用技能后不久，此时对技能的表现有新鲜的上下文。
 
-**Iteration workflow:**
+**迭代工作流程：**
 
-1. Use the skill on real tasks
-2. Notice struggles or inefficiencies
-3. Identify how SKILL.md or bundled resources should be updated
-4. Implement changes and test again
+1. 在实际任务中使用技能
+2. 注意困难或低效之处
+3. 确定应如何更新 SKILL.md 或打包资源
+4. 实施更改并再次测试

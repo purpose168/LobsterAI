@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
+/**
+ * 主题选择器组件属性接口
+ */
 interface ThemedSelectProps {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  className?: string;
-  label?: string;
+  id: string; // 元素唯一标识符
+  value: string; // 当前选中的值
+  onChange: (value: string) => void; // 值变更时的回调函数
+  options: { value: string; label: string }[]; // 选项列表，包含值和标签
+  className?: string; // 可选的自定义样式类名
+  label?: string; // 可选的标签文本
 }
 
 const ThemedSelect: React.FC<ThemedSelectProps> = ({
@@ -18,30 +21,33 @@ const ThemedSelect: React.FC<ThemedSelectProps> = ({
   className = '',
   label,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false); // 下拉菜单的打开状态
+  const dropdownRef = useRef<HTMLDivElement>(null); // 下拉菜单容器的引用
 
-  // Find the selected option label
+  // 查找当前选中的选项对象
   const selectedOption = options.find(option => option.value === value);
 
-  // Handle click outside to close dropdown
+  // 处理点击下拉菜单外部区域以关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // 如果点击的不是下拉菜单容器内的元素，则关闭菜单
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
+    // 添加鼠标按下事件监听器
     document.addEventListener('mousedown', handleClickOutside);
+    // 组件卸载时移除事件监听器
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
-  // Handle option selection
+  // 处理选项点击事件
   const handleOptionClick = (optionValue: string) => {
-    onChange(optionValue);
-    setIsOpen(false);
+    onChange(optionValue); // 触发值变更回调
+    setIsOpen(false); // 关闭下拉菜单
   };
 
   return (

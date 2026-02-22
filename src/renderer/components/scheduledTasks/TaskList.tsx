@@ -7,17 +7,25 @@ import { i18nService } from '../../services/i18n';
 import type { ScheduledTask, Schedule } from '../../types/scheduledTask';
 import { EllipsisVerticalIcon, ClockIcon } from '@heroicons/react/24/outline';
 
+// 星期键名映射表：将数字映射到对应的国际化键名
 const weekdayKeys: Record<number, string> = {
-  0: 'scheduledTasksFormWeekSun',
-  1: 'scheduledTasksFormWeekMon',
-  2: 'scheduledTasksFormWeekTue',
-  3: 'scheduledTasksFormWeekWed',
-  4: 'scheduledTasksFormWeekThu',
-  5: 'scheduledTasksFormWeekFri',
-  6: 'scheduledTasksFormWeekSat',
+  0: 'scheduledTasksFormWeekSun',  // 周日
+  1: 'scheduledTasksFormWeekMon',  // 周一
+  2: 'scheduledTasksFormWeekTue',  // 周二
+  3: 'scheduledTasksFormWeekWed',  // 周三
+  4: 'scheduledTasksFormWeekThu',  // 周四
+  5: 'scheduledTasksFormWeekFri',  // 周五
+  6: 'scheduledTasksFormWeekSat',  // 周六
 };
 
+/**
+ * 格式化计划标签
+ * 根据计划类型（一次性、Cron表达式、间隔）生成可读的调度描述
+ * @param schedule - 计划配置对象
+ * @returns 格式化后的计划描述字符串
+ */
 function formatScheduleLabel(schedule: Schedule): string {
+  // 处理一次性执行计划
   if (schedule.type === 'at') {
     const dt = schedule.datetime ?? '';
     if (dt.includes('T')) {
@@ -27,23 +35,28 @@ function formatScheduleLabel(schedule: Schedule): string {
     return i18nService.t('scheduledTasksFormScheduleModeOnce');
   }
 
+  // 处理Cron表达式计划
   if (schedule.type === 'cron' && schedule.expression) {
     const parts = schedule.expression.trim().split(/\s+/);
     if (parts.length >= 5) {
       const [min, hour, dom, , dow] = parts;
       const timeStr = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
 
+      // 每周执行：星期几不为*，日期为*
       if (dow !== '*' && dom === '*') {
         const dayNum = parseInt(dow) || 0;
         return `${i18nService.t('scheduledTasksFormScheduleModeWeekly')} · ${i18nService.t(weekdayKeys[dayNum] ?? 'scheduledTasksFormWeekSun')} ${timeStr}`;
       }
+      // 每月执行：日期不为*，星期为*
       if (dom !== '*' && dow === '*') {
         return `${i18nService.t('scheduledTasksFormScheduleModeMonthly')} · ${dom}${i18nService.t('scheduledTasksFormMonthDaySuffix')} ${timeStr}`;
       }
+      // 每日执行
       return `${i18nService.t('scheduledTasksFormScheduleModeDaily')} · ${timeStr}`;
     }
   }
 
+  // 处理间隔执行计划
   if (schedule.type === 'interval') {
     return i18nService.t('scheduledTasksFormScheduleModeDaily');
   }
@@ -51,16 +64,24 @@ function formatScheduleLabel(schedule: Schedule): string {
   return '';
 }
 
+/**
+ * 任务列表项属性接口
+ */
 interface TaskListItemProps {
-  task: ScheduledTask;
-  onRequestDelete: (taskId: string, taskName: string) => void;
+  task: ScheduledTask;                              // 计划任务对象
+  onRequestDelete: (taskId: string, taskName: string) => void;  // 请求删除任务的回调函数
 }
 
+/**
+ * 任务列表项组件
+ * 显示单个计划任务的信息，包括名称、计划时间、状态和操作菜单
+ */
 const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) => {
   const dispatch = useDispatch();
-  const [showMenu, setShowMenu] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  const [showMenu, setShowMenu] = React.useState(false);  // 控制菜单显示状态
+  const menuRef = React.useRef<HTMLDivElement>(null);     // 菜单DOM引用
 
+  // 处理点击菜单外部关闭菜单
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -73,6 +94,10 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
+  /**
+   * 处理任务启用/禁用切换
+   * 切换任务的启用状态，并处理可能的警告信息
+   */
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const warning = await scheduledTaskService.toggleTask(task.id, !task.enabled);
@@ -86,12 +111,18 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
     }
   };
 
+  /**
+   * 处理立即运行任务
+   */
   const handleRunNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
     await scheduledTaskService.runManually(task.id);
   };
 
+  /**
+   * 处理编辑任务
+   */
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
@@ -99,6 +130,9 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
     dispatch(setViewMode('edit'));
   };
 
+  /**
+   * 处理删除任务
+   */
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(false);
@@ -110,19 +144,19 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
       className="grid grid-cols-[1fr_1fr_80px_40px] items-center gap-3 px-4 py-3 border-b dark:border-claude-darkBorder/50 border-claude-border/50 hover:bg-claude-surfaceHover/50 dark:hover:bg-claude-darkSurfaceHover/50 cursor-pointer transition-colors"
       onClick={() => dispatch(selectTask(task.id))}
     >
-      {/* Title */}
+      {/* 标题 */}
       <div className={`text-sm truncate ${task.enabled ? 'dark:text-claude-darkText text-claude-text' : 'dark:text-claude-darkTextSecondary text-claude-textSecondary'}`}>
         {task.name}
       </div>
 
-      {/* Schedule */}
+      {/* 计划时间 */}
       <div className="text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary truncate">
         {formatScheduleLabel(task.schedule)}
       </div>
 
-      {/* Status: toggle + running indicator */}
+      {/* 状态：开关 + 运行指示器 */}
       <div className="flex items-center gap-1.5">
-        {/* Running indicator */}
+        {/* 运行指示器 */}
         {task.state.runningAtMs && (
           <span className="inline-flex items-center text-xs text-blue-500">
             <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -132,7 +166,7 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
           </span>
         )}
 
-        {/* Toggle switch */}
+        {/* 开关按钮 */}
         <button
           type="button"
           onClick={handleToggle}
@@ -150,7 +184,7 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
         </button>
       </div>
 
-      {/* More menu */}
+      {/* 更多操作菜单 */}
       <div className="flex justify-center">
         <div className="relative" ref={menuRef}>
           <button
@@ -192,14 +226,22 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
   );
 };
 
+/**
+ * 任务列表属性接口
+ */
 interface TaskListProps {
-  onRequestDelete: (taskId: string, taskName: string) => void;
+  onRequestDelete: (taskId: string, taskName: string) => void;  // 请求删除任务的回调函数
 }
 
+/**
+ * 任务列表组件
+ * 显示所有计划任务的列表，包括加载状态和空状态处理
+ */
 const TaskList: React.FC<TaskListProps> = ({ onRequestDelete }) => {
-  const tasks = useSelector((state: RootState) => state.scheduledTask.tasks);
-  const loading = useSelector((state: RootState) => state.scheduledTask.loading);
+  const tasks = useSelector((state: RootState) => state.scheduledTask.tasks);    // 获取任务列表
+  const loading = useSelector((state: RootState) => state.scheduledTask.loading); // 获取加载状态
 
+  // 加载中状态
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -210,6 +252,7 @@ const TaskList: React.FC<TaskListProps> = ({ onRequestDelete }) => {
     );
   }
 
+  // 空状态
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6">
@@ -226,7 +269,7 @@ const TaskList: React.FC<TaskListProps> = ({ onRequestDelete }) => {
 
   return (
     <div>
-      {/* Column Headers */}
+      {/* 列标题 */}
       <div className="grid grid-cols-[1fr_1fr_80px_40px] items-center gap-3 px-4 py-2 border-b dark:border-claude-darkBorder/50 border-claude-border/50">
         <div className="text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
           {i18nService.t('scheduledTasksListColTitle')}

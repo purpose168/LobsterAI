@@ -1,28 +1,28 @@
 ---
 name: display-captions
-description: Displaying captions in Remotion with TikTok-style pages and word highlighting
+description: 在 Remotion 中显示字幕，支持 TikTok 风格的分页和单词高亮
 metadata:
   tags: captions, subtitles, display, tiktok, highlight
 ---
 
-# Displaying captions in Remotion
+# 在 Remotion 中显示字幕
 
-This guide explains how to display captions in Remotion, assuming you already have captions in the [`Caption`](https://www.remotion.dev/docs/captions/caption) format.
+本指南介绍如何在 Remotion 中显示字幕，假设您已经拥有 [`Caption`](https://www.remotion.dev/docs/captions/caption) 格式的字幕。
 
-## Prerequisites
+## 前提条件
 
-Read [Transcribing audio](transcribe-captions.md) for how to generate captions.
+阅读[转录音频](transcribe-captions.md)了解如何生成字幕。
 
-First, the [`@remotion/captions`](https://www.remotion.dev/docs/captions) package needs to be installed.
-If it is not installed, use the following command:
+首先，需要安装 [`@remotion/captions`](https://www.remotion.dev/docs/captions) 包。
+如果尚未安装，请使用以下命令：
 
 ```bash
 npx remotion add @remotion/captions
 ```
 
-## Fetching captions
+## 获取字幕
 
-First, fetch your captions JSON file. Use [`useDelayRender()`](https://www.remotion.dev/docs/use-delay-render) to hold the render until the captions are loaded:
+首先，获取您的字幕 JSON 文件。使用 [`useDelayRender()`](https://www.remotion.dev/docs/use-delay-render) 暂停渲染，直到字幕加载完成：
 
 ```tsx
 import { useState, useEffect, useCallback } from "react";
@@ -36,7 +36,7 @@ export const MyComponent: React.FC = () => {
 
   const fetchCaptions = useCallback(async () => {
     try {
-      // Assuming captions.json is in the public/ folder.
+      // 假设 captions.json 位于 public/ 文件夹中
       const response = await fetch(staticFile("captions123.json"));
       const data = await response.json();
       setCaptions(data);
@@ -54,22 +54,22 @@ export const MyComponent: React.FC = () => {
     return null;
   }
 
-  return <AbsoluteFill>{/* Render captions here */}</AbsoluteFill>;
+  return <AbsoluteFill>{/* 在此处渲染字幕 */}</AbsoluteFill>;
 };
 ```
 
-## Creating pages
+## 创建分页
 
-Use `createTikTokStyleCaptions()` to group captions into pages. The `combineTokensWithinMilliseconds` option controls how many words appear at once:
+使用 `createTikTokStyleCaptions()` 将字幕分组为页面。`combineTokensWithinMilliseconds` 选项控制一次显示多少个单词：
 
 ```tsx
 import { useMemo } from "react";
 import { createTikTokStyleCaptions } from "@remotion/captions";
 import type { Caption } from "@remotion/captions";
 
-// How often captions should switch (in milliseconds)
-// Higher values = more words per page
-// Lower values = fewer words (more word-by-word)
+// 字幕切换频率（以毫秒为单位）
+// 值越高 = 每页显示的单词越多
+// 值越低 = 每页显示的单词越少（更逐字显示）
 const SWITCH_CAPTIONS_EVERY_MS = 1200;
 
 const { pages } = useMemo(() => {
@@ -80,9 +80,9 @@ const { pages } = useMemo(() => {
 }, [captions]);
 ```
 
-## Rendering with Sequences
+## 使用 Sequence 渲染
 
-Map over the pages and render each one in a `<Sequence>`. Calculate the start frame and duration from the page timing:
+遍历页面并在 `<Sequence>` 中渲染每一页。根据页面时间计算起始帧和持续时间：
 
 ```tsx
 import { Sequence, useVideoConfig, AbsoluteFill } from "remotion";
@@ -121,18 +121,18 @@ const CaptionedContent: React.FC = () => {
 };
 ```
 
-## White-space preservation
+## 保留空白字符
 
-The captions are whitespace sensitive. You should include spaces in the `text` field before each word. Use `whiteSpace: "pre"` to preserve the whitespace in the captions.
+字幕对空白字符敏感。您应该在 `text` 字段中每个单词前包含空格。使用 `whiteSpace: "pre"` 来保留字幕中的空白字符。
 
-## Separate component for captions
+## 单独的字幕组件
 
-Put captioning logic in a separate component.  
-Make a new file for it.
+将字幕逻辑放在单独的组件中。
+为其创建一个新文件。
 
-## Word highlighting
+## 单词高亮
 
-A caption page contains `tokens` which you can use to highlight the currently spoken word:
+字幕页面包含 `tokens`，您可以使用它来高亮当前正在朗读的单词：
 
 ```tsx
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
@@ -144,9 +144,9 @@ const CaptionPage: React.FC<{ page: TikTokPage }> = ({ page }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Current time relative to the start of the sequence
+  // 相对于序列开始的当前时间
   const currentTimeMs = (frame / fps) * 1000;
-  // Convert to absolute time by adding the page start
+  // 通过添加页面开始时间转换为绝对时间
   const absoluteTimeMs = page.startMs + currentTimeMs;
 
   return (
@@ -171,10 +171,10 @@ const CaptionPage: React.FC<{ page: TikTokPage }> = ({ page }) => {
 };
 ```
 
-## Display captions alongside video content
+## 与视频内容一起显示字幕
 
-By default, put the captions alongside the video content, so the captions are in sync.  
-For each video, make a new captions JSON file.
+默认情况下，将字幕与视频内容一起放置，以保持字幕同步。
+对于每个视频，创建一个新的字幕 JSON 文件。
 
 ```tsx
 <AbsoluteFill>

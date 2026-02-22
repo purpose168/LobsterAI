@@ -1,6 +1,6 @@
 /**
- * IM Chat Handler
- * Processes IM messages through LLM service with optional skills integration
+ * IM 聊天处理器
+ * 通过 LLM 服务处理 IM 消息，支持可选的技能集成
  */
 
 import axios from 'axios';
@@ -9,7 +9,7 @@ import {
   IMSettings,
 } from './types';
 
-// LLM Configuration interface (mirrors app_config structure)
+// LLM 配置接口（映射 app_config 结构）
 interface LLMConfig {
   apiKey: string;
   baseUrl: string;
@@ -31,15 +31,15 @@ export class IMChatHandler {
   }
 
   /**
-   * Process an incoming IM message and generate a response
+   * 处理传入的 IM 消息并生成响应
    */
   async processMessage(message: IMMessage): Promise<string> {
     const llmConfig = await this.options.getLLMConfig();
     if (!llmConfig) {
-      throw new Error('LLM configuration not found');
+      throw new Error('未找到 LLM 配置');
     }
 
-    // Build system prompt with optional skills
+    // 构建系统提示词，包含可选的技能
     let systemPrompt = this.options.imSettings.systemPrompt || '';
 
     if (this.options.imSettings.skillsEnabled && this.options.getSkillsPrompt) {
@@ -51,13 +51,13 @@ export class IMChatHandler {
       }
     }
 
-    // Call LLM API
+    // 调用 LLM API
     const response = await this.callLLM(llmConfig, message.content, systemPrompt);
     return response;
   }
 
   /**
-   * Call LLM API and get response (non-streaming for simplicity)
+   * 调用 LLM API 并获取响应（为简化实现，使用非流式方式）
    */
   private async callLLM(
     config: LLMConfig,
@@ -70,12 +70,12 @@ export class IMChatHandler {
       return this.callAnthropicAPI(config, userMessage, systemPrompt);
     }
 
-    // Default to OpenAI-compatible API
+    // 默认使用 OpenAI 兼容 API
     return this.callOpenAICompatibleAPI(config, userMessage, systemPrompt);
   }
 
   /**
-   * Detect provider from config
+   * 从配置中检测提供商
    */
   private detectProvider(config: LLMConfig): 'anthropic' | 'openai' {
     if (config.provider === 'anthropic') return 'anthropic';
@@ -150,7 +150,7 @@ export class IMChatHandler {
   }
 
   /**
-   * Call Anthropic API
+   * 调用 Anthropic API
    */
   private async callAnthropicAPI(
     config: LLMConfig,
@@ -177,7 +177,7 @@ export class IMChatHandler {
       },
     });
 
-    // Extract text from response
+    // 从响应中提取文本
     const content = response.data.content;
     if (Array.isArray(content)) {
       return content
@@ -190,7 +190,7 @@ export class IMChatHandler {
   }
 
   /**
-   * Call OpenAI-compatible API
+   * 调用 OpenAI 兼容 API
    */
   private async callOpenAICompatibleAPI(
     config: LLMConfig,
@@ -267,17 +267,17 @@ export class IMChatHandler {
   }
 
   /**
-   * Process message with streaming (for AI cards)
+   * 以流式方式处理消息（用于 AI 卡片）
    */
   async *processMessageStream(
     message: IMMessage
   ): AsyncGenerator<{ content: string; done: boolean }> {
     const llmConfig = await this.options.getLLMConfig();
     if (!llmConfig) {
-      throw new Error('LLM configuration not found');
+      throw new Error('未找到 LLM 配置');
     }
 
-    // Build system prompt
+    // 构建系统提示词
     let systemPrompt = this.options.imSettings.systemPrompt || '';
 
     if (this.options.imSettings.skillsEnabled && this.options.getSkillsPrompt) {
@@ -289,8 +289,8 @@ export class IMChatHandler {
       }
     }
 
-    // For now, use non-streaming and yield once
-    // TODO: Implement actual streaming for better UX
+    // 目前使用非流式方式并一次性返回结果
+    // TODO: 实现真正的流式处理以提供更好的用户体验
     const response = await this.callLLM(llmConfig, message.content, systemPrompt);
     yield { content: response, done: true };
   }

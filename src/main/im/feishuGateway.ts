@@ -1,7 +1,7 @@
 /**
- * Feishu/Lark Gateway
- * Manages WebSocket connection for receiving messages
- * Adapted from im-gateway for Electron main process
+ * 飞书/Lark 网关
+ * 管理 WebSocket 连接以接收消息
+ * 从 im-gateway 改编用于 Electron 主进程
  */
 
 import { EventEmitter } from 'events';
@@ -25,11 +25,11 @@ import {
 import { parseMediaMarkers } from './dingtalkMediaParser';
 import { stringifyAsciiJson } from './jsonEncoding';
 
-// Message deduplication cache
+// 消息去重缓存
 const processedMessages = new Map<string, number>();
-const MESSAGE_DEDUP_TTL = 5 * 60 * 1000; // 5 minutes
+const MESSAGE_DEDUP_TTL = 5 * 60 * 1000; // 5分钟
 
-// Feishu message event structure
+// 飞书消息事件结构
 interface FeishuMessageEvent {
   message: {
     message_id: string;
@@ -69,33 +69,33 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Get current gateway status
+   * 获取当前网关状态
    */
   getStatus(): FeishuGatewayStatus {
     return { ...this.status };
   }
 
   /**
-   * Check if gateway is connected
+   * 检查网关是否已连接
    */
   isConnected(): boolean {
     return this.status.connected;
   }
 
   /**
-   * Public method for external reconnection triggers (e.g., network events)
+   * 外部重连触发公共方法（例如：网络事件）
    */
   reconnectIfNeeded(): void {
     if (!this.wsClient && this.config) {
-      this.log('[Feishu Gateway] External reconnection trigger');
+      this.log('[飞书网关] 外部重连触发');
       this.start(this.config).catch((error) => {
-        console.error('[Feishu Gateway] Reconnection failed:', error.message);
+        console.error('[飞书网关] 重连失败:', error.message);
       });
     }
   }
 
   /**
-   * Set message callback
+   * 设置消息回调
    */
   setMessageCallback(
     callback: (message: IMMessage, replyFn: (text: string) => Promise<void>) => Promise<void>
@@ -104,35 +104,35 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Start Feishu gateway
+   * 启动飞书网关
    */
   async start(config: FeishuConfig): Promise<void> {
     if (this.wsClient) {
-      throw new Error('Feishu gateway already running');
+      throw new Error('飞书网关已在运行中');
     }
 
     if (!config.enabled) {
-      console.log('[Feishu Gateway] Feishu is disabled in config');
+      console.log('[飞书网关] 飞书在配置中已禁用');
       return;
     }
 
     if (!config.appId || !config.appSecret) {
-      throw new Error('Feishu appId and appSecret are required');
+      throw new Error('飞书 appId 和 appSecret 为必填项');
     }
 
     this.config = config;
     this.log = config.debug ? console.log.bind(console) : () => {};
 
-    this.log('[Feishu Gateway] Starting WebSocket gateway...');
+    this.log('[飞书网关] 正在启动 WebSocket 网关...');
 
     try {
-      // Dynamically import @larksuiteoapi/node-sdk
+      // 动态导入 @larksuiteoapi/node-sdk
       const Lark = await import('@larksuiteoapi/node-sdk');
 
-      // Resolve domain
+      // 解析域名
       const domain = this.resolveDomain(config.domain, Lark);
 
-      // Create REST client for sending messages
+      // 创建用于发送消息的 REST 客户端
       this.restClient = new Lark.Client({
         appId: config.appId,
         appSecret: config.appSecret,
@@ -140,16 +140,16 @@ export class FeishuGateway extends EventEmitter {
         domain,
       });
 
-      // Probe bot info to get open_id
+      // 探测机器人信息以获取 open_id
       const probeResult = await this.probeBot();
       if (!probeResult.ok) {
-        throw new Error(`Failed to probe bot: ${probeResult.error}`);
+        throw new Error(`探测机器人失败: ${probeResult.error}`);
       }
 
       this.botOpenId = probeResult.botOpenId || null;
-      this.log(`[Feishu Gateway] Bot info: ${probeResult.botName} (${this.botOpenId})`);
+      this.log(`[飞书网关] 机器人信息: ${probeResult.botName} (${this.botOpenId})`);
 
-      // Create WebSocket client
+      // 创建 WebSocket 客户端
       this.wsClient = new Lark.WSClient({
         appId: config.appId,
         appSecret: config.appSecret,
@@ -157,42 +157,42 @@ export class FeishuGateway extends EventEmitter {
         loggerLevel: config.debug ? Lark.LoggerLevel.debug : Lark.LoggerLevel.info,
       });
 
-      // Create event dispatcher
+      // 创建事件分发器
       const eventDispatcher = new Lark.EventDispatcher({
         encryptKey: config.encryptKey,
         verificationToken: config.verificationToken,
       });
 
-      // Register event handlers
+      // 注册事件处理器
       eventDispatcher.register({
         'im.message.receive_v1': async (data: any) => {
           try {
             const event = data as FeishuMessageEvent;
 
-            // Check for duplicate
+            // 检查重复消息
             if (this.isMessageProcessed(event.message.message_id)) {
-              this.log(`[Feishu Gateway] Duplicate message ignored: ${event.message.message_id}`);
+              this.log(`[飞书网关] 忽略重复消息: ${event.message.message_id}`);
               return;
             }
 
             const ctx = this.parseMessageEvent(event);
             await this.handleInboundMessage(ctx);
           } catch (err: any) {
-            console.error(`[Feishu Gateway] Error handling message: ${err.message}`);
+            console.error(`[飞书网关] 处理消息时出错: ${err.message}`);
           }
         },
         'im.message.message_read_v1': async () => {
-          // Ignore read receipts
+          // 忽略已读回执
         },
         'im.chat.member.bot.added_v1': async (data: any) => {
-          this.log(`[Feishu Gateway] Bot added to chat ${data.chat_id}`);
+          this.log(`[飞书网关] 机器人已添加到群聊 ${data.chat_id}`);
         },
         'im.chat.member.bot.deleted_v1': async (data: any) => {
-          this.log(`[Feishu Gateway] Bot removed from chat ${data.chat_id}`);
+          this.log(`[飞书网关] 机器人已从群聊移除 ${data.chat_id}`);
         },
       });
 
-      // Start WebSocket client
+      // 启动 WebSocket 客户端
       this.wsClient.start({ eventDispatcher });
 
       this.status = {
@@ -204,7 +204,7 @@ export class FeishuGateway extends EventEmitter {
         lastOutboundAt: null,
       };
 
-      this.log('[Feishu Gateway] WebSocket gateway started successfully');
+      this.log('[飞书网关] WebSocket 网关启动成功');
       this.emit('connected');
     } catch (error: any) {
       this.wsClient = null;
@@ -223,15 +223,15 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Stop Feishu gateway
+   * 停止飞书网关
    */
   async stop(): Promise<void> {
     if (!this.wsClient) {
-      this.log('[Feishu Gateway] Not running');
+      this.log('[飞书网关] 未在运行');
       return;
     }
 
-    this.log('[Feishu Gateway] Stopping WebSocket gateway...');
+    this.log('[飞书网关] 正在停止 WebSocket 网关...');
 
     this.wsClient = null;
     this.restClient = null;
@@ -245,12 +245,12 @@ export class FeishuGateway extends EventEmitter {
       lastOutboundAt: null,
     };
 
-    this.log('[Feishu Gateway] WebSocket gateway stopped');
+    this.log('[飞书网关] WebSocket 网关已停止');
     this.emit('disconnected');
   }
 
   /**
-   * Resolve domain to Lark SDK domain
+   * 将域名解析为 Lark SDK 域名
    */
   private resolveDomain(domain: string, Lark: any): any {
     if (domain === 'lark') return Lark.Domain.Lark;
@@ -259,7 +259,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Probe bot info
+   * 探测机器人信息
    */
   private async probeBot(): Promise<{
     ok: boolean;
@@ -288,7 +288,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Check if message was already processed (deduplication)
+   * 检查消息是否已处理（去重）
    */
   private isMessageProcessed(messageId: string): boolean {
     this.cleanupProcessedMessages();
@@ -300,7 +300,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Clean up expired messages from cache
+   * 清理缓存中过期的消息
    */
   private cleanupProcessedMessages(): void {
     const now = Date.now();
@@ -312,7 +312,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Parse message content
+   * 解析消息内容
    */
   private parseMessageContent(content: string, messageType: string): string {
     try {
@@ -330,7 +330,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Parse post (rich text) content
+   * 解析帖子（富文本）内容
    */
   private parsePostContent(content: string): string {
     try {
@@ -361,7 +361,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Check if bot was mentioned
+   * 检查机器人是否被提及
    */
   private checkBotMentioned(event: FeishuMessageEvent): boolean {
     const mentions = event.message.mentions ?? [];
@@ -371,7 +371,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Strip bot mention from text
+   * 从文本中移除机器人提及
    */
   private stripBotMention(text: string, mentions?: FeishuMessageEvent['message']['mentions']): string {
     if (!mentions || mentions.length === 0) return text;
@@ -384,7 +384,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Parse Feishu message event
+   * 解析飞书消息事件
    */
   private parseMessageEvent(event: FeishuMessageEvent): FeishuMessageContext {
     const rawContent = this.parseMessageContent(event.message.content, event.message.message_type);
@@ -406,7 +406,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Resolve receive_id_type
+   * 解析 receive_id_type
    */
   private resolveReceiveIdType(target: string): 'open_id' | 'user_id' | 'chat_id' {
     if (target.startsWith('ou_')) return 'open_id';
@@ -415,7 +415,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Send text message
+   * 发送文本消息
    */
   private async sendTextMessage(to: string, text: string, replyToMessageId?: string): Promise<void> {
     const receiveIdType = this.resolveReceiveIdType(to);
@@ -428,7 +428,7 @@ export class FeishuGateway extends EventEmitter {
       });
 
       if (response.code !== 0) {
-        throw new Error(`Feishu reply failed: ${response.msg || `code ${response.code}`}`);
+        throw new Error(`飞书回复失败: ${response.msg || `错误码 ${response.code}`}`);
       }
       return;
     }
@@ -439,12 +439,12 @@ export class FeishuGateway extends EventEmitter {
     });
 
     if (response.code !== 0) {
-      throw new Error(`Feishu send failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`飞书发送失败: ${response.msg || `错误码 ${response.code}`}`);
     }
   }
 
   /**
-   * Build markdown card
+   * 构建 Markdown 卡片
    */
   private buildMarkdownCard(text: string): Record<string, unknown> {
     return {
@@ -454,7 +454,7 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Send card message
+   * 发送卡片消息
    */
   private async sendCardMessage(to: string, text: string, replyToMessageId?: string): Promise<void> {
     const receiveIdType = this.resolveReceiveIdType(to);
@@ -468,7 +468,7 @@ export class FeishuGateway extends EventEmitter {
       });
 
       if (response.code !== 0) {
-        throw new Error(`Feishu card reply failed: ${response.msg || `code ${response.code}`}`);
+        throw new Error(`飞书卡片回复失败: ${response.msg || `错误码 ${response.code}`}`);
       }
       return;
     }
@@ -479,17 +479,17 @@ export class FeishuGateway extends EventEmitter {
     });
 
     if (response.code !== 0) {
-      throw new Error(`Feishu card send failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`飞书卡片发送失败: ${response.msg || `错误码 ${response.code}`}`);
     }
   }
 
   /**
-   * Send message (auto-select format based on config)
+   * 发送消息（根据配置自动选择格式）
    */
   private async sendMessage(to: string, text: string, replyToMessageId?: string): Promise<void> {
     const renderMode = this.config?.renderMode || 'text';
 
-    this.log(`[Feishu Gateway] 发送文本消息:`, JSON.stringify({
+    this.log(`[飞书网关] 发送文本消息:`, JSON.stringify({
       to,
       renderMode,
       replyToMessageId,
@@ -504,13 +504,13 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Send image message
+   * 发送图片消息
    */
   private async sendImageMessage(to: string, imageKey: string, replyToMessageId?: string): Promise<void> {
     const receiveIdType = this.resolveReceiveIdType(to);
     const content = stringifyAsciiJson({ image_key: imageKey });
 
-    this.log(`[Feishu Gateway] 发送图片消息:`, JSON.stringify({
+    this.log(`[飞书网关] 发送图片消息:`, JSON.stringify({
       to,
       imageKey,
       receiveIdType,
@@ -523,7 +523,7 @@ export class FeishuGateway extends EventEmitter {
         data: { content, msg_type: 'image' },
       });
       if (response.code !== 0) {
-        throw new Error(`Feishu image reply failed: ${response.msg || `code ${response.code}`}`);
+        throw new Error(`飞书图片回复失败: ${response.msg || `错误码 ${response.code}`}`);
       }
       return;
     }
@@ -533,18 +533,18 @@ export class FeishuGateway extends EventEmitter {
       data: { receive_id: to, content, msg_type: 'image' },
     });
     if (response.code !== 0) {
-      throw new Error(`Feishu image send failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`飞书图片发送失败: ${response.msg || `错误码 ${response.code}`}`);
     }
   }
 
   /**
-   * Send file message
+   * 发送文件消息
    */
   private async sendFileMessage(to: string, fileKey: string, replyToMessageId?: string): Promise<void> {
     const receiveIdType = this.resolveReceiveIdType(to);
     const content = stringifyAsciiJson({ file_key: fileKey });
 
-    this.log(`[Feishu Gateway] 发送文件消息:`, JSON.stringify({
+    this.log(`[飞书网关] 发送文件消息:`, JSON.stringify({
       to,
       fileKey,
       receiveIdType,
@@ -557,7 +557,7 @@ export class FeishuGateway extends EventEmitter {
         data: { content, msg_type: 'file' },
       });
       if (response.code !== 0) {
-        throw new Error(`Feishu file reply failed: ${response.msg || `code ${response.code}`}`);
+        throw new Error(`飞书文件回复失败: ${response.msg || `错误码 ${response.code}`}`);
       }
       return;
     }
@@ -567,12 +567,12 @@ export class FeishuGateway extends EventEmitter {
       data: { receive_id: to, content, msg_type: 'file' },
     });
     if (response.code !== 0) {
-      throw new Error(`Feishu file send failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`飞书文件发送失败: ${response.msg || `错误码 ${response.code}`}`);
     }
   }
 
   /**
-   * Send audio message
+   * 发送音频消息
    */
   private async sendAudioMessage(to: string, fileKey: string, duration?: number, replyToMessageId?: string): Promise<void> {
     const receiveIdType = this.resolveReceiveIdType(to);
@@ -581,7 +581,7 @@ export class FeishuGateway extends EventEmitter {
       ...(duration !== undefined && { duration: Math.floor(duration).toString() })
     });
 
-    this.log(`[Feishu Gateway] 发送音频消息:`, JSON.stringify({
+    this.log(`[飞书网关] 发送音频消息:`, JSON.stringify({
       to,
       fileKey,
       duration,
@@ -595,7 +595,7 @@ export class FeishuGateway extends EventEmitter {
         data: { content, msg_type: 'audio' },
       });
       if (response.code !== 0) {
-        throw new Error(`Feishu audio reply failed: ${response.msg || `code ${response.code}`}`);
+        throw new Error(`飞书音频回复失败: ${response.msg || `错误码 ${response.code}`}`);
       }
       return;
     }
@@ -605,12 +605,12 @@ export class FeishuGateway extends EventEmitter {
       data: { receive_id: to, content, msg_type: 'audio' },
     });
     if (response.code !== 0) {
-      throw new Error(`Feishu audio send failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`飞书音频发送失败: ${response.msg || `错误码 ${response.code}`}`);
     }
   }
 
   /**
-   * Upload and send media from file path
+   * 从文件路径上传并发送媒体文件
    * @param customFileName - 从 Markdown 解析出的自定义文件名（如 [今日新闻](file.txt) 中的"今日新闻"）
    */
   private async uploadAndSendMedia(
@@ -620,11 +620,11 @@ export class FeishuGateway extends EventEmitter {
     replyToMessageId?: string,
     customFileName?: string
   ): Promise<void> {
-    // Resolve path
+    // 解析路径
     const absPath = resolveFeishuMediaPath(filePath);
 
     if (!fs.existsSync(absPath)) {
-      console.warn(`[Feishu Gateway] File not found: ${absPath}`);
+      console.warn(`[飞书网关] 文件未找到: ${absPath}`);
       return;
     }
 
@@ -634,7 +634,7 @@ export class FeishuGateway extends EventEmitter {
     const fileName = customFileName ? `${customFileName}${ext}` : originalFileName;
     const fileStats = fs.statSync(absPath);
 
-    this.log(`[Feishu Gateway] 上传媒体:`, JSON.stringify({
+    this.log(`[飞书网关] 上传媒体:`, JSON.stringify({
       absPath,
       mediaType,
       originalFileName,
@@ -645,34 +645,34 @@ export class FeishuGateway extends EventEmitter {
     }));
 
     if (mediaType === 'image' || isFeishuImagePath(absPath)) {
-      // Upload image
-      this.log(`[Feishu Gateway] 开始上传图片: ${fileName}`);
+      // 上传图片
+      this.log(`[飞书网关] 开始上传图片: ${fileName}`);
       const result = await uploadImageToFeishu(this.restClient, absPath);
-      this.log(`[Feishu Gateway] 图片上传结果:`, JSON.stringify(result));
+      this.log(`[飞书网关] 图片上传结果:`, JSON.stringify(result));
       if (!result.success || !result.imageKey) {
-        console.warn(`[Feishu Gateway] Image upload failed: ${result.error}`);
+        console.warn(`[飞书网关] 图片上传失败: ${result.error}`);
         return;
       }
       await this.sendImageMessage(to, result.imageKey, replyToMessageId);
     } else if (mediaType === 'audio' || isFeishuAudioPath(absPath)) {
-      // Upload audio
-      this.log(`[Feishu Gateway] 开始上传音频: ${fileName}`);
+      // 上传音频
+      this.log(`[飞书网关] 开始上传音频: ${fileName}`);
       const result = await uploadFileToFeishu(this.restClient, absPath, fileName, 'opus');
-      this.log(`[Feishu Gateway] 音频上传结果:`, JSON.stringify(result));
+      this.log(`[飞书网关] 音频上传结果:`, JSON.stringify(result));
       if (!result.success || !result.fileKey) {
-        console.warn(`[Feishu Gateway] Audio upload failed: ${result.error}`);
+        console.warn(`[飞书网关] 音频上传失败: ${result.error}`);
         return;
       }
       await this.sendAudioMessage(to, result.fileKey, undefined, replyToMessageId);
     } else {
-      // Upload as file (including video - Feishu video requires cover image, send as file for simplicity)
-      this.log(`[Feishu Gateway] 开始上传文件: ${fileName}`);
+      // 作为文件上传（包括视频 - 飞书视频需要封面图，为简化处理作为文件发送）
+      this.log(`[飞书网关] 开始上传文件: ${fileName}`);
       const fileType = detectFeishuFileType(fileName);
-      this.log(`[Feishu Gateway] 检测到文件类型: ${fileType}`);
+      this.log(`[飞书网关] 检测到文件类型: ${fileType}`);
       const result = await uploadFileToFeishu(this.restClient, absPath, fileName, fileType);
-      this.log(`[Feishu Gateway] 文件上传结果:`, JSON.stringify(result));
+      this.log(`[飞书网关] 文件上传结果:`, JSON.stringify(result));
       if (!result.success || !result.fileKey) {
-        console.warn(`[Feishu Gateway] File upload failed: ${result.error}`);
+        console.warn(`[飞书网关] 文件上传失败: ${result.error}`);
         return;
       }
       await this.sendFileMessage(to, result.fileKey, replyToMessageId);
@@ -680,13 +680,13 @@ export class FeishuGateway extends EventEmitter {
   }
 
   /**
-   * Send message with media support - detects and uploads media from text
+   * 发送支持媒体的消息 - 检测并上传文本中的媒体文件
    */
   private async sendWithMedia(to: string, text: string, replyToMessageId?: string): Promise<void> {
-    // Parse media markers from text
+    // 从文本解析媒体标记
     const markers = parseMediaMarkers(text);
 
-    this.log(`[Feishu Gateway] 解析媒体标记:`, JSON.stringify({
+    this.log(`[飞书网关] 解析媒体标记:`, JSON.stringify({
       to,
       replyToMessageId,
       textLength: text.length,
@@ -695,37 +695,37 @@ export class FeishuGateway extends EventEmitter {
     }));
 
     if (markers.length === 0) {
-      // No media, send as text/card
+      // 无媒体，作为文本/卡片发送
       await this.sendMessage(to, text, replyToMessageId);
       return;
     }
 
-    // Upload and send each media
+    // 上传并发送每个媒体文件
     for (const marker of markers) {
       try {
-        this.log(`[Feishu Gateway] 处理媒体:`, JSON.stringify(marker));
+        this.log(`[飞书网关] 处理媒体:`, JSON.stringify(marker));
         // 传递从 markdown 解析出的文件名
         await this.uploadAndSendMedia(to, marker.path, marker.type, replyToMessageId, marker.name);
       } catch (error: any) {
-        console.error(`[Feishu Gateway] Failed to send media: ${error.message}`);
+        console.error(`[飞书网关] 发送媒体失败: ${error.message}`);
       }
     }
 
-    // Send the text message (keep full text for context)
+    // 发送文本消息（保留完整文本作为上下文）
     await this.sendMessage(to, text, replyToMessageId);
   }
 
   /**
-   * Handle inbound message
+   * 处理入站消息
    */
   private async handleInboundMessage(ctx: FeishuMessageContext): Promise<void> {
-    // In group chat, only respond when bot is mentioned
+    // 在群聊中，仅当机器人被提及时才响应
     if (ctx.chatType === 'group' && !ctx.mentionedBot) {
-      this.log('[Feishu Gateway] Ignoring group message without bot mention');
+      this.log('[飞书网关] 忽略未提及机器人的群聊消息');
       return;
     }
 
-    // Create IMMessage
+    // 创建 IMMessage
     const message: IMMessage = {
       platform: 'feishu',
       messageId: ctx.messageId,
@@ -738,7 +738,7 @@ export class FeishuGateway extends EventEmitter {
     this.status.lastInboundAt = Date.now();
 
     // 打印完整的输入消息日志
-    this.log(`[Feishu] 收到消息:`, JSON.stringify({
+    this.log(`[飞书] 收到消息:`, JSON.stringify({
       sender: ctx.senderOpenId,
       senderId: ctx.senderId,
       chatId: ctx.chatId,
@@ -751,10 +751,10 @@ export class FeishuGateway extends EventEmitter {
       parentId: ctx.parentId,
     }, null, 2));
 
-    // Create reply function with media support
+    // 创建支持媒体的回复函数
     const replyFn = async (text: string) => {
       // 打印完整的输出消息日志
-      this.log(`[Feishu] 发送回复:`, JSON.stringify({
+      this.log(`[飞书] 发送回复:`, JSON.stringify({
         conversationId: ctx.chatId,
         replyToMessageId: ctx.messageId,
         replyLength: text.length,
@@ -765,29 +765,29 @@ export class FeishuGateway extends EventEmitter {
       this.status.lastOutboundAt = Date.now();
     };
 
-    // Store last chat ID for notifications
+    // 存储最后的聊天 ID 用于通知
     this.lastChatId = ctx.chatId;
 
-    // Emit message event
+    // 触发消息事件
     this.emit('message', message);
 
-    // Call message callback if set
+    // 如果设置了消息回调则调用
     if (this.onMessageCallback) {
       try {
         await this.onMessageCallback(message, replyFn);
       } catch (error: any) {
-        console.error(`[Feishu Gateway] Error in message callback: ${error.message}`);
+        console.error(`[飞书网关] 消息回调出错: ${error.message}`);
         await replyFn(`抱歉，处理消息时出现错误：${error.message}`);
       }
     }
   }
 
   /**
-   * Send a notification message to the last known chat.
+   * 向最后已知的聊天发送通知消息
    */
   async sendNotification(text: string): Promise<void> {
     if (!this.lastChatId || !this.restClient) {
-      throw new Error('No conversation available for notification');
+      throw new Error('没有可用的会话用于发送通知');
     }
     await this.sendMessage(this.lastChatId, text);
     this.status.lastOutboundAt = Date.now();

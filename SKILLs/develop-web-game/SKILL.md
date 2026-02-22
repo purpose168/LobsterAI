@@ -1,14 +1,14 @@
 ---
 name: "develop-web-game"
-description: "Use when Codex is building or iterating on a web game (HTML/JS) and needs a reliable development + testing loop: implement small changes, run a Playwright-based test script with short input bursts and intentional pauses, inspect screenshots/text, and review console errors with render_game_to_text."
+description: "当 Codex 构建或迭代网页游戏（HTML/JS）并需要可靠的开发+测试循环时使用：实现小改动，运行基于 Playwright 的测试脚本（短输入突发和有意暂停），检查截图/文本，并使用 render_game_to_text 查看控制台错误。"
 ---
 
 
-# Develop Web Game
+# 开发网页游戏
 
-Build games in small steps and validate every change. Treat each iteration as: implement → act → pause → observe → adjust.
+以小步骤构建游戏并验证每个更改。将每次迭代视为：实现 → 操作 → 暂停 → 观察 → 调整。
 
-## Skill paths (set once)
+## 技能路径（设置一次）
 
 ```bash
 export SKILLS_ROOT="${LOBSTERAI_SKILLS_ROOT:-${SKILLS_ROOT:-$HOME/Library/Application Support/LobsterAI/SKILLs}}"
@@ -16,32 +16,32 @@ export WEB_GAME_CLIENT="$SKILLS_ROOT/develop-web-game/scripts/web_game_playwrigh
 export WEB_GAME_ACTIONS="$SKILLS_ROOT/develop-web-game/references/action_payloads.json"
 ```
 
-Installed skills resolve from `$LOBSTERAI_SKILLS_ROOT` / `$SKILLS_ROOT` (production default: app `userData/SKILLs`, macOS usually `~/Library/Application Support/LobsterAI/SKILLs`).
+已安装的技能从 `$LOBSTERAI_SKILLS_ROOT` / `$SKILLS_ROOT` 解析（生产默认值：应用 `userData/SKILLs`，macOS 通常为 `~/Library/Application Support/LobsterAI/SKILLs`）。
 
-## Workflow
+## 工作流程
 
-1. **Pick a goal.** Define a single feature or behavior to implement.
-2. **Implement small.** Make the smallest change that moves the game forward.
-3. **Ensure integration points.** Provide a single canvas and `window.render_game_to_text` so the test loop can read state.
-4. **Add `window.advanceTime(ms)`.** Strongly prefer a deterministic step hook so the Playwright script can advance frames reliably; without it, automated tests can be flaky.
-5. **Initialize progress.md.** If `progress.md` exists, read it first and confirm the original user prompt is recorded at the top (prefix with `Original prompt:`). Also note any TODOs and suggestions left by the previous agent. If missing, create it and write `Original prompt: <prompt>` at the top before appending updates.
-6. **Verify Playwright availability.** Ensure `playwright` is available (local dependency or global install). If unsure, check `npx` first.
-7. **Run the Playwright test script.** You must run `$WEB_GAME_CLIENT` after each meaningful change; do not invent a new client unless required.
-8. **Use the payload reference.** Base actions on `$WEB_GAME_ACTIONS` to avoid guessing keys.
-9. **Inspect state.** Capture screenshots and text state after each burst.
-10. **Inspect screenshots.** Open the latest screenshot, verify expected visuals, fix any issues, and rerun the script. Repeat until correct.
-11. **Verify controls and state (multi-step focus).** Exhaustively exercise all important interactions. For each, think through the full multi-step sequence it implies (cause → intermediate states → outcome) and verify the entire chain works end-to-end. Confirm `render_game_to_text` reflects the same state shown on screen. If anything is off, fix and rerun.
-    Examples of important interactions: move, jump, shoot/attack, interact/use, select/confirm/cancel in menus, pause/resume, restart, and any special abilities or puzzle actions defined by the request. Multi-step examples: shooting an enemy should reduce its health; when health reaches 0 it should disappear and update the score; collecting a key should unlock a door and allow level progression.
-12. **Check errors.** Review console errors and fix the first new issue before continuing.
-13. **Reset between scenarios.** Avoid cross-test state when validating distinct features.
-14. **Iterate with small deltas.** Change one variable at a time (frames, inputs, timing, positions), then repeat steps 7–13 until stable.
+1. **选择一个目标。** 定义要实现的单一功能或行为。
+2. **小步实现。** 做出推动游戏前进的最小更改。
+3. **确保集成点。** 提供单个画布和 `window.render_game_to_text`，以便测试循环可以读取状态。
+4. **添加 `window.advanceTime(ms)`。** 强烈建议使用确定性步骤钩子，以便 Playwright 脚本可以可靠地推进帧；没有它，自动化测试可能会不稳定。
+5. **初始化 progress.md。** 如果 `progress.md` 存在，首先读取它并确认原始用户提示已记录在顶部（以 `Original prompt:` 为前缀）。还要注意上一个代理留下的任何待办事项和建议。如果缺失，创建它并在顶部写入 `Original prompt: <prompt>`，然后再追加更新。
+6. **验证 Playwright 可用性。** 确保 `playwright` 可用（本地依赖或全局安装）。如果不确定，先检查 `npx`。
+7. **运行 Playwright 测试脚本。** 每次有意义的更改后必须运行 `$WEB_GAME_CLIENT`；除非必要，不要发明新的客户端。
+8. **使用载荷参考。** 基于 `$WEB_GAME_ACTIONS` 进行操作，避免猜测按键。
+9. **检查状态。** 每次突发后捕获截图和文本状态。
+10. **检查截图。** 打开最新的截图，验证预期的视觉效果，修复任何问题，然后重新运行脚本。重复直到正确。
+11. **验证控制和状态（多步骤重点）。** 详尽地测试所有重要的交互。对于每个交互，思考它所隐含的完整多步骤序列（原因 → 中间状态 → 结果），并验证整个链条端到端工作。确认 `render_game_to_text` 反映屏幕上显示的相同状态。如果有任何不对，修复并重新运行。
+    重要交互示例：移动、跳跃、射击/攻击、交互/使用、菜单中的选择/确认/取消、暂停/恢复、重新启动，以及请求定义的任何特殊能力或谜题动作。多步骤示例：射击敌人应该减少其生命值；当生命值达到 0 时，它应该消失并更新分数；收集钥匙应该解锁门并允许关卡进度。
+12. **检查错误。** 查看控制台错误，在继续之前修复第一个新问题。
+13. **场景之间重置。** 在验证不同功能时避免跨测试状态。
+14. **以小增量迭代。** 一次更改一个变量（帧、输入、时序、位置），然后重复步骤 7-13 直到稳定。
 
-Example command (actions required):
+示例命令（需要操作）：
 ```
 node "$WEB_GAME_CLIENT" --url http://localhost:5173 --actions-file "$WEB_GAME_ACTIONS" --click-selector "#start-btn" --iterations 3 --pause-ms 250
 ```
 
-Example actions (inline JSON):
+示例操作（内联 JSON）：
 ```json
 {
   "steps": [
@@ -53,39 +53,39 @@ Example actions (inline JSON):
 }
 ```
 
-## Test Checklist
+## 测试清单
 
-Test any new features added for the request and any areas your logic changes could affect. Identify issues, fix them, and re-run the tests to confirm they’re resolved.
+测试为请求添加的任何新功能以及您的逻辑更改可能影响的任何区域。识别问题，修复它们，并重新运行测试以确认它们已解决。
 
-Examples of things to test:
-- Primary movement/interaction inputs (e.g., move, jump, shoot, confirm/select).
-- Win/lose or success/fail transitions.
-- Score/health/resource changes.
-- Boundary conditions (collisions, walls, screen edges).
-- Menu/pause/start flow if present.
-- Any special actions tied to the request (powerups, combos, abilities, puzzles, timers).
+需要测试的内容示例：
+- 主要移动/交互输入（例如，移动、跳跃、射击、确认/选择）。
+- 胜利/失败或成功/失败转换。
+- 分数/生命值/资源变化。
+- 边界条件（碰撞、墙壁、屏幕边缘）。
+- 菜单/暂停/开始流程（如果存在）。
+- 与请求相关的任何特殊动作（道具、连击、能力、谜题、计时器）。
 
-## Test Artifacts to Review
+## 要查看的测试产物
 
-- Latest screenshots from the Playwright run.
-- Latest `render_game_to_text` JSON output.
-- Console error logs (fix the first new error before continuing).
-You must actually open and visually inspect the latest screenshots after running the Playwright script, not just generate them. Ensure everything that should be visible on screen is actually visible. Go beyond the start screen and capture gameplay screenshots that cover all newly added features. Treat the screenshots as the source of truth; if something is missing, it is missing in the build. If you suspect a headless/WebGL capture issue, rerun the Playwright script in headed mode and re-check. Fix and rerun in a tight loop until the screenshots and text state look correct. Once fixes are verified, re-test all important interactions and controls, confirm they work, and ensure your changes did not introduce regressions. If they did, fix them and rerun everything in a loop until interactions, text state, and controls all work as expected. Be exhaustive in testing controls; broken games are not acceptable.
+- Playwright 运行的最新截图。
+- 最新的 `render_game_to_text` JSON 输出。
+- 控制台错误日志（在继续之前修复第一个新错误）。
+您必须实际打开并视觉检查运行 Playwright 脚本后的最新截图，而不仅仅是生成它们。确保屏幕上应该可见的所有内容实际上都是可见的。超越开始屏幕，捕获涵盖所有新添加功能的游戏玩法截图。将截图视为真实来源；如果缺少某些内容，则构建中缺少它。如果您怀疑无头/WebGL 捕获问题，请以有头模式重新运行 Playwright 脚本并重新检查。在紧密循环中修复并重新运行，直到截图和文本状态看起来正确。一旦修复得到验证，重新测试所有重要的交互和控制，确认它们工作，并确保您的更改没有引入回归。如果引入了，修复它们并在循环中重新运行所有内容，直到交互、文本状态和控制都按预期工作。详尽地测试控制；损坏的游戏是不可接受的。
 
-## Core Game Guidelines
+## 核心游戏指南
 
-### Canvas + Layout
-- Prefer a single canvas centered in the window.
+### 画布 + 布局
+- 首选窗口中居中的单个画布。
 
-### Visuals
-- Keep on-screen text minimal; show controls on a start/menu screen rather than overlaying them during play.
-- Avoid overly dark scenes unless the design calls for it. Make key elements easy to see.
-- Draw the background on the canvas itself instead of relying on CSS backgrounds.
+### 视觉效果
+- 保持屏幕上的文本最少；在开始/菜单屏幕上显示控制，而不是在游戏过程中叠加它们。
+- 避免过暗的场景，除非设计需要。使关键元素易于查看。
+- 在画布本身上绘制背景，而不是依赖 CSS 背景。
 
-### Text State Output (render_game_to_text)
-Expose a `window.render_game_to_text` function that returns a concise JSON string representing the current game state. The text should include enough information to play the game without visuals.
+### 文本状态输出（render_game_to_text）
+暴露一个 `window.render_game_to_text` 函数，返回表示当前游戏状态的简洁 JSON 字符串。文本应包含足够的信息，以便在没有视觉效果的情况下玩游戏。
 
-Minimal pattern:
+最小模式：
 ```js
 function renderGameToText() {
   const payload = {
@@ -99,14 +99,14 @@ function renderGameToText() {
 window.render_game_to_text = renderGameToText;
 ```
 
-Keep the payload succinct and biased toward on-screen/interactive elements. Prefer current, visible entities over full history.
-Include a clear coordinate system note (origin and axis directions), and encode all player-relevant state: player position/velocity, active obstacles/enemies, collectibles, timers/cooldowns, score, and any mode/state flags needed to make correct decisions. Avoid large histories; only include what's currently relevant and visible.
+保持载荷简洁并偏向屏幕上/可交互的元素。首选当前可见的实体而不是完整历史。
+包含清晰的坐标系说明（原点和轴方向），并编码所有与玩家相关的状态：玩家位置/速度、活动障碍物/敌人、可收集物、计时器/冷却时间、分数，以及做出正确决策所需的任何模式/状态标志。避免大型历史；仅包括当前相关和可见的内容。
 
-### Time Stepping Hook
-Provide a deterministic time-stepping hook so the Playwright client can advance the game in controlled increments. Expose `window.advanceTime(ms)` (or a thin wrapper that forwards to your game update loop) and have the game loop use it when present.
-The Playwright test script uses this hook to step frames deterministically during automated testing.
+### 时间步进钩子
+提供确定性时间步进钩子，以便 Playwright 客户端可以以受控增量推进游戏。暴露 `window.advanceTime(ms)`（或转发到游戏更新循环的薄包装器），并在存在时让游戏循环使用它。
+Playwright 测试脚本使用此钩子在自动化测试期间确定性地步进帧。
 
-Minimal pattern:
+最小模式：
 ```js
 window.advanceTime = (ms) => {
   const steps = Math.max(1, Math.round(ms / (1000 / 60)));
@@ -115,35 +115,35 @@ window.advanceTime = (ms) => {
 };
 ```
 
-### Fullscreen Toggle
-- Use a single key (prefer `f`) to toggle fullscreen on/off.
-- Allow `Esc` to exit fullscreen.
-- When fullscreen toggles, resize the canvas/rendering so visuals and input mapping stay correct.
+### 全屏切换
+- 使用单个键（首选 `f`）打开/关闭全屏。
+- 允许 `Esc` 退出全屏。
+- 当全屏切换时，调整画布/渲染大小，以便视觉效果和输入映射保持正确。
 
-## Progress Tracking
+## 进度跟踪
 
-Create a `progress.md` file if it doesn't exist, and append TODOs, notes, gotchas, and loose ends as you go so another agent can pick up seamlessly.
-If a `progress.md` file already exists, read it first, including the original user prompt at the top (you may be continuing another agent's work). Do not overwrite the original prompt; preserve it.
-Update `progress.md` after each meaningful chunk of work (feature added, bug found, test run, or decision made).
-At the end of your work, leave TODOs and suggestions for the next agent in `progress.md`.
+如果 `progress.md` 文件不存在，则创建它，并随着工作进展追加待办事项、笔记、陷阱和遗留问题，以便另一个代理可以无缝接手。
+如果 `progress.md` 文件已经存在，首先读取它，包括顶部的原始用户提示（您可能正在继续另一个代理的工作）。不要覆盖原始提示；保留它。
+在每个有意义的工作块之后更新 `progress.md`（添加功能、发现错误、运行测试或做出决定）。
+在工作结束时，在 `progress.md` 中为下一个代理留下待办事项和建议。
 
-## Playwright Prerequisites
+## Playwright 先决条件
 
-- Prefer a local `playwright` dependency if the project already has it.
-- If unsure whether Playwright is available, check for `npx`:
+- 如果项目已经有本地 `playwright` 依赖，则首选它。
+- 如果不确定 Playwright 是否可用，检查 `npx`：
   ```
   command -v npx >/dev/null 2>&1
   ```
-- If `npx` is missing, install Node/npm and then install Playwright globally:
+- 如果缺少 `npx`，安装 Node/npm，然后全局安装 Playwright：
   ```
   npm install -g @playwright/mcp@latest
   ```
-- Do not switch to `@playwright/test` unless explicitly asked; stick to the client script.
+- 除非明确要求，否则不要切换到 `@playwright/test`；坚持使用客户端脚本。
 
-## Scripts
+## 脚本
 
-- `$WEB_GAME_CLIENT` (installed default: `$SKILLS_ROOT/develop-web-game/scripts/web_game_playwright_client.js`) — Playwright-based action loop with virtual-time stepping, screenshot capture, and console error buffering. You must pass an action burst via `--actions-file`, `--actions-json`, or `--click`.
+- `$WEB_GAME_CLIENT`（安装默认值：`$SKILLS_ROOT/develop-web-game/scripts/web_game_playwright_client.js`）——基于 Playwright 的操作循环，具有虚拟时间步进、截图捕获和控制台错误缓冲。您必须通过 `--actions-file`、`--actions-json` 或 `--click` 传递操作突发。
 
-## References
+## 参考
 
-- `$WEB_GAME_ACTIONS` (installed default: `$SKILLS_ROOT/develop-web-game/references/action_payloads.json`) — example action payloads (keyboard + mouse, per-frame capture). Use these to build your burst.
+- `$WEB_GAME_ACTIONS`（安装默认值：`$SKILLS_ROOT/develop-web-game/references/action_payloads.json`）——示例操作载荷（键盘 + 鼠标，逐帧捕获）。使用这些来构建您的突发。

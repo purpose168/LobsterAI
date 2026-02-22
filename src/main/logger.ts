@@ -1,8 +1,8 @@
 /**
- * Logger module using electron-log
- * Intercepts console.* methods and writes to file + console simultaneously.
+ * 使用 electron-log 的日志模块
+ * 拦截 console.* 方法并同时写入文件和控制台。
  *
- * Log file locations:
+ * 日志文件位置：
  *   macOS:   ~/Library/Logs/LobsterAI/main.log
  *   Windows: %USERPROFILE%\AppData\Roaming\LobsterAI\logs\main.log
  *   Linux:   ~/.config/LobsterAI/logs/main.log
@@ -11,23 +11,23 @@
 import log from 'electron-log/main';
 
 /**
- * Initialize logging system.
- * Must be called early in main process, before any console output.
+ * 初始化日志系统。
+ * 必须在主进程早期调用，在任何控制台输出之前。
  */
 export function initLogger(): void {
-  // File transport config
+  // 文件传输配置
   log.transports.file.level = 'debug';
-  log.transports.file.maxSize = 10 * 1024 * 1024; // 10MB, then rotate to main.old.log
+  log.transports.file.maxSize = 10 * 1024 * 1024; // 10MB，然后轮转到 main.old.log
   log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
 
-  // Console transport config
+  // 控制台传输配置
   log.transports.console.level = 'debug';
   log.transports.console.format = '{text}';
 
-  // Intercept console.* methods so all existing console.log/error/warn
-  // across 25+ files are automatically captured without any code changes.
-  // electron-log correctly serializes Error objects (with stack traces),
-  // unlike JSON.stringify which outputs '{}' for Error instances.
+  // 拦截 console.* 方法，使得所有现有的 console.log/error/warn
+  // 在 25+ 个文件中都能自动被捕获，无需修改任何代码。
+  // electron-log 能正确序列化 Error 对象（包含堆栈跟踪），
+  // 不像 JSON.stringify 对 Error 实例只会输出 '{}'。
   const originalLog = console.log;
   const originalError = console.error;
   const originalWarn = console.warn;
@@ -55,24 +55,24 @@ export function initLogger(): void {
     log.debug(...args);
   };
 
-  // Disable electron-log's own console transport to avoid double printing
-  // (we already call originalLog above, so electron-log only needs to write to file)
+  // 禁用 electron-log 自身的控制台传输以避免重复打印
+  // （我们上面已经调用了 originalLog，所以 electron-log 只需要写入文件）
   log.transports.console.level = false;
 
-  // Log startup marker
+  // 记录启动标记
   log.info('='.repeat(60));
-  log.info(`LobsterAI started (${process.platform} ${process.arch})`);
+  log.info(`LobsterAI 已启动 (${process.platform} ${process.arch})`);
   log.info('='.repeat(60));
 }
 
 /**
- * Get the current log file path
+ * 获取当前日志文件路径
  */
 export function getLogFilePath(): string {
   return log.transports.file.getFile().path;
 }
 
 /**
- * Log instance for direct usage if needed
+ * 日志实例，供需要时直接使用
  */
 export { log };

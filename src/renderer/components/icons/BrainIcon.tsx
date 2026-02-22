@@ -1,7 +1,8 @@
 import React from 'react';
 
 /**
- * BrainIcon - 记忆图标，灯泡与闪电组合（Memory icon）
+ * BrainIcon - 记忆图标，灯泡与闪电组合
+ * 用于表示记忆、智能思维等功能的大脑图标组件
  */
 const BrainIcon: React.FC<{ className?: string }> = ({ className }) => {
   return (

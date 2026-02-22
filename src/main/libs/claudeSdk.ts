@@ -21,11 +21,11 @@ function getClaudeSdkPath(): string {
     );
   }
 
-  // In development, try to find the SDK in the project root node_modules
-  // app.getAppPath() might point to dist-electron or other build output directories
-  // We need to look in the project root
+  // 在开发环境中，尝试在项目根目录的 node_modules 中查找 SDK
+  // app.getAppPath() 可能指向 dist-electron 或其他构建输出目录
+  // 我们需要在项目根目录中查找
   const appPath = app.getAppPath();
-  // If appPath ends with dist-electron, go up one level
+  // 如果 appPath 以 dist-electron 结尾，则向上一级
   const rootDir = appPath.endsWith('dist-electron')
     ? join(appPath, '..')
     : appPath;
@@ -37,13 +37,13 @@ function getClaudeSdkPath(): string {
     'sdk.mjs'
   );
 
-  console.log('[ClaudeSDK] Resolved SDK path:', sdkPath);
+  console.log('[ClaudeSDK] 解析的 SDK 路径:', sdkPath);
   return sdkPath;
 }
 
 export function loadClaudeSdk(): Promise<ClaudeSdkModule> {
   if (!claudeSdkPromise) {
-    // Use runtime dynamic import so the CJS build can load the SDK's ESM entry.
+    // 使用运行时动态导入，以便 CJS 构建可以加载 SDK 的 ESM 入口。
     const dynamicImport = new Function('specifier', 'return import(specifier)') as (
       specifier: string
     ) => Promise<ClaudeSdkModule>;
@@ -51,7 +51,7 @@ export function loadClaudeSdk(): Promise<ClaudeSdkModule> {
     const sdkUrl = pathToFileURL(sdkPath).href;
     const sdkExists = existsSync(sdkPath);
 
-    coworkLog('INFO', 'loadClaudeSdk', 'Loading Claude SDK', {
+    coworkLog('INFO', 'loadClaudeSdk', '正在加载 Claude SDK', {
       sdkPath,
       sdkUrl,
       sdkExists,
@@ -60,7 +60,7 @@ export function loadClaudeSdk(): Promise<ClaudeSdkModule> {
     });
 
     claudeSdkPromise = dynamicImport(sdkUrl).catch((error) => {
-      coworkLog('ERROR', 'loadClaudeSdk', 'Failed to load Claude SDK', {
+      coworkLog('ERROR', 'loadClaudeSdk', '加载 Claude SDK 失败', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         sdkPath,

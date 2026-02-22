@@ -1,16 +1,19 @@
 import {loadFont} from '@remotion/google-fonts/Inter';
 import {AbsoluteFill, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
+// 加载 Google 字体
 const {fontFamily} = loadFont();
 
-const COLOR_BAR = '#D4AF37';
-const COLOR_TEXT = '#ffffff';
-const COLOR_MUTED = '#888888';
-const COLOR_BG = '#0a0a0a';
-const COLOR_AXIS = '#333333';
+// 定义颜色常量
+const COLOR_BAR = '#D4AF37'; // 柱状图颜色（金色）
+const COLOR_TEXT = '#ffffff'; // 文本颜色（白色）
+const COLOR_MUTED = '#888888'; // 次要文本颜色（灰色）
+const COLOR_BG = '#0a0a0a'; // 背景颜色（深黑色）
+const COLOR_AXIS = '#333333'; // 坐标轴颜色（深灰色）
 
-// Ideal composition size: 1280x720
+// 理想合成尺寸：1280x720
 
+// 标题组件：显示图表标题
 const Title: React.FC<{children: React.ReactNode}> = ({children}) => (
 	<div style={{textAlign: 'center', marginBottom: 40}}>
 		<div style={{color: COLOR_TEXT, fontSize: 48, fontWeight: 600}}>
@@ -19,6 +22,7 @@ const Title: React.FC<{children: React.ReactNode}> = ({children}) => (
 	</div>
 );
 
+// Y轴组件：显示垂直刻度值
 const YAxis: React.FC<{steps: number[]; height: number}> = ({
 	steps,
 	height,
@@ -50,9 +54,10 @@ const YAxis: React.FC<{steps: number[]; height: number}> = ({
 	</div>
 );
 
+// 柱状图组件：显示单个柱子
 const Bar: React.FC<{
-	height: number;
-	progress: number;
+	height: number; // 柱子高度
+	progress: number; // 动画进度（0-1）
 }> = ({height, progress}) => (
 	<div
 		style={{
@@ -74,10 +79,11 @@ const Bar: React.FC<{
 	</div>
 );
 
+// X轴组件：显示柱状图和底部标签
 const XAxis: React.FC<{
-	children: React.ReactNode;
-	labels: string[];
-	height: number;
+	children: React.ReactNode; // 柱状图子元素
+	labels: string[]; // X轴标签数组
+	height: number; // 图表高度
 }> = ({children, labels, height}) => (
 	<div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
 		<div
@@ -119,23 +125,25 @@ const XAxis: React.FC<{
 );
 
 export const MyAnimation = () => {
-	const frame = useCurrentFrame();
-	const {fps, height} = useVideoConfig();
+	const frame = useCurrentFrame(); // 获取当前帧
+	const {fps, height} = useVideoConfig(); // 获取视频配置（帧率和高度）
 
+	// 图表数据：2024年黄金价格
 	const data = [
-		{month: 'Jan', price: 2039},
-		{month: 'Mar', price: 2160},
-		{month: 'May', price: 2327},
-		{month: 'Jul', price: 2426},
-		{month: 'Sep', price: 2634},
-		{month: 'Nov', price: 2672},
+		{month: '1月', price: 2039},
+		{month: '3月', price: 2160},
+		{month: '5月', price: 2327},
+		{month: '7月', price: 2426},
+		{month: '9月', price: 2634},
+		{month: '11月', price: 2672},
 	];
 
-	const minPrice = 2000;
-	const maxPrice = 2800;
-	const priceRange = maxPrice - minPrice;
-	const chartHeight = height - 280;
-	const yAxisSteps = [2000, 2400, 2800];
+	// 计算图表参数
+	const minPrice = 2000; // 最低价格
+	const maxPrice = 2800; // 最高价格
+	const priceRange = maxPrice - minPrice; // 价格范围
+	const chartHeight = height - 280; // 图表高度
+	const yAxisSteps = [2000, 2400, 2800]; // Y轴刻度值
 
 	return (
 		<AbsoluteFill
@@ -147,18 +155,20 @@ export const MyAnimation = () => {
 				fontFamily,
 			}}
 		>
-			<Title>Gold Price 2024</Title>
+			<Title>2024年黄金价格</Title>
 
 			<div style={{display: 'flex', flex: 1}}>
 				<YAxis steps={yAxisSteps} height={chartHeight} />
 				<XAxis height={chartHeight} labels={data.map((d) => d.month)}>
 					{data.map((item, i) => {
+						// 计算每个柱子的动画进度
 						const progress = spring({
-							frame: frame - i * 5 - 10,
+							frame: frame - i * 5 - 10, // 延迟动画，每个柱子依次出现
 							fps,
-							config: {damping: 18, stiffness: 80},
+							config: {damping: 18, stiffness: 80}, // 弹簧动画配置
 						});
 
+						// 根据价格和动画进度计算柱子高度
 						const barHeight =
 							((item.price - minPrice) / priceRange) * chartHeight * progress;
 

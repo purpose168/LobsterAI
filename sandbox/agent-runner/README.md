@@ -1,5 +1,5 @@
-This directory contains the Cowork agent runner used in sandbox images.
+此目录包含用于沙箱镜像的 Cowork agent 运行器。
 
-Place the Node-based agent runner sources here and copy them into the VM image
-build pipeline. The VM image should build the runner and expose the `agentd`
-service as described in `sandbox/image/README.md`.
+将基于 Node 的 agent 运行器源码放置在此处，并将其复制到虚拟机镜像
+构建流程中。虚拟机镜像应构建该运行器并暴露 `agentd`
+服务，如 `sandbox/image/README.md` 中所述。

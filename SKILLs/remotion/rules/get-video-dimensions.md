@@ -1,57 +1,57 @@
 ---
 name: get-video-dimensions
-description: Getting the width and height of a video file with Mediabunny
+description: 使用 Mediabunny 获取视频文件的宽度和高度
 metadata:
   tags: dimensions, width, height, resolution, size, video
 ---
 
-# Getting video dimensions with Mediabunny
+# 使用 Mediabunny 获取视频尺寸
 
-Mediabunny can extract the width and height of a video file. It works in browser, Node.js, and Bun environments.
+Mediabunny 可以提取视频文件的宽度和高度。它支持浏览器、Node.js 和 Bun 环境。
 
-## Getting video dimensions
+## 获取视频尺寸
 
 ```tsx
 import { Input, ALL_FORMATS, UrlSource } from "mediabunny";
 
 export const getVideoDimensions = async (src: string) => {
   const input = new Input({
-    formats: ALL_FORMATS,
-    source: new UrlSource(src, {
-      getRetryDelay: () => null,
+    formats: ALL_FORMATS,           // 支持所有格式
+    source: new UrlSource(src, {    // 使用 URL 源
+      getRetryDelay: () => null,    // 禁用重试延迟
     }),
   });
 
-  const videoTrack = await input.getPrimaryVideoTrack();
+  const videoTrack = await input.getPrimaryVideoTrack();  // 获取主视频轨道
   if (!videoTrack) {
-    throw new Error("No video track found");
+    throw new Error("未找到视频轨道");  // 未找到视频轨道时抛出错误
   }
 
   return {
-    width: videoTrack.displayWidth,
-    height: videoTrack.displayHeight,
+    width: videoTrack.displayWidth,   // 视频显示宽度
+    height: videoTrack.displayHeight, // 视频显示高度
   };
 };
 ```
 
-## Usage
+## 使用方法
 
 ```tsx
 const dimensions = await getVideoDimensions("https://remotion.media/video.mp4");
-console.log(dimensions.width);  // e.g. 1920
-console.log(dimensions.height); // e.g. 1080
+console.log(dimensions.width);  // 例如：1920
+console.log(dimensions.height); // 例如：1080
 ```
 
-## Using with local files
+## 使用本地文件
 
-For local files, use `FileSource` instead of `UrlSource`:
+对于本地文件，使用 `FileSource` 代替 `UrlSource`：
 
 ```tsx
 import { Input, ALL_FORMATS, FileSource } from "mediabunny";
 
 const input = new Input({
   formats: ALL_FORMATS,
-  source: new FileSource(file), // File object from input or drag-drop
+  source: new FileSource(file),  // 来自输入框或拖放的 File 对象
 });
 
 const videoTrack = await input.getPrimaryVideoTrack();
@@ -59,7 +59,7 @@ const width = videoTrack.displayWidth;
 const height = videoTrack.displayHeight;
 ```
 
-## Using with staticFile in Remotion
+## 在 Remotion 中使用 staticFile
 
 ```tsx
 import { staticFile } from "remotion";

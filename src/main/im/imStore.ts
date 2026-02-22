@@ -1,6 +1,6 @@
 /**
- * IM Gateway Store
- * SQLite operations for IM configuration storage
+ * IM 网关存储
+ * 用于 IM 配置存储的 SQLite 操作
  */
 
 import { Database } from 'sql.js';
@@ -40,7 +40,7 @@ export class IMStore {
       );
     `);
 
-    // IM session mappings table for Cowork mode
+    // Cowork 模式的 IM 会话映射表
     this.db.run(`
       CREATE TABLE IF NOT EXISTS im_session_mappings (
         im_conversation_id TEXT NOT NULL,
@@ -56,7 +56,7 @@ export class IMStore {
   }
 
   /**
-   * Migrate existing IM configs to ensure stable defaults.
+   * 迁移现有的 IM 配置以确保稳定的默认值。
    */
   private migrateDefaults(): void {
     const platforms = ['dingtalk', 'feishu', 'telegram', 'discord'] as const;
@@ -78,7 +78,7 @@ export class IMStore {
           changed = true;
         }
       } catch {
-        // Ignore parse errors
+        // 忽略解析错误
       }
     }
 
@@ -86,8 +86,8 @@ export class IMStore {
     if (settingsResult[0]?.values[0]) {
       try {
         const settings = JSON.parse(settingsResult[0].values[0][0] as string) as Partial<IMSettings>;
-        // Keep IM and desktop behavior aligned: skills auto-routing should be on by default.
-        // Historical renderer default could persist `skillsEnabled: false` unintentionally.
+        // 保持 IM 和桌面端行为一致：技能自动路由默认应开启。
+        // 历史渲染器默认值可能会意外保留 `skillsEnabled: false`。
         if (settings.skillsEnabled !== true) {
           settings.skillsEnabled = true;
           const now = Date.now();
@@ -98,7 +98,7 @@ export class IMStore {
           changed = true;
         }
       } catch {
-        // Ignore parse errors
+        // 忽略解析错误
       }
     }
 
@@ -107,7 +107,7 @@ export class IMStore {
     }
   }
 
-  // ==================== Generic Config Operations ====================
+  // ==================== 通用配置操作 ====================
 
   private getConfigValue<T>(key: string): T | undefined {
     const result = this.db.exec('SELECT value FROM im_config WHERE key = ?', [key]);
@@ -116,7 +116,7 @@ export class IMStore {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      console.warn(`Failed to parse im_config value for ${key}`, error);
+      console.warn(`解析 ${key} 的 im_config 值失败`, error);
       return undefined;
     }
   }
@@ -133,7 +133,7 @@ export class IMStore {
     this.saveDb();
   }
 
-  // ==================== Full Config Operations ====================
+  // ==================== 完整配置操作 ====================
 
   getConfig(): IMGatewayConfig {
     const dingtalk = this.getConfigValue<DingTalkConfig>('dingtalk') ?? DEFAULT_DINGTALK_CONFIG;
@@ -142,11 +142,11 @@ export class IMStore {
     const discord = this.getConfigValue<DiscordConfig>('discord') ?? DEFAULT_DISCORD_CONFIG;
     const settings = this.getConfigValue<IMSettings>('settings') ?? DEFAULT_IM_SETTINGS;
 
-    // Resolve enabled field: default to false for safety
-    // User must explicitly enable the service by setting enabled: true
+    // 解析 enabled 字段：为安全起见默认为 false
+    // 用户必须通过设置 enabled: true 显式启用服务
     const resolveEnabled = <T extends { enabled?: boolean }>(stored: T, defaults: T): T => {
       const merged = { ...defaults, ...stored };
-      // If enabled is not explicitly set, default to false (safer behavior)
+      // 如果未显式设置 enabled，则默认为 false（更安全的行为）
       if (stored.enabled === undefined) {
         return { ...merged, enabled: false };
       }
@@ -180,7 +180,7 @@ export class IMStore {
     }
   }
 
-  // ==================== DingTalk Config ====================
+  // ==================== 钉钉配置 ====================
 
   getDingTalkConfig(): DingTalkConfig {
     const stored = this.getConfigValue<DingTalkConfig>('dingtalk');
@@ -192,7 +192,7 @@ export class IMStore {
     this.setConfigValue('dingtalk', { ...current, ...config });
   }
 
-  // ==================== Feishu Config ====================
+  // ==================== 飞书配置 ====================
 
   getFeishuConfig(): FeishuConfig {
     const stored = this.getConfigValue<FeishuConfig>('feishu');
@@ -204,7 +204,7 @@ export class IMStore {
     this.setConfigValue('feishu', { ...current, ...config });
   }
 
-  // ==================== Telegram Config ====================
+  // ==================== Telegram 配置 ====================
 
   getTelegramConfig(): TelegramConfig {
     const stored = this.getConfigValue<TelegramConfig>('telegram');
@@ -216,7 +216,7 @@ export class IMStore {
     this.setConfigValue('telegram', { ...current, ...config });
   }
 
-  // ==================== Discord Config ====================
+  // ==================== Discord 配置 ====================
 
   getDiscordConfig(): DiscordConfig {
     const stored = this.getConfigValue<DiscordConfig>('discord');
@@ -228,7 +228,7 @@ export class IMStore {
     this.setConfigValue('discord', { ...current, ...config });
   }
 
-  // ==================== IM Settings ====================
+  // ==================== IM 设置 ====================
 
   getIMSettings(): IMSettings {
     const stored = this.getConfigValue<IMSettings>('settings');
@@ -240,10 +240,10 @@ export class IMStore {
     this.setConfigValue('settings', { ...current, ...settings });
   }
 
-  // ==================== Utility ====================
+  // ==================== 工具方法 ====================
 
   /**
-   * Clear all IM configuration
+   * 清除所有 IM 配置
    */
   clearConfig(): void {
     this.db.run('DELETE FROM im_config');
@@ -251,7 +251,7 @@ export class IMStore {
   }
 
   /**
-   * Check if IM is configured (at least one platform has credentials)
+   * 检查 IM 是否已配置（至少有一个平台配置了凭据）
    */
   isConfigured(): boolean {
     const config = this.getConfig();
@@ -262,10 +262,10 @@ export class IMStore {
     return hasDingTalk || hasFeishu || hasTelegram || hasDiscord;
   }
 
-  // ==================== Session Mapping Operations ====================
+  // ==================== 会话映射操作 ====================
 
   /**
-   * Get session mapping by IM conversation ID and platform
+   * 根据 IM 会话 ID 和平台获取会话映射
    */
   getSessionMapping(imConversationId: string, platform: IMPlatform): IMSessionMapping | null {
     const result = this.db.exec(
@@ -284,7 +284,7 @@ export class IMStore {
   }
 
   /**
-   * Create a new session mapping
+   * 创建新的会话映射
    */
   createSessionMapping(imConversationId: string, platform: IMPlatform, coworkSessionId: string): IMSessionMapping {
     const now = Date.now();
@@ -303,7 +303,7 @@ export class IMStore {
   }
 
   /**
-   * Update last active time for a session mapping
+   * 更新会话映射的最后活跃时间
    */
   updateSessionLastActive(imConversationId: string, platform: IMPlatform): void {
     const now = Date.now();
@@ -315,7 +315,7 @@ export class IMStore {
   }
 
   /**
-   * Delete a session mapping
+   * 删除会话映射
    */
   deleteSessionMapping(imConversationId: string, platform: IMPlatform): void {
     this.db.run(
@@ -326,7 +326,7 @@ export class IMStore {
   }
 
   /**
-   * List all session mappings for a platform
+   * 列出指定平台的所有会话映射
    */
   listSessionMappings(platform?: IMPlatform): IMSessionMapping[] {
     const query = platform

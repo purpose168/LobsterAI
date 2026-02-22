@@ -4,15 +4,15 @@ import io
 from check_bounding_boxes import get_bounding_box_messages
 
 
-# Currently this is not run automatically in CI; it's just for documentation and manual checking.
+# 目前这不会在CI中自动运行；仅用于文档和手动检查。
 class TestGetBoundingBoxMessages(unittest.TestCase):
     
     def create_json_stream(self, data):
-        """Helper to create a JSON stream from data"""
+        """辅助方法：从数据创建JSON流"""
         return io.StringIO(json.dumps(data))
     
     def test_no_intersections(self):
-        """Test case with no bounding box intersections"""
+        """测试用例：没有边界框相交"""
         data = {
             "form_fields": [
                 {
@@ -36,14 +36,14 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("FAILURE" in msg for msg in messages))
     
     def test_label_entry_intersection_same_field(self):
-        """Test intersection between label and entry of the same field"""
+        """测试同一字段的标签和输入框之间的相交"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 60, 30],
-                    "entry_bounding_box": [50, 10, 150, 30]  # Overlaps with label
+                    "entry_bounding_box": [50, 10, 150, 30]  # 与标签重叠
                 }
             ]
         }
@@ -54,7 +54,7 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("SUCCESS" in msg for msg in messages))
     
     def test_intersection_between_different_fields(self):
-        """Test intersection between bounding boxes of different fields"""
+        """测试不同字段边界框之间的相交"""
         data = {
             "form_fields": [
                 {
@@ -66,7 +66,7 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
                 {
                     "description": "Email",
                     "page_number": 1,
-                    "label_bounding_box": [40, 20, 80, 40],  # Overlaps with Name's boxes
+                    "label_bounding_box": [40, 20, 80, 40],  # 与Name的框重叠
                     "entry_bounding_box": [160, 10, 250, 30]
                 }
             ]
@@ -78,7 +78,7 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("SUCCESS" in msg for msg in messages))
     
     def test_different_pages_no_intersection(self):
-        """Test that boxes on different pages don't count as intersecting"""
+        """测试不同页面上的框不计为相交"""
         data = {
             "form_fields": [
                 {
@@ -90,7 +90,7 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
                 {
                     "description": "Email",
                     "page_number": 2,
-                    "label_bounding_box": [10, 10, 50, 30],  # Same coordinates but different page
+                    "label_bounding_box": [10, 10, 50, 30],  # 相同坐标但不同页面
                     "entry_bounding_box": [60, 10, 150, 30]
                 }
             ]
@@ -102,16 +102,16 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("FAILURE" in msg for msg in messages))
     
     def test_entry_height_too_small(self):
-        """Test that entry box height is checked against font size"""
+        """测试输入框高度是否根据字体大小进行检查"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 50, 30],
-                    "entry_bounding_box": [60, 10, 150, 20],  # Height is 10
+                    "entry_bounding_box": [60, 10, 150, 20],  # 高度为10
                     "entry_text": {
-                        "font_size": 14  # Font size larger than height
+                        "font_size": 14  # 字体大小大于高度
                     }
                 }
             ]
@@ -123,16 +123,16 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("SUCCESS" in msg for msg in messages))
     
     def test_entry_height_adequate(self):
-        """Test that adequate entry box height passes"""
+        """测试足够的输入框高度通过检查"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 50, 30],
-                    "entry_bounding_box": [60, 10, 150, 30],  # Height is 20
+                    "entry_bounding_box": [60, 10, 150, 30],  # 高度为20
                     "entry_text": {
-                        "font_size": 14  # Font size smaller than height
+                        "font_size": 14  # 字体大小小于高度
                     }
                 }
             ]
@@ -144,15 +144,15 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("FAILURE" in msg for msg in messages))
     
     def test_default_font_size(self):
-        """Test that default font size is used when not specified"""
+        """测试未指定时使用默认字体大小"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 50, 30],
-                    "entry_bounding_box": [60, 10, 150, 20],  # Height is 10
-                    "entry_text": {}  # No font_size specified, should use default 14
+                    "entry_bounding_box": [60, 10, 150, 20],  # 高度为10
+                    "entry_text": {}  # 未指定font_size，应使用默认值14
                 }
             ]
         }
@@ -163,14 +163,14 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("SUCCESS" in msg for msg in messages))
     
     def test_no_entry_text(self):
-        """Test that missing entry_text doesn't cause height check"""
+        """测试缺少entry_text不会导致高度检查"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 50, 30],
-                    "entry_bounding_box": [60, 10, 150, 20]  # Small height but no entry_text
+                    "entry_bounding_box": [60, 10, 150, 20]  # 小高度但没有entry_text
                 }
             ]
         }
@@ -181,37 +181,37 @@ class TestGetBoundingBoxMessages(unittest.TestCase):
         self.assertFalse(any("FAILURE" in msg for msg in messages))
     
     def test_multiple_errors_limit(self):
-        """Test that error messages are limited to prevent excessive output"""
+        """测试错误消息数量限制以防止过多输出"""
         fields = []
-        # Create many overlapping fields
+        # 创建许多重叠的字段
         for i in range(25):
             fields.append({
                 "description": f"Field{i}",
                 "page_number": 1,
-                "label_bounding_box": [10, 10, 50, 30],  # All overlap
-                "entry_bounding_box": [20, 15, 60, 35]   # All overlap
+                "label_bounding_box": [10, 10, 50, 30],  # 全部重叠
+                "entry_bounding_box": [20, 15, 60, 35]   # 全部重叠
             })
         
         data = {"form_fields": fields}
         
         stream = self.create_json_stream(data)
         messages = get_bounding_box_messages(stream)
-        # Should abort after ~20 messages
+        # 应该在约20条消息后中止
         self.assertTrue(any("Aborting" in msg for msg in messages))
-        # Should have some FAILURE messages but not hundreds
+        # 应该有一些FAILURE消息但不会太多
         failure_count = sum(1 for msg in messages if "FAILURE" in msg)
         self.assertGreater(failure_count, 0)
-        self.assertLess(len(messages), 30)  # Should be limited
+        self.assertLess(len(messages), 30)  # 应该被限制
     
     def test_edge_touching_boxes(self):
-        """Test that boxes touching at edges don't count as intersecting"""
+        """测试边缘相接的框不计为相交"""
         data = {
             "form_fields": [
                 {
                     "description": "Name",
                     "page_number": 1,
                     "label_bounding_box": [10, 10, 50, 30],
-                    "entry_bounding_box": [50, 10, 150, 30]  # Touches at x=50
+                    "entry_bounding_box": [50, 10, 150, 30]  # 在x=50处相接
                 }
             ]
         }

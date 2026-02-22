@@ -3,29 +3,44 @@ import type { CoworkPermissionRequest, CoworkPermissionResult } from '../../type
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { i18nService } from '../../services/i18n';
 
+/**
+ * 协作权限模态框组件属性接口
+ */
 interface CoworkPermissionModalProps {
-  permission: CoworkPermissionRequest;
-  onRespond: (result: CoworkPermissionResult) => void;
+  permission: CoworkPermissionRequest; // 权限请求信息
+  onRespond: (result: CoworkPermissionResult) => void; // 响应回调函数
 }
 
+/**
+ * 问题选项类型定义
+ */
 type QuestionOption = {
-  label: string;
-  description?: string;
+  label: string; // 选项标签
+  description?: string; // 选项描述（可选）
 };
 
+/**
+ * 问题项类型定义
+ */
 type QuestionItem = {
-  question: string;
-  header?: string;
-  options: QuestionOption[];
-  multiSelect?: boolean;
+  question: string; // 问题内容
+  header?: string; // 问题标题（可选）
+  options: QuestionOption[]; // 选项列表
+  multiSelect?: boolean; // 是否允许多选（可选）
 };
 
+/**
+ * 协作权限模态框组件
+ * 用于显示权限请求并让用户批准或拒绝
+ */
 const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
   permission,
   onRespond,
 }) => {
+  // 获取工具输入参数，默认为空对象
   const toolInput = permission.toolInput ?? {};
 
+  // 解析问题列表（仅当工具为 AskUserQuestion 时）
   const questions = useMemo<QuestionItem[]>(() => {
     if (permission.toolName !== 'AskUserQuestion') return [];
     if (!toolInput || typeof toolInput !== 'object') return [];
@@ -36,6 +51,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
       .map((question) => {
         if (!question || typeof question !== 'object') return null;
         const record = question as Record<string, unknown>;
+        // 解析选项列表
         const options = Array.isArray(record.options)
           ? record.options
               .map((option) => {
@@ -52,6 +68,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
               .filter(Boolean) as QuestionOption[]
           : [];
 
+        // 验证问题格式是否正确
         if (typeof record.question !== 'string' || options.length === 0) {
           return null;
         }
@@ -66,16 +83,20 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
       .filter(Boolean) as QuestionItem[];
   }, [permission.toolName, toolInput]);
 
+  // 判断是否为问题工具
   const isQuestionTool = questions.length > 0;
 
+  // 存储用户回答的状态
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
+  // 初始化或更新回答状态
   useEffect(() => {
     if (!isQuestionTool) {
       setAnswers({});
       return;
     }
 
+    // 从工具输入中获取初始回答
     const rawAnswers = (toolInput as Record<string, unknown>).answers;
     if (rawAnswers && typeof rawAnswers === 'object') {
       const initial: Record<string, string> = {};
@@ -90,6 +111,11 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
     }
   }, [isQuestionTool, permission.requestId, toolInput]);
 
+  /**
+   * 格式化工具输入为可读字符串
+   * @param input - 工具输入对象
+   * @returns 格式化后的 JSON 字符串
+   */
   const formatToolInput = (input: Record<string, unknown>): string => {
     try {
       return JSON.stringify(input, null, 2);
@@ -98,36 +124,51 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
     }
   };
 
+  // 检测是否为危险的 Bash 命令
   const isDangerousBash = (() => {
     if (permission.toolName !== 'Bash') return false;
     const command = String((permission.toolInput as Record<string, unknown>)?.command ?? '');
+    // 定义危险命令模式列表
     const dangerousPatterns = [
-      /\brm\s+-rf?\b/i,
-      /\bsudo\b/i,
-      /\bdd\b/i,
-      /\bmkfs\b/i,
-      /\bformat\b/i,
-      />\s*\/dev\//i,
+      /\brm\s+-rf?\b/i, // 删除命令
+      /\bsudo\b/i, // 超级用户权限
+      /\bdd\b/i, // 磁盘操作
+      /\bmkfs\b/i, // 格式化文件系统
+      /\bformat\b/i, // 格式化命令
+      />\s*\/dev\//i, // 重定向到设备文件
     ];
     return dangerousPatterns.some(pattern => pattern.test(command));
   })();
 
+  /**
+   * 获取问题已选择的值
+   * @param question - 问题项
+   * @returns 已选择的值数组
+   */
   const getSelectedValues = (question: QuestionItem): string[] => {
     const rawValue = answers[question.question] ?? '';
     if (!rawValue) return [];
     if (!question.multiSelect) return [rawValue];
+    // 多选模式下，使用 '|||' 分隔符拆分值
     return rawValue
       .split('|||')
       .map((value) => value.trim())
       .filter(Boolean);
   };
 
+  /**
+   * 处理选项选择事件
+   * @param question - 问题项
+   * @param optionLabel - 选项标签
+   */
   const handleSelectOption = (question: QuestionItem, optionLabel: string) => {
     setAnswers((prev) => {
+      // 单选模式：直接替换
       if (!question.multiSelect) {
         return { ...prev, [question.question]: optionLabel };
       }
 
+      // 多选模式：切换选项状态
       const rawValue = prev[question.question] ?? '';
       const current = new Set(
         rawValue
@@ -148,10 +189,12 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
     });
   };
 
+  // 检查是否所有问题都已回答
   const isComplete = isQuestionTool
     ? questions.every((question) => (answers[question.question] ?? '').trim())
     : true;
 
+  // 根据工具类型设置按钮标签
   const denyButtonLabel = isQuestionTool
     ? i18nService.t('coworkDenyRequest')
     : i18nService.t('coworkDeny');
@@ -159,9 +202,13 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
     ? i18nService.t('coworkConfirmSelection')
     : i18nService.t('coworkApprove');
 
+  /**
+   * 处理批准操作
+   */
   const handleApprove = () => {
     if (isQuestionTool) {
       if (!isComplete) return;
+      // 问题工具：返回带有用户回答的结果
       onRespond({
         behavior: 'allow',
         updatedInput: {
@@ -172,23 +219,27 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
       return;
     }
 
+    // 其他工具：直接批准
     onRespond({
       behavior: 'allow',
       updatedInput: toolInput && typeof toolInput === 'object' ? toolInput : {},
     });
   };
 
+  /**
+   * 处理拒绝操作
+   */
   const handleDeny = () => {
     onRespond({
       behavior: 'deny',
-      message: 'Permission denied',
+      message: '权限被拒绝',
     });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
       <div className="modal-content w-full max-w-lg mx-4 dark:bg-claude-darkSurface bg-claude-surface rounded-2xl shadow-modal overflow-hidden">
-        {/* Header */}
+        {/* 标题栏 */}
         <div className="flex items-center gap-3 px-6 py-4 border-b dark:border-claude-darkBorder border-claude-border">
           <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
             <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-500" />
@@ -204,13 +255,13 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
           <button
             onClick={handleDeny}
             className="p-2 rounded-lg dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover dark:text-claude-darkTextSecondary text-claude-textSecondary transition-colors"
-            aria-label="Close"
+            aria-label="关闭"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content */}
+        {/* 内容区域 */}
         <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {isQuestionTool ? (
             <>
@@ -259,7 +310,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
             </>
           ) : (
             <>
-              {/* Tool name */}
+              {/* 工具名称 */}
               <div>
                 <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary uppercase tracking-wider mb-1">
                   {i18nService.t('coworkToolName')}
@@ -271,7 +322,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
                 </div>
               </div>
 
-              {/* Tool input */}
+              {/* 工具输入 */}
               <div>
                 <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary uppercase tracking-wider mb-1">
                   {i18nService.t('coworkToolInput')}
@@ -283,7 +334,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
                 </div>
               </div>
 
-              {/* Warning for dangerous operations */}
+              {/* 危险操作警告 */}
               {isDangerousBash && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                   <ExclamationTriangleIcon className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -296,7 +347,7 @@ const CoworkPermissionModal: React.FC<CoworkPermissionModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
+        {/* 底部按钮栏 */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t dark:border-claude-darkBorder border-claude-border">
           <button
             onClick={handleDeny}

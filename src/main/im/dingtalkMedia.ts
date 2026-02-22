@@ -1,5 +1,4 @@
 /**
- * DingTalk Media Upload Utilities
  * 钉钉媒体上传工具函数
  */
 import axios from 'axios';
@@ -8,28 +7,31 @@ import * as path from 'path';
 import FormData from 'form-data';
 
 const DINGTALK_OAPI = 'https://oapi.dingtalk.com';
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 最大文件大小限制：20MB
 
-// 旧版 oapi access_token 缓存
+// 旧版 oapi access_token 缓存（旧版接口访问令牌缓存）
 let oapiAccessToken: string | null = null;
 let oapiTokenExpiry = 0;
 
 export type DingTalkMediaType = 'image' | 'voice' | 'video' | 'file';
 
 export interface MediaUploadResult {
-  success: boolean;
-  mediaId?: string;
-  error?: string;
+  success: boolean;  // 上传是否成功
+  mediaId?: string;  // 媒体文件ID（上传成功时返回）
+  error?: string;    // 错误信息（上传失败时返回）
 }
 
 // 文件扩展名分类
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-const AUDIO_EXTENSIONS = ['.ogg', '.amr', '.mp3', '.wav', '.m4a', '.aac'];
-const VIDEO_EXTENSIONS = ['.mp4', '.mov'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];  // 图片文件扩展名
+const AUDIO_EXTENSIONS = ['.ogg', '.amr', '.mp3', '.wav', '.m4a', '.aac'];    // 音频文件扩展名
+const VIDEO_EXTENSIONS = ['.mp4', '.mov'];                                     // 视频文件扩展名
 
 /**
- * 获取旧版 oapi access_token
- * 旧版 oapi 接口需要使用不同的 token 获取方式
+ * 获取旧版 oapi access_token（访问令牌）
+ * 说明：旧版 oapi 接口需要使用不同的 token 获取方式
+ * @param appKey - 应用的 AppKey
+ * @param appSecret - 应用的 AppSecret
+ * @returns 返回访问令牌
  */
 export async function getOapiAccessToken(appKey: string, appSecret: string): Promise<string> {
   const now = Date.now();
@@ -63,6 +65,11 @@ export async function getOapiAccessToken(appKey: string, appSecret: string): Pro
 
 /**
  * 上传媒体文件到钉钉
+ * @param accessToken - 访问令牌
+ * @param filePath - 文件路径（支持 file:// 协议）
+ * @param mediaType - 媒体类型（image/voice/video/file）
+ * @param fileName - 可选的自定义文件名
+ * @returns 返回上传结果
  */
 export async function uploadMediaToDingTalk(
   accessToken: string,
@@ -138,6 +145,8 @@ export async function uploadMediaToDingTalk(
 
 /**
  * 根据文件扩展名确定媒体类型
+ * @param filePath - 文件路径
+ * @returns 返回媒体类型（image/voice/video/file）
  */
 export function detectMediaType(filePath: string): DingTalkMediaType {
   const ext = path.extname(filePath).toLowerCase();
@@ -149,6 +158,8 @@ export function detectMediaType(filePath: string): DingTalkMediaType {
 
 /**
  * 获取文件 MIME 类型
+ * @param filePath - 文件路径
+ * @returns 返回 MIME 类型字符串
  */
 export function getMimeType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
@@ -173,6 +184,8 @@ export function getMimeType(filePath: string): string {
 
 /**
  * 判断文件路径是否为图片
+ * @param filePath - 文件路径
+ * @returns 如果是图片返回 true，否则返回 false
  */
 export function isImagePath(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();

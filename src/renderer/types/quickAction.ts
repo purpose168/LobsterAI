@@ -1,5 +1,5 @@
 /**
- * QuickAction 类型定义
+ * 快捷操作类型定义
  * 用于首页快捷操作功能
  */
 
@@ -31,11 +31,11 @@ export interface LocalizedPrompt {
 export interface QuickAction {
   /** 唯一标识 */
   id: string;
-  /** 图标名称（Heroicons） */
+  /** 图标名称（Heroicons图标库） */
   icon: string;
-  /** 主题色（hex） */
+  /** 主题色（十六进制颜色值） */
   color: string;
-  /** 映射到 Skill ID */
+  /** 映射到技能ID */
   skillMapping: string;
   /** 预制提示词列表 */
   prompts: Prompt[];
@@ -49,11 +49,11 @@ export interface LocalizedQuickAction {
   id: string;
   /** 显示标题 */
   label: string;
-  /** 图标名称（Heroicons） */
+  /** 图标名称（Heroicons图标库） */
   icon: string;
-  /** 主题色（hex） */
+  /** 主题色（十六进制颜色值） */
   color: string;
-  /** 映射到 Skill ID */
+  /** 映射到技能ID */
   skillMapping: string;
   /** 预制提示词列表（已本地化） */
   prompts: LocalizedPrompt[];
@@ -78,12 +78,19 @@ export interface QuickActionsI18n {
 }
 
 export interface QuickActionsI18nData {
+  // 快捷操作ID映射到对应的本地化数据
   [actionId: string]: {
+    // 显示标题
     label: string;
+    // 预制提示词映射
     prompts: {
+      // 提示词ID映射到对应的本地化数据
       [promptId: string]: {
+        // 显示标题
         label: string;
+        // 简短描述
         description?: string;
+        // 完整提示词内容
         prompt: string;
       };
     };

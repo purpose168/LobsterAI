@@ -58,11 +58,12 @@ const waitForNextFrame = (): Promise<void> =>
     window.requestAnimationFrame(() => resolve());
   });
 
+// 从Base64加载图片
 const loadImageFromBase64 = (pngBase64: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Failed to decode captured image'));
+    img.onerror = () => reject(new Error('解码捕获的图片失败'));
     img.src = `data:image/png;base64,${pngBase64}`;
   });
 
@@ -73,7 +74,7 @@ const domRectToCaptureRect = (rect: DOMRect): CaptureRect => ({
   height: Math.max(0, Math.round(rect.height)),
 });
 
-// PushPinIcon component for pin/unpin functionality
+// 图钉图标组件，用于固定/取消固定功能
 const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean }> = ({
   slashed,
   ...props
@@ -615,12 +616,12 @@ const ToolCallGroup: React.FC<{
   const [isExpanded, setIsExpanded] = useState(false);
   const resultLineCount = getToolResultLineCount(toolResultDisplay);
 
-  // Check if this is a Bash-like tool that should show terminal style
+  // 检查是否为Bash类工具，需要显示终端样式
   const isBashTool = toolName === 'Bash';
 
   return (
     <div className="relative py-1">
-      {/* Vertical connecting line to next tool group */}
+      {/* 连接到下一个工具组的垂直连接线 */}
       {!isLastInSequence && (
         <div className="absolute left-[3.5px] top-[14px] bottom-[-8px] w-px dark:bg-claude-darkTextSecondary/30 bg-claude-textSecondary/30" />
       )}
@@ -648,7 +649,7 @@ const ToolCallGroup: React.FC<{
           </div>
           {toolResult && resultLineCount > 0 && !isTodoWriteTool && (
             <div className="text-xs dark:text-claude-darkTextSecondary/60 text-claude-textSecondary/60 mt-0.5">
-              {resultLineCount} {resultLineCount === 1 ? 'line' : 'lines'} of output
+              {resultLineCount} 行输出
             </div>
           )}
           {!toolResult && (
@@ -661,16 +662,16 @@ const ToolCallGroup: React.FC<{
       {isExpanded && (
         <div className="ml-4 mt-2">
           {isBashTool ? (
-            // Terminal-style display for Bash commands
+            // Bash命令的终端样式显示
             <div className="rounded-lg overflow-hidden border dark:border-claude-darkBorder border-claude-border">
-              {/* Terminal header */}
+              {/* 终端标题栏 */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 dark:bg-claude-darkSurface bg-claude-surfaceInset">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                <span className="ml-2 text-[10px] dark:text-claude-darkTextSecondary text-claude-textSecondary font-medium">Terminal</span>
+                <span className="ml-2 text-[10px] dark:text-claude-darkTextSecondary text-claude-textSecondary font-medium">终端</span>
               </div>
-              {/* Terminal content */}
+              {/* 终端内容 */}
               <div className="dark:bg-claude-darkSurfaceInset bg-claude-surfaceInset px-3 py-3 max-h-72 overflow-y-auto font-mono text-xs">
                 {toolInputDisplay && (
                   <div className="dark:text-claude-darkText text-claude-text">
@@ -695,7 +696,7 @@ const ToolCallGroup: React.FC<{
           ) : isTodoWriteTool && todoItems ? (
             <TodoWriteInputView items={todoItems} />
           ) : (
-            // Standard display for other tools with input/output labels
+            // 其他工具的标准显示，带有输入/输出标签
             <div className="space-y-2">
               {toolInputDisplay && (
                 <div>
@@ -731,7 +732,7 @@ const ToolCallGroup: React.FC<{
   );
 };
 
-// Copy button component
+// 复制按钮组件
 const CopyButton: React.FC<{
   content: string;
   visible: boolean;
@@ -745,7 +746,7 @@ const CopyButton: React.FC<{
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error('复制失败:', err);
     }
   };
 
@@ -798,7 +799,7 @@ const CopyButton: React.FC<{
 const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = ({ message, skills }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Get skills used for this message
+  // 获取此消息使用的技能
   const messageSkillIds = (message.metadata as CoworkMessageMetadata)?.skillIds || [];
   const messageSkills = messageSkillIds
     .map(id => skills.find(s => s.id === id))
@@ -885,9 +886,9 @@ const AssistantMessageItem: React.FC<{
   );
 };
 
-// Streaming activity bar shown between messages and input
+// 消息和输入之间显示的流式活动栏
 const StreamingActivityBar: React.FC<{ messages: CoworkMessage[] }> = ({ messages }) => {
-  // Walk messages backwards to find the latest tool_use without a paired tool_result
+  // 向后遍历消息以查找最新未配对tool_result的tool_use
   const getStatusText = (): string => {
     const toolUseIds = new Set<string>();
     const toolResultIds = new Set<string>();
@@ -898,7 +899,7 @@ const StreamingActivityBar: React.FC<{ messages: CoworkMessage[] }> = ({ message
         if (msg.type === 'tool_use') toolUseIds.add(id);
       }
     }
-    // Walk backwards to find latest unresolved tool_use
+    // 向后遍历以查找最新未解决的tool_use
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.type === 'tool_use') {
@@ -944,7 +945,7 @@ const ThinkingBlock: React.FC<{
   const [isExpanded, setIsExpanded] = useState(isCurrentlyStreaming);
   const displayContent = mapDisplayText ? mapDisplayText(message.content) : message.content;
 
-  // Auto-expand while streaming, auto-collapse when streaming completes
+  // 流式传输时自动展开，流式传输完成时自动折叠
   useEffect(() => {
     if (isCurrentlyStreaming) {
       setIsExpanded(true);
@@ -1033,9 +1034,9 @@ const AssistantTurnBlock: React.FC<{
             </div>
             {resultLineCount > 0 && (
               <div className="text-xs dark:text-claude-darkTextSecondary/60 text-claude-textSecondary/60 mt-0.5">
-                {resultLineCount} {resultLineCount === 1 ? 'line' : 'lines'} of output
-              </div>
-            )}
+              {resultLineCount} 行输出
+            </div>
+          )}
             <div className="mt-2 px-3 py-2 rounded-lg dark:bg-claude-darkSurface/50 bg-claude-surface/50 max-h-64 overflow-y-auto">
               <pre className={`text-xs whitespace-pre-wrap break-words font-mono ${
                 isToolError ? 'text-red-500' : 'dark:text-claude-darkText text-claude-text'
@@ -1065,7 +1066,7 @@ const AssistantTurnBlock: React.FC<{
                     />
                   );
                 }
-                // Check if there are any tool_group items after this assistant message
+                // 检查此助手消息后是否有任何tool_group项
                 const hasToolGroupAfter = visibleAssistantItems
                   .slice(index + 1)
                   .some(laterItem => laterItem.type === 'tool_group');
@@ -1138,20 +1139,20 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-  // Menu and action states
+  // 菜单和操作状态
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const actionButtonRef = useRef<HTMLButtonElement>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isExportingImage, setIsExportingImage] = useState(false);
 
-  // Rename states
+  // 重命名状态
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
   const ignoreNextBlurRef = useRef(false);
 
-  // Reset rename value when session changes
+  // 会话更改时重置重命名值
   useEffect(() => {
     if (!isRenaming && currentSession) {
       setRenameValue(currentSession.title);
@@ -1163,7 +1164,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     setShouldAutoScroll(true);
   }, [currentSession?.id]);
 
-  // Focus rename input when entering rename mode
+  // 进入重命名模式时聚焦重命名输入框
   useEffect(() => {
     if (!isRenaming) return;
     requestAnimationFrame(() => {
@@ -1172,7 +1173,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     });
   }, [isRenaming]);
 
-  // Close menu on outside click
+  // 点击外部时关闭菜单
   useEffect(() => {
     if (!menuPosition) return;
     const handleClickOutside = (event: MouseEvent) => {
@@ -1199,13 +1200,13 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     };
   }, [menuPosition]);
 
-  // Helper: truncate path for display
+  // 辅助函数：截断路径用于显示
   const truncatePath = (path: string, maxLength = 20): string => {
     if (!path) return i18nService.t('noFolderSelected');
     return getCompactFolderName(path, maxLength) || i18nService.t('noFolderSelected');
   };
 
-  // Menu position calculator
+  // 菜单位置计算器
   const calculateMenuPosition = (height: number) => {
     const rect = actionButtonRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -1239,17 +1240,17 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     setShowConfirmDelete(false);
   };
 
-  // Open folder in Finder/Explorer
+  // 在Finder/资源管理器中打开文件夹
   const handleOpenFolder = useCallback(async () => {
     if (!currentSession?.cwd) return;
     try {
       await window.electron.shell.openPath(currentSession.cwd);
     } catch (error) {
-      console.error('Failed to open folder:', error);
+      console.error('打开文件夹失败:', error);
     }
   }, [currentSession?.cwd]);
 
-  // Rename handlers
+  // 重命名处理程序
   const handleRenameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentSession) return;
@@ -1288,7 +1289,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     handleRenameSave(event);
   };
 
-  // Pin/unpin handler
+  // 固定/取消固定处理程序
   const handleTogglePin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentSession) return;
@@ -1296,7 +1297,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     closeMenu();
   };
 
-  // Delete handlers
+  // 删除处理程序
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowConfirmDelete(true);
@@ -1314,18 +1315,18 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         try {
           const scrollContainer = scrollContainerRef.current;
           if (!scrollContainer) {
-            throw new Error('Capture target not found');
+            throw new Error('捕获目标未找到');
           }
           const initialScrollTop = scrollContainer.scrollTop;
           try {
             const scrollRect = domRectToCaptureRect(scrollContainer.getBoundingClientRect());
             if (scrollRect.width <= 0 || scrollRect.height <= 0) {
-              throw new Error('Invalid capture area');
+              throw new Error('无效的捕获区域');
             }
 
             const scrollContentHeight = Math.max(scrollContainer.scrollHeight, scrollContainer.clientHeight);
             if (scrollContentHeight <= 0) {
-              throw new Error('Invalid content height');
+              throw new Error('无效的内容高度');
             }
 
             const toContentY = (viewportY: number): number => {
@@ -1360,12 +1361,12 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
             const outputHeight = contentEnd - contentStart;
 
             if (outputHeight > MAX_EXPORT_CANVAS_HEIGHT) {
-              throw new Error(`Export image is too tall (${outputHeight}px)`);
+              throw new Error(`导出图片过高 (${outputHeight}px)`);
             }
 
             const segmentsEstimate = Math.ceil(outputHeight / Math.max(1, scrollRect.height)) + 1;
             if (segmentsEstimate > MAX_EXPORT_SEGMENTS) {
-              throw new Error('Export image is too long');
+              throw new Error('导出图片过长');
             }
 
             const canvas = document.createElement('canvas');
@@ -1373,13 +1374,13 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
             canvas.height = outputHeight;
             const context = canvas.getContext('2d');
             if (!context) {
-              throw new Error('Canvas context unavailable');
+              throw new Error('Canvas上下文不可用');
             }
 
             const captureAndLoad = async (rect: CaptureRect): Promise<HTMLImageElement> => {
               const chunk = await coworkService.captureSessionImageChunk({ rect });
               if (!chunk.success || !chunk.pngBase64) {
-                throw new Error(chunk.error || 'Failed to capture image chunk');
+                throw new Error(chunk.error || '捕获图片块失败');
               }
               return loadImageFromBase64(chunk.pngBase64);
             };
@@ -1400,7 +1401,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
               const sourceYOffset = Math.max(0, contentOffset - targetScrollTop);
               const drawableHeight = Math.min(scrollRect.height - sourceYOffset, contentEnd - contentOffset);
               if (drawableHeight <= 0) {
-                throw new Error('Failed to stitch export image');
+                throw new Error('拼接导出图片失败');
               }
               const scaleY = chunkImage.naturalHeight / scrollRect.height;
               const sourceYInImage = Math.max(0, Math.round(sourceYOffset * scaleY));
@@ -1427,7 +1428,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
             const pngDataUrl = canvas.toDataURL('image/png');
             const base64Index = pngDataUrl.indexOf(',');
             if (base64Index < 0) {
-              throw new Error('Failed to encode export image');
+              throw new Error('编码导出图片失败');
             }
 
             const timestamp = formatExportTimestamp(new Date());
@@ -1442,13 +1443,13 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
               return;
             }
             if (!saveResult.success) {
-              throw new Error(saveResult.error || 'Failed to export image');
+              throw new Error(saveResult.error || '导出图片失败');
             }
           } finally {
             scrollContainer.scrollTop = initialScrollTop;
           }
         } catch (error) {
-          console.error('Failed to export session image:', error);
+          console.error('导出会话图片失败:', error);
           window.dispatchEvent(new CustomEvent('app:showToast', {
             detail: i18nService.t('coworkExportImageFailed'),
           }));
@@ -1481,7 +1482,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     setShouldAutoScroll((prev) => (prev === isNearBottom ? prev : isNearBottom));
   }, []);
 
-  // Get the last message content for auto-scroll on streaming updates
+  // 获取最后一条消息内容，用于流式更新时的自动滚动
   const lastMessage = currentSession?.messages?.[currentSession.messages.length - 1];
   const lastMessageContent = lastMessage?.content;
 
@@ -1490,7 +1491,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     const textValue = typeof text === 'string' ? text.trim() : '';
     if (!hrefValue && !textValue) return null;
 
-    // In sandbox mode, translate VM guest paths to host paths.
+    // 在沙箱模式下，将虚拟机访客路径转换为主机路径
     const mapSandboxPath = (filePath: string): string => {
       if (
         currentSession?.executionMode !== 'sandbox' ||
@@ -1542,7 +1543,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
     return mapSandboxGuestPathsInText(value, currentSession?.cwd);
   }, [currentSession?.cwd, currentSession?.executionMode]);
 
-  // Auto scroll to bottom when new messages arrive or content updates (streaming)
+  // 当新消息到达或内容更新时（流式传输）自动滚动到底部
   useEffect(() => {
     if (!shouldAutoScroll) {
       return;
@@ -1608,9 +1609,9 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
   return (
     <div ref={detailRootRef} className="flex-1 flex flex-col dark:bg-claude-darkBg bg-claude-bg h-full">
-      {/* Header */}
+      {/* 标题栏 */}
       <div className="draggable flex h-12 items-center justify-between px-4 border-b dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface/50 bg-claude-surface/50 shrink-0">
-        {/* Left side: Toggle buttons (when collapsed) + Title + Sandbox badge */}
+        {/* 左侧：切换按钮（折叠时）+ 标题 + 沙箱徽章 */}
         <div className="flex h-full items-center gap-2 min-w-0">
           {isSidebarCollapsed && (
             <div className={`non-draggable flex items-center gap-1 ${isMac ? 'pl-[68px]' : ''}`}>
@@ -1741,7 +1742,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* 删除确认模态框 */}
       {showConfirmDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
@@ -1761,7 +1762,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
               </h2>
             </div>
 
-            {/* Content */}
+            {/* 内容 */}
             <div className="px-5 pb-4">
               <p className="text-sm dark:text-claude-darkTextSecondary text-claude-textSecondary">
                 {i18nService.t('deleteTaskConfirmMessage')}
@@ -1787,7 +1788,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         </div>
       )}
 
-      {/* Messages */}
+      {/* 消息列表 */}
       <div
         ref={scrollContainerRef}
         onScroll={handleMessagesScroll}

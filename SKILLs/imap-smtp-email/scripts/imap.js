@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * IMAP Email CLI
- * Works with any standard IMAP server (Gmail, ProtonMail Bridge, Fastmail, etc.)
- * Supports IMAP ID extension (RFC 2971) for 163.com and other servers
+ * IMAP 邮件命令行工具
+ * 适用于任何标准 IMAP 服务器（Gmail、ProtonMail Bridge、Fastmail 等）
+ * 支持 IMAP ID 扩展（RFC 2971）以兼容 163.com 等服务器
  */
 
 const Imap = require('imap');
@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-// IMAP ID information for 163.com compatibility
+// IMAP ID 信息，用于 163.com 兼容性
 const IMAP_ID = {
   name: 'moltbot',
   version: '0.0.1',
@@ -22,7 +22,7 @@ const IMAP_ID = {
 
 const DEFAULT_MAILBOX = process.env.IMAP_MAILBOX || 'INBOX';
 
-// Parse command-line arguments
+// 解析命令行参数
 function parseArgs() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -44,7 +44,7 @@ function parseArgs() {
   return { command, options, positional };
 }
 
-// Create IMAP connection config
+// 创建 IMAP 连接配置
 function createImapConfig() {
   return {
     user: process.env.IMAP_USER,
@@ -60,41 +60,41 @@ function createImapConfig() {
   };
 }
 
-// Connect to IMAP server with ID support
+// 连接到 IMAP 服务器，支持 ID 扩展
 async function connect() {
   const config = createImapConfig();
 
   if (!config.user || !config.password) {
-    throw new Error('Missing IMAP_USER or IMAP_PASS environment variables');
+    throw new Error('缺少 IMAP_USER 或 IMAP_PASS 环境变量');
   }
 
   return new Promise((resolve, reject) => {
     const imap = new Imap(config);
 
     imap.once('ready', () => {
-      // Send IMAP ID command for 163.com compatibility
+      // 发送 IMAP ID 命令以兼容 163.com
       if (typeof imap.id === 'function') {
         imap.id(IMAP_ID, (err) => {
           if (err) {
-            console.warn('Warning: IMAP ID command failed:', err.message);
+            console.warn('警告：IMAP ID 命令失败：', err.message);
           }
           resolve(imap);
         });
       } else {
-        // ID not supported, continue without it
+        // 不支持 ID，继续执行
         resolve(imap);
       }
     });
 
     imap.once('error', (err) => {
-      reject(new Error(`IMAP connection failed: ${err.message}`));
+      reject(new Error(`IMAP 连接失败：${err.message}`));
     });
 
     imap.connect();
   });
 }
 
-// Open mailbox and return promise
+// 打开邮箱并返回 Promise
 function openBox(imap, mailbox, readOnly = false) {
   return new Promise((resolve, reject) => {
     imap.openBox(mailbox, readOnly, (err, box) => {
@@ -104,7 +104,7 @@ function openBox(imap, mailbox, readOnly = false) {
   });
 }
 
-// Search for messages
+// 搜索邮件
 function searchMessages(imap, criteria, fetchOptions) {
   return new Promise((resolve, reject) => {
     imap.search(criteria, (err, results) => {
@@ -160,14 +160,14 @@ function searchMessages(imap, criteria, fetchOptions) {
   });
 }
 
-// Parse email from raw buffer
+// 从原始缓冲区解析邮件
 async function parseEmail(bodyStr, includeAttachments = false) {
   const parsed = await simpleParser(bodyStr);
 
   return {
-    from: parsed.from?.text || 'Unknown',
+    from: parsed.from?.text || '未知',
     to: parsed.to?.text,
-    subject: parsed.subject || '(no subject)',
+    subject: parsed.subject || '(无主题)',
     date: parsed.date,
     text: parsed.text,
     html: parsed.html,
@@ -184,14 +184,14 @@ async function parseEmail(bodyStr, includeAttachments = false) {
   };
 }
 
-// Check for new/unread emails
+// 检查新邮件/未读邮件
 async function checkEmails(mailbox = DEFAULT_MAILBOX, limit = 10, recentTime = null, unreadOnly = false) {
   const imap = await connect();
 
   try {
     await openBox(imap, mailbox);
 
-    // Build search criteria
+    // 构建搜索条件
     const searchCriteria = unreadOnly ? ['UNSEEN'] : ['ALL'];
 
     if (recentTime) {
@@ -199,7 +199,7 @@ async function checkEmails(mailbox = DEFAULT_MAILBOX, limit = 10, recentTime = n
       searchCriteria.push(['SINCE', sinceDate]);
     }
 
-    // Fetch messages sorted by date (newest first)
+    // 获取邮件并按日期排序（最新的在前）
     const fetchOptions = {
       bodies: [''],
       markSeen: false,
@@ -207,7 +207,7 @@ async function checkEmails(mailbox = DEFAULT_MAILBOX, limit = 10, recentTime = n
 
     const messages = await searchMessages(imap, searchCriteria, fetchOptions);
 
-    // Sort by date (newest first) - parse from message attributes
+    // 按日期排序（最新的在前）- 从邮件属性解析
     const sortedMessages = messages.sort((a, b) => {
       const dateA = a.attributes.date ? new Date(a.attributes.date) : new Date(0);
       const dateB = b.attributes.date ? new Date(b.attributes.date) : new Date(0);
@@ -233,7 +233,7 @@ async function checkEmails(mailbox = DEFAULT_MAILBOX, limit = 10, recentTime = n
   }
 }
 
-// Fetch full email by UID
+// 根据 UID 获取完整邮件
 async function fetchEmail(uid, mailbox = DEFAULT_MAILBOX) {
   const imap = await connect();
 
@@ -249,7 +249,7 @@ async function fetchEmail(uid, mailbox = DEFAULT_MAILBOX) {
     const messages = await searchMessages(imap, searchCriteria, fetchOptions);
 
     if (messages.length === 0) {
-      throw new Error(`Message UID ${uid} not found`);
+      throw new Error(`未找到邮件 UID ${uid}`);
     }
 
     const item = messages[0];
@@ -265,7 +265,7 @@ async function fetchEmail(uid, mailbox = DEFAULT_MAILBOX) {
   }
 }
 
-// Download attachments from email
+// 从邮件下载附件
 async function downloadAttachments(uid, mailbox = DEFAULT_MAILBOX, outputDir = '.', specificFilename = null) {
   const imap = await connect();
 
@@ -281,7 +281,7 @@ async function downloadAttachments(uid, mailbox = DEFAULT_MAILBOX, outputDir = '
     const messages = await searchMessages(imap, searchCriteria, fetchOptions);
 
     if (messages.length === 0) {
-      throw new Error(`Message UID ${uid} not found`);
+      throw new Error(`未找到邮件 UID ${uid}`);
     }
 
     const item = messages[0];
@@ -291,11 +291,11 @@ async function downloadAttachments(uid, mailbox = DEFAULT_MAILBOX, outputDir = '
       return {
         uid,
         downloaded: [],
-        message: 'No attachments found',
+        message: '未找到附件',
       };
     }
 
-    // Create output directory if it doesn't exist
+    // 如果输出目录不存在则创建
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -303,7 +303,7 @@ async function downloadAttachments(uid, mailbox = DEFAULT_MAILBOX, outputDir = '
     const downloaded = [];
 
     for (const attachment of parsed.attachments) {
-      // If specificFilename is provided, only download matching attachment
+      // 如果指定了文件名，只下载匹配的附件
       if (specificFilename && attachment.filename !== specificFilename) {
         continue;
       }
@@ -318,31 +318,31 @@ async function downloadAttachments(uid, mailbox = DEFAULT_MAILBOX, outputDir = '
       }
     }
 
-    // If specific file was requested but not found
+    // 如果请求了特定文件但未找到
     if (specificFilename && downloaded.length === 0) {
       const availableFiles = parsed.attachments.map(a => a.filename).join(', ');
       return {
         uid,
         downloaded: [],
-        message: `File "${specificFilename}" not found. Available attachments: ${availableFiles}`,
+        message: `未找到文件"${specificFilename}"。可用附件：${availableFiles}`,
       };
     }
 
     return {
       uid,
       downloaded,
-      message: `Downloaded ${downloaded.length} attachment(s)`,
+      message: `已下载 ${downloaded.length} 个附件`,
     };
   } finally {
     imap.end();
   }
 }
 
-// Parse relative time (e.g., "2h", "30m", "7d") to Date
+// 解析相对时间（例如："2h"、"30m"、"7d"）为日期对象
 function parseRelativeTime(timeStr) {
   const match = timeStr.match(/^(\d+)(m|h|d)$/);
   if (!match) {
-    throw new Error('Invalid time format. Use: 30m, 2h, 7d');
+    throw new Error('无效的时间格式。请使用：30m、2h、7d');
   }
 
   const value = parseInt(match[1]);
@@ -350,18 +350,18 @@ function parseRelativeTime(timeStr) {
   const now = new Date();
 
   switch (unit) {
-    case 'm': // minutes
+    case 'm': // 分钟
       return new Date(now.getTime() - value * 60 * 1000);
-    case 'h': // hours
+    case 'h': // 小时
       return new Date(now.getTime() - value * 60 * 60 * 1000);
-    case 'd': // days
+    case 'd': // 天
       return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
     default:
-      throw new Error('Unknown time unit');
+      throw new Error('未知的时间单位');
   }
 }
 
-// Search emails with criteria
+// 根据条件搜索邮件
 async function searchEmails(options) {
   const imap = await connect();
 
@@ -376,17 +376,17 @@ async function searchEmails(options) {
     if (options.from) criteria.push(['FROM', options.from]);
     if (options.subject) criteria.push(['SUBJECT', options.subject]);
 
-    // Handle relative time (--recent 2h)
+    // 处理相对时间（--recent 2h）
     if (options.recent) {
       const sinceDate = parseRelativeTime(options.recent);
       criteria.push(['SINCE', sinceDate]);
     } else {
-      // Handle absolute dates
+      // 处理绝对日期
       if (options.since) criteria.push(['SINCE', options.since]);
       if (options.before) criteria.push(['BEFORE', options.before]);
     }
 
-    // Default to all if no criteria
+    // 如果没有条件，默认搜索所有邮件
     if (criteria.length === 0) criteria.push('ALL');
 
     const fetchOptions = {
@@ -398,7 +398,7 @@ async function searchEmails(options) {
     const limit = parseInt(options.limit) || 20;
     const results = [];
 
-    // Sort by date (newest first)
+    // 按日期排序（最新的在前）
     const sortedMessages = messages.sort((a, b) => {
       const dateA = a.attributes.date ? new Date(a.attributes.date) : new Date(0);
       const dateB = b.attributes.date ? new Date(b.attributes.date) : new Date(0);
@@ -420,7 +420,7 @@ async function searchEmails(options) {
   }
 }
 
-// Mark message(s) as read
+// 将邮件标记为已读
 async function markAsRead(uids, mailbox = DEFAULT_MAILBOX) {
   const imap = await connect();
 
@@ -430,7 +430,7 @@ async function markAsRead(uids, mailbox = DEFAULT_MAILBOX) {
     return new Promise((resolve, reject) => {
       imap.addFlags(uids, '\\Seen', (err) => {
         if (err) reject(err);
-        else resolve({ success: true, uids, action: 'marked as read' });
+        else resolve({ success: true, uids, action: '标记为已读' });
       });
     });
   } finally {
@@ -438,7 +438,7 @@ async function markAsRead(uids, mailbox = DEFAULT_MAILBOX) {
   }
 }
 
-// Mark message(s) as unread
+// 将邮件标记为未读
 async function markAsUnread(uids, mailbox = DEFAULT_MAILBOX) {
   const imap = await connect();
 
@@ -448,7 +448,7 @@ async function markAsUnread(uids, mailbox = DEFAULT_MAILBOX) {
     return new Promise((resolve, reject) => {
       imap.delFlags(uids, '\\Seen', (err) => {
         if (err) reject(err);
-        else resolve({ success: true, uids, action: 'marked as unread' });
+        else resolve({ success: true, uids, action: '标记为未读' });
       });
     });
   } finally {
@@ -456,7 +456,7 @@ async function markAsUnread(uids, mailbox = DEFAULT_MAILBOX) {
   }
 }
 
-// List all mailboxes
+// 列出所有邮箱
 async function listMailboxes() {
   const imap = await connect();
 
@@ -472,7 +472,7 @@ async function listMailboxes() {
   }
 }
 
-// Format mailbox tree recursively
+// 递归格式化邮箱树
 function formatMailboxTree(boxes, prefix = '') {
   const result = [];
   for (const [name, info] of Object.entries(boxes)) {
@@ -490,7 +490,7 @@ function formatMailboxTree(boxes, prefix = '') {
   return result;
 }
 
-// Main CLI handler
+// 主命令行处理程序
 async function main() {
   const { command, options, positional } = parseArgs();
 
@@ -503,20 +503,20 @@ async function main() {
           options.mailbox || DEFAULT_MAILBOX,
           parseInt(options.limit) || 10,
           options.recent || null,
-          options.unseen === 'true' // if --unseen is set, only get unread messages
+          options.unseen === 'true' // 如果设置了 --unseen，只获取未读邮件
         );
         break;
 
       case 'fetch':
         if (!positional[0]) {
-          throw new Error('UID required: node imap.js fetch <uid>');
+          throw new Error('需要 UID：node imap.js fetch <uid>');
         }
         result = await fetchEmail(positional[0], options.mailbox);
         break;
 
       case 'download':
         if (!positional[0]) {
-          throw new Error('UID required: node imap.js download <uid>');
+          throw new Error('需要 UID：node imap.js download <uid>');
         }
         result = await downloadAttachments(positional[0], options.mailbox, options.dir || '.', options.file || null);
         break;
@@ -527,14 +527,14 @@ async function main() {
 
       case 'mark-read':
         if (positional.length === 0) {
-          throw new Error('UID(s) required: node imap.js mark-read <uid> [uid2...]');
+          throw new Error('需要 UID：node imap.js mark-read <uid> [uid2...]');
         }
         result = await markAsRead(positional, options.mailbox);
         break;
 
       case 'mark-unread':
         if (positional.length === 0) {
-          throw new Error('UID(s) required: node imap.js mark-unread <uid> [uid2...]');
+          throw new Error('需要 UID：node imap.js mark-unread <uid> [uid2...]');
         }
         result = await markAsUnread(positional, options.mailbox);
         break;
@@ -544,14 +544,14 @@ async function main() {
         break;
 
       default:
-        console.error('Unknown command:', command);
-        console.error('Available commands: check, fetch, download, search, mark-read, mark-unread, list-mailboxes');
+        console.error('未知命令：', command);
+        console.error('可用命令：check, fetch, download, search, mark-read, mark-unread, list-mailboxes');
         process.exit(1);
     }
 
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('错误：', err.message);
     process.exit(1);
   }
 }

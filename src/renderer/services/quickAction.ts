@@ -20,13 +20,13 @@ class QuickActionService {
     try {
       const response = await fetch(CONFIG_PATH);
       if (!response.ok) {
-        throw new Error(`Failed to load quick actions config: ${response.status}`);
+        throw new Error(`加载快捷操作配置失败: ${response.status}`);
       }
       const data = await response.json();
       this.config = data as QuickActionsConfig;
       return this.config;
     } catch (error) {
-      console.error('Failed to load quick actions config:', error);
+      console.error('加载快捷操作配置失败:', error);
       // 返回空配置作为降级
       return { version: 1, actions: [] };
     }
@@ -43,13 +43,13 @@ class QuickActionService {
     try {
       const response = await fetch(I18N_PATH);
       if (!response.ok) {
-        throw new Error(`Failed to load quick actions i18n: ${response.status}`);
+        throw new Error(`加载快捷操作国际化数据失败: ${response.status}`);
       }
       const data = await response.json();
       this.i18nData = data as QuickActionsI18n;
       return this.i18nData;
     } catch (error) {
-      console.error('Failed to load quick actions i18n:', error);
+      console.error('加载快捷操作国际化数据失败:', error);
       // 返回空数据作为降级
       return { zh: {}, en: {} };
     }

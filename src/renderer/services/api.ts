@@ -2,6 +2,13 @@ import { store } from '../store';
 import { configService } from './config';
 import { ChatMessagePayload, ChatUserMessageInput, ImageAttachment } from '../types/chat';
 
+/**
+ * API 配置接口
+ * @property apiKey - API 密钥
+ * @property baseUrl - API 基础 URL
+ * @property provider - 提供商名称（可选）
+ * @property apiFormat - API 格式类型：'anthropic' 或 'openai'（可选）
+ */
 export interface ApiConfig {
   apiKey: string;
   baseUrl: string;
@@ -9,6 +16,10 @@ export interface ApiConfig {
   apiFormat?: 'anthropic' | 'openai';
 }
 
+/**
+ * API 错误类
+ * 用于表示 API 调用过程中发生的错误
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -23,15 +34,26 @@ export class ApiError extends Error {
 // 生成唯一的请求 ID
 const generateRequestId = () => `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+/**
+ * API 服务类
+ * 处理与各种 AI 模型 API 的通信
+ */
 class ApiService {
   private config: ApiConfig | null = null;
   private currentRequestId: string | null = null;
   private cleanupFunctions: (() => void)[] = [];
 
+  /**
+   * 设置 API 配置
+   */
   setConfig(config: ApiConfig) {
     this.config = config;
   }
 
+  /**
+   * 取消正在进行的请求
+   * @returns 如果成功取消返回 true，否则返回 false
+   */
   cancelOngoingRequest() {
     if (this.currentRequestId) {
       window.electron.api.cancelStream(this.currentRequestId);
@@ -40,12 +62,20 @@ class ApiService {
     return false;
   }
 
+  /**
+   * 清理资源
+   */
   private cleanup() {
     this.cleanupFunctions.forEach(fn => fn());
     this.cleanupFunctions = [];
     this.currentRequestId = null;
   }
 
+  /**
+   * 规范化 API 格式
+   * @param apiFormat - API 格式参数
+   * @returns 规范化后的 API 格式：'anthropic' 或 'openai'
+   */
   private normalizeApiFormat(apiFormat: unknown): 'anthropic' | 'openai' {
     if (apiFormat === 'openai') {
       return 'openai';
@@ -53,6 +83,12 @@ class ApiService {
     return 'anthropic';
   }
 
+  /**
+   * 构建 OpenAI 兼容的聊天补全 URL
+   * @param baseUrl - 基础 URL
+   * @param provider - 提供商名称
+   * @returns 完整的聊天补全 API URL
+   */
   private buildOpenAICompatibleChatCompletionsUrl(baseUrl: string, provider: string): string {
     const normalized = baseUrl.trim().replace(/\/+$/, '');
     if (!normalized) {
@@ -62,6 +98,7 @@ class ApiService {
       return normalized;
     }
 
+    // 检测是否为 Gemini 类型的 API
     const isGeminiLike = provider === 'gemini' || normalized.includes('generativelanguage.googleapis.com');
     if (isGeminiLike) {
       if (normalized.endsWith('/v1beta/openai') || normalized.endsWith('/v1/openai')) {
@@ -82,6 +119,11 @@ class ApiService {
     return `${normalized}/v1/chat/completions`;
   }
 
+  /**
+   * 构建 OpenAI Responses API URL
+   * @param baseUrl - 基础 URL
+   * @returns 完整的 Responses API URL
+   */
   private buildOpenAIResponsesUrl(baseUrl: string): string {
     const normalized = baseUrl.trim().replace(/\/+$/, '');
     if (!normalized) {
@@ -96,15 +138,31 @@ class ApiService {
     return `${normalized}/v1/responses`;
   }
 
+  /**
+   * 判断是否应使用 OpenAI Responses API
+   * @param provider - 提供商名称
+   * @returns 如果是 OpenAI 提供商返回 true
+   */
   private shouldUseOpenAIResponsesApi(provider: string): boolean {
     return provider === 'openai';
   }
 
+  /**
+   * 构建图片提示信息
+   * @param images - 图片附件数组
+   * @returns 图片提示字符串
+   */
   private buildImageHint(images?: ImageAttachment[]): string {
     if (!images?.length) return '';
-    return `[images: ${images.length}]`;
+    return `[图片: ${images.length}张]`;
   }
 
+  /**
+   * 合并内容与图片提示
+   * @param content - 文本内容
+   * @param images - 图片附件数组
+   * @returns 合并后的内容字符串
+   */
   private mergeContentWithImageHint(content: string, images?: ImageAttachment[]): string {
     const hint = this.buildImageHint(images);
     if (!hint) return content;
@@ -112,6 +170,11 @@ class ApiService {
     return `${content}\n\n${hint}`;
   }
 
+  /**
+   * 提取图片数据
+   * @param image - 图片附件
+   * @returns 包含 MIME 类型和数据的对象，如果提取失败则返回 null
+   */
   private extractImageData(image: ImageAttachment): { mimeType: string; data: string } | null {
     if (!image?.dataUrl) return null;
     const match = /^data:(.+);base64,(.*)$/.exec(image.dataUrl);
@@ -124,6 +187,12 @@ class ApiService {
     return null;
   }
 
+  /**
+   * 格式化 OpenAI 消息格式
+   * @param message - 聊天消息载荷
+   * @param supportsImages - 是否支持图片
+   * @returns 格式化后的消息对象，如果内容为空则返回 null
+   */
   private formatOpenAIMessage(message: ChatMessagePayload, supportsImages: boolean) {
     if (supportsImages && message.images?.length) {
       const parts: Array<
@@ -149,6 +218,12 @@ class ApiService {
     return { role: message.role, content };
   }
 
+  /**
+   * 格式化 OpenAI Responses API 输入消息格式
+   * @param message - 聊天消息载荷
+   * @param supportsImages - 是否支持图片
+   * @returns 格式化后的消息对象，如果内容为空则返回 null
+   */
   private formatOpenAIResponsesInputMessage(message: ChatMessagePayload, supportsImages: boolean) {
     const role = message.role === 'assistant' ? 'assistant' : 'user';
 
@@ -179,12 +254,19 @@ class ApiService {
     return { role, content: [{ type: 'input_text', text: content }] };
   }
 
+  /**
+   * 从 Responses API 响应中提取输出文本
+   * @param payload - API 响应载荷
+   * @returns 提取的输出文本
+   */
   private extractResponsesOutputText(payload: any): string {
+    // 尝试直接获取 output_text
     const directOutputText = typeof payload?.output_text === 'string' ? payload.output_text : '';
     if (directOutputText) {
       return directOutputText;
     }
 
+    // 尝试从嵌套的 response 对象中获取 output_text
     const nestedOutputText = typeof payload?.response?.output_text === 'string'
       ? payload.response.output_text
       : '';
@@ -192,6 +274,7 @@ class ApiService {
       return nestedOutputText;
     }
 
+    // 尝试从 output 数组中提取文本
     const output = Array.isArray(payload?.response?.output)
       ? payload.response.output
       : Array.isArray(payload?.output)
@@ -215,6 +298,12 @@ class ApiService {
     return chunks.join('');
   }
 
+  /**
+   * 格式化 Anthropic 消息格式
+   * @param message - 聊天消息载荷
+   * @param supportsImages - 是否支持图片
+   * @returns 格式化后的消息对象，如果内容为空则返回 null
+   */
   private formatAnthropicMessage(message: ChatMessagePayload, supportsImages: boolean) {
     if (message.role === 'system') return null;
     if (supportsImages && message.images?.length) {
@@ -249,11 +338,21 @@ class ApiService {
     return { role: message.role, content };
   }
 
+  /**
+   * 判断提供商是否需要 API 密钥
+   * @param provider - 提供商名称
+   * @returns 如果需要 API 密钥返回 true
+   */
   private providerRequiresApiKey(provider: string): boolean {
     return provider !== 'ollama';
   }
 
-  // 检测当前选择的模型属于哪个 provider
+  /**
+   * 检测当前选择的模型属于哪个提供商
+   * @param modelId - 模型 ID
+   * @param providerHint - 提供商提示（可选）
+   * @returns 提供商名称
+   */
   private detectProvider(modelId: string, providerHint?: string): string {
     const normalizedHint = providerHint?.toLowerCase();
     if (
@@ -283,7 +382,11 @@ class ApiService {
     return 'openai'; // 默认使用 OpenAI 兼容格式
   }
 
-  // 获取指定 provider 的配置
+  /**
+   * 获取指定提供商的配置
+   * @param provider - 提供商名称
+   * @returns API 配置对象，如果未找到则返回 null
+   */
   private getProviderConfig(provider: string): ApiConfig | null {
     const appConfig = configService.getConfig();
 
@@ -302,13 +405,20 @@ class ApiService {
     return null;
   }
 
+  /**
+   * 发送聊天消息
+   * @param message - 用户消息内容或输入对象
+   * @param onProgress - 进度回调函数
+   * @param history - 聊天历史记录
+   * @returns 包含内容和推理过程的 Promise
+   */
   async chat(
     message: string | ChatUserMessageInput,
     onProgress?: (content: string, reasoning?: string) => void,
     history: ChatMessagePayload[] = []
   ): Promise<{ content: string; reasoning?: string }> {
     if (!this.config) {
-      throw new ApiError('API configuration not set. Please configure your API settings in the settings menu.');
+      throw new ApiError('API 配置未设置。请在设置菜单中配置您的 API 设置。');
     }
 
     const selectedModel = store.getState().model.selectedModel;
@@ -318,7 +428,7 @@ class ApiService {
       ? { content: message }
       : { content: message.content || '', images: message.images };
 
-    // 尝试获取模型对应 provider 的配置
+    // 尝试获取模型对应提供商的配置
     let effectiveConfig = this.config;
     const providerConfig = this.getProviderConfig(provider);
     if (providerConfig) {
@@ -326,12 +436,12 @@ class ApiService {
     }
 
     if (this.providerRequiresApiKey(provider) && !effectiveConfig.apiKey) {
-      throw new ApiError('API key is not configured. Please set your API key in the settings menu.');
+      throw new ApiError('API 密钥未配置。请在设置菜单中设置您的 API 密钥。');
     }
 
     // 根据 API 协议格式决定调用方式：
     // - anthropic: Anthropic 兼容协议 (/v1/messages)
-    // - openai: OpenAI 兼容协议 (OpenAI provider uses /v1/responses)
+    // - openai: OpenAI 兼容协议 (OpenAI 提供商使用 /v1/responses)
     const normalizedApiFormat = this.normalizeApiFormat(effectiveConfig.apiFormat);
     const useOpenAIFormat = normalizedApiFormat === 'openai';
 
@@ -342,7 +452,16 @@ class ApiService {
     return this.chatWithOpenAICompatible(userMessage, onProgress, history, selectedModel.id, effectiveConfig, supportsImages, provider);
   }
 
-  // Anthropic API 调用
+  /**
+   * Anthropic API 调用
+   * @param message - 用户消息输入
+   * @param onProgress - 进度回调函数
+   * @param history - 聊天历史记录
+   * @param modelId - 模型 ID
+   * @param config - API 配置
+   * @param supportsImages - 是否支持图片
+   * @returns 包含内容和推理过程的 Promise
+   */
   private async chatWithAnthropic(
     message: ChatUserMessageInput,
     onProgress?: (content: string, reasoning?: string) => void,
@@ -435,7 +554,7 @@ class ApiService {
                   }
                 }
               } catch (e) {
-                console.warn('Failed to parse SSE message:', e);
+                console.warn('解析 SSE 消息失败:', e);
               }
             }
           }
@@ -444,7 +563,7 @@ class ApiService {
         const removeDoneListener = window.electron.api.onStreamDone(requestId, () => {
           this.cleanup();
           if (!fullContent) {
-            reject(new ApiError('No content received from the API. Please try again.'));
+            reject(new ApiError('未从 API 收到内容。请重试。'));
           } else {
             resolve({ content: fullContent, reasoning: fullReasoning || undefined });
           }
@@ -458,7 +577,7 @@ class ApiService {
         const removeAbortListener = window.electron.api.onStreamAbort(requestId, () => {
           aborted = true;
           this.cleanup();
-          resolve({ content: fullContent || 'Response was stopped.', reasoning: fullReasoning || undefined });
+          resolve({ content: fullContent || '响应已停止。', reasoning: fullReasoning || undefined });
         });
 
         this.cleanupFunctions = [removeDataListener, removeDoneListener, removeErrorListener, removeAbortListener];
@@ -477,7 +596,7 @@ class ApiService {
         }).then((response) => {
           if (!response.ok && !aborted) {
             this.cleanup();
-            let errorMessage = 'API request failed';
+            let errorMessage = 'API 请求失败';
             if (response.error) {
               try {
                 const errorData = JSON.parse(response.error);
@@ -493,7 +612,7 @@ class ApiService {
         }).catch((error) => {
           if (!aborted) {
             this.cleanup();
-            reject(new ApiError(error.message || 'Network error'));
+            reject(new ApiError(error.message || '网络错误'));
           }
         });
       });
@@ -502,11 +621,21 @@ class ApiService {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError('An unexpected error occurred while calling the API. Please try again.');
+      throw new ApiError('调用 API 时发生意外错误。请重试。');
     }
   }
 
-  // OpenAI 兼容 API 调用 (OpenAI, DeepSeek, etc.)
+  /**
+   * OpenAI 兼容 API 调用（支持 OpenAI、DeepSeek 等）
+   * @param message - 用户消息输入
+   * @param onProgress - 进度回调函数
+   * @param history - 聊天历史记录
+   * @param modelId - 模型 ID
+   * @param config - API 配置
+   * @param supportsImages - 是否支持图片
+   * @param provider - 提供商名称
+   * @returns 包含内容和推理过程的 Promise
+   */
   private async chatWithOpenAICompatible(
     message: ChatUserMessageInput,
     onProgress?: (content: string, reasoning?: string) => void,
@@ -635,7 +764,7 @@ class ApiService {
                 onProgress?.(fullContent, fullReasoning || undefined);
               }
             } catch (e) {
-              console.warn('Failed to parse SSE message:', e);
+              console.warn('解析 SSE 消息失败:', e);
             }
           }
         });
@@ -643,7 +772,7 @@ class ApiService {
         const removeDoneListener = window.electron.api.onStreamDone(requestId, () => {
           this.cleanup();
           if (!fullContent) {
-            reject(new ApiError('No content received from the API. Please try again.'));
+            reject(new ApiError('未从 API 收到内容。请重试。'));
           } else {
             resolve({ content: fullContent, reasoning: fullReasoning || undefined });
           }
@@ -657,7 +786,7 @@ class ApiService {
         const removeAbortListener = window.electron.api.onStreamAbort(requestId, () => {
           aborted = true;
           this.cleanup();
-          resolve({ content: fullContent || 'Response was stopped.', reasoning: fullReasoning || undefined });
+          resolve({ content: fullContent || '响应已停止。', reasoning: fullReasoning || undefined });
         });
 
         this.cleanupFunctions = [removeDataListener, removeDoneListener, removeErrorListener, removeAbortListener];
@@ -696,7 +825,7 @@ class ApiService {
         }).then((response) => {
           if (!response.ok && !aborted) {
             this.cleanup();
-            let errorMessage = 'API request failed';
+            let errorMessage = 'API 请求失败';
             if (response.error) {
               try {
                 const errorData = JSON.parse(response.error);
@@ -712,7 +841,7 @@ class ApiService {
         }).catch((error) => {
           if (!aborted) {
             this.cleanup();
-            reject(new ApiError(error.message || 'Network error'));
+            reject(new ApiError(error.message || '网络错误'));
           }
         });
       });
@@ -721,9 +850,10 @@ class ApiService {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError('An unexpected error occurred while calling the API. Please try again.');
+      throw new ApiError('调用 API 时发生意外错误。请重试。');
     }
   }
 }
 
+// 导出 API 服务实例
 export const apiService = new ApiService();

@@ -1,28 +1,42 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-// @ts-ignore
+// @ts-ignore - 忽略 TypeScript 类型检查错误
 import remarkGfm from 'remark-gfm';
-// @ts-ignore
+// @ts-ignore - 忽略 TypeScript 类型检查错误
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// @ts-ignore
+// @ts-ignore - 忽略 TypeScript 类型检查错误
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ClipboardDocumentIcon, CheckIcon, DocumentIcon, FolderIcon } from '@heroicons/react/24/outline';
 import { i18nService } from '../services/i18n';
 
+// 代码块行数限制
 const CODE_BLOCK_LINE_LIMIT = 200;
+// 代码块字符数限制
 const CODE_BLOCK_CHAR_LIMIT = 20000;
+// 语法高亮器样式配置
 const SYNTAX_HIGHLIGHTER_STYLE = {
   margin: 0,
   borderRadius: 0,
   background: '#282c34',
 };
+// 安全的 URL 协议集合
 const SAFE_URL_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel', 'file']);
 
+/**
+ * 编码文件 URL，处理括号等特殊字符
+ * @param url - 需要编码的 URL 字符串
+ * @returns 编码后的 URL 字符串
+ */
 const encodeFileUrl = (url: string): string => {
   const encoded = encodeURI(url);
   return encoded.replace(/\(/g, '%28').replace(/\)/g, '%29');
 };
 
+/**
+ * 编码文件 URL 目标地址
+ * @param dest - 目标地址字符串
+ * @returns 编码后的目标地址
+ */
 const encodeFileUrlDestination = (dest: string): string => {
   const trimmed = dest.trim();
   if (!/^<?file:\/\//i.test(trimmed)) {
@@ -42,6 +56,12 @@ const encodeFileUrlDestination = (dest: string): string => {
   return dest.replace(trimmed, `${prefix}${encoded}${suffix}`);
 };
 
+/**
+ * 查找 Markdown 链接的结束位置
+ * @param input - 输入字符串
+ * @param start - 开始查找的位置
+ * @returns 链接结束位置的索引，未找到则返回 -1
+ */
 const findMarkdownLinkEnd = (input: string, start: number): number => {
   let depth = 1;
   for (let i = start; i < input.length; i += 1) {
@@ -67,6 +87,11 @@ const findMarkdownLinkEnd = (input: string, start: number): number => {
   return -1;
 };
 
+/**
+ * 编码 Markdown 内容中的文件 URL
+ * @param content - Markdown 内容字符串
+ * @returns 处理后的 Markdown 内容
+ */
 const encodeFileUrlsInMarkdown = (content: string): string => {
   if (!content.includes('file://')) {
     return content;
@@ -97,6 +122,11 @@ const encodeFileUrlsInMarkdown = (content: string): string => {
   return result;
 };
 
+/**
+ * 安全的 URL 转换函数，过滤不安全的协议
+ * @param url - 需要转换的 URL
+ * @returns 安全的 URL，不安全则返回空字符串
+ */
 const safeUrlTransform = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
@@ -114,6 +144,11 @@ const safeUrlTransform = (url: string): string => {
   return '';
 };
 
+/**
+ * 获取链接的协议类型
+ * @param href - 链接地址
+ * @returns 协议类型字符串，无协议则返回 null
+ */
 const getHrefProtocol = (href: string): string | null => {
   const trimmed = href.trim();
   const match = trimmed.match(/^([a-z][a-z0-9+.-]*):/i);
@@ -121,12 +156,22 @@ const getHrefProtocol = (href: string): string | null => {
   return match[1].toLowerCase();
 };
 
+/**
+ * 判断是否为外部链接
+ * @param href - 链接地址
+ * @returns 是否为外部链接
+ */
 const isExternalHref = (href: string): boolean => {
   const protocol = getHrefProtocol(href);
   if (!protocol) return false;
   return protocol !== 'file';
 };
 
+/**
+ * 通过默认浏览器打开外部链接
+ * @param url - 外部链接地址
+ * @returns 是否成功打开
+ */
 const openExternalViaDefaultBrowser = async (url: string): Promise<boolean> => {
   const openExternal = (window as any)?.electron?.shell?.openExternal;
   if (typeof openExternal !== 'function') {
@@ -137,11 +182,15 @@ const openExternalViaDefaultBrowser = async (url: string): Promise<boolean> => {
     const result = await openExternal(url);
     return !!result?.success;
   } catch (error) {
-    console.error('Failed to open external link with system browser:', url, error);
+    console.error('使用系统浏览器打开外部链接失败:', url, error);
     return false;
   }
 };
 
+/**
+ * 通过创建锚点元素的方式打开外部链接（降级方案）
+ * @param url - 外部链接地址
+ */
 const openExternalViaAnchorFallback = (url: string): void => {
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -153,12 +202,17 @@ const openExternalViaAnchorFallback = (url: string): void => {
   document.body.removeChild(anchor);
 };
 
+/**
+ * 代码块组件
+ * 支持语法高亮、行内代码和代码块复制功能
+ */
 const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
   const normalizedClassName = Array.isArray(className)
     ? className.join(' ')
     : className || '';
   const match = /language-([\w-]+)/.exec(normalizedClassName);
   const hasPosition = node?.position?.start?.line != null && node?.position?.end?.line != null;
+  // 判断是否为行内代码
   const isInline = typeof props.inline === 'boolean'
     ? props.inline
     : hasPosition
@@ -166,18 +220,21 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
       : !match;
   const codeText = Array.isArray(children) ? children.join('') : String(children);
   const trimmedCodeText = codeText.replace(/\n$/, '');
+  // 判断是否需要语法高亮
   const shouldHighlight = !isInline && match
     && trimmedCodeText.length <= CODE_BLOCK_CHAR_LIMIT
     && trimmedCodeText.split('\n').length <= CODE_BLOCK_LINE_LIMIT;
   const [isCopied, setIsCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
 
+  // 组件卸载时清除定时器
   useEffect(() => () => {
     if (copyTimeoutRef.current != null) {
       window.clearTimeout(copyTimeoutRef.current);
     }
   }, []);
 
+  // 处理复制操作
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(trimmedCodeText);
@@ -187,12 +244,12 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
       }
       copyTimeoutRef.current = window.setTimeout(() => setIsCopied(false), 1500);
     } catch (error) {
-      console.error('Failed to copy code block: ', error);
+      console.error('复制代码块失败: ', error);
     }
   }, [trimmedCodeText]);
 
   if (!isInline) {
-    // Simple code block without language - minimal styling
+    // 无语言标识的简单代码块 - 使用最小化样式
     if (!match) {
       return (
         <div className="my-2 relative group">
@@ -218,7 +275,7 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
       );
     }
 
-    // Code block with language - show header with language name
+    // 带语言标识的代码块 - 显示包含语言名称的头部
     return (
       <div className="my-3 rounded-xl overflow-hidden border dark:border-claude-darkBorder border-claude-border relative shadow-subtle">
         <div className="dark:bg-claude-darkSurfaceMuted bg-claude-surfaceMuted px-4 py-2 text-xs dark:text-claude-darkTextSecondary text-claude-textSecondary font-medium flex items-center justify-between">
@@ -257,6 +314,7 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
     );
   }
 
+  // 行内代码样式
   const inlineClassName = [
     'inline bg-transparent px-0.5 text-[0.92em] font-mono font-medium dark:text-claude-darkText text-claude-text',
     normalizedClassName,
@@ -298,6 +356,11 @@ const looksLikeDirectory = (value: string): boolean => {
   return !hasFileExtension(value);
 };
 
+/**
+ * 判断链接是否可能是本地文件路径
+ * @param href - 链接地址
+ * @returns 是否为本地文件路径
+ */
 const isLikelyLocalFilePath = (href: string): boolean => {
   if (!href) return false;
   if (/^file:\/\//i.test(href)) return true;
@@ -311,10 +374,16 @@ const isLikelyLocalFilePath = (href: string): boolean => {
   const extMatch = base.match(/\.([A-Za-z0-9]{1,6})$/);
   if (!extMatch) return false;
   const ext = extMatch[1].toLowerCase();
+  // 常见顶级域名集合
   const commonTlds = new Set(['com', 'net', 'org', 'io', 'cn', 'co', 'ai', 'app', 'dev', 'gov', 'edu']);
   return !commonTlds.has(ext);
 };
 
+/**
+ * 将文件路径转换为文件链接格式
+ * @param filePath - 文件路径
+ * @returns 带有 file:// 协议的链接
+ */
 const toFileHref = (filePath: string): string => {
   const normalized = filePath.replace(/\\/g, '/');
   if (/^[A-Za-z]:/.test(filePath)) {
@@ -326,6 +395,13 @@ const toFileHref = (filePath: string): string => {
   return `file://${normalized}`;
 };
 
+/**
+ * 从链接获取本地文件路径
+ * @param href - 链接地址
+ * @param text - 链接文本
+ * @param resolveLocalFilePath - 本地文件路径解析函数
+ * @returns 本地文件路径，无法解析则返回 null
+ */
 const getLocalPathFromLink = (
   href: string | null,
   text: string,
@@ -340,6 +416,13 @@ const getLocalPathFromLink = (
   return decoded || rawPath || null;
 };
 
+/**
+ * 从上下文中查找降级路径
+ * @param anchor - 锚点元素
+ * @param fileName - 文件名
+ * @param resolveLocalFilePath - 本地文件路径解析函数
+ * @returns 降级路径，未找到则返回 null
+ */
 const findFallbackPathFromContext = (
   anchor: HTMLAnchorElement | null,
   fileName: string,
@@ -358,6 +441,7 @@ const findFallbackPathFromContext = (
   const index = anchors.indexOf(anchor);
   if (index <= 0) return null;
 
+  // 向前查找可能的基准路径
   for (let i = index - 1; i >= 0; i -= 1) {
     const candidate = anchors[i] as HTMLAnchorElement;
     const candidateHref = candidate.getAttribute('href');
@@ -567,18 +651,30 @@ const createMarkdownComponents = (
   },
 });
 
+/**
+ * MarkdownContent 组件属性接口
+ */
 interface MarkdownContentProps {
+  /** Markdown 内容字符串 */
   content: string;
+  /** 自定义样式类名 */
   className?: string;
+  /** 本地文件路径解析函数 */
   resolveLocalFilePath?: (href: string, text: string) => string | null;
 }
 
+/**
+ * Markdown 内容渲染组件
+ * 用于将 Markdown 文本渲染为富文本内容，支持语法高亮、本地文件链接等功能
+ */
 const MarkdownContent: React.FC<MarkdownContentProps> = ({
   content,
   className = '',
   resolveLocalFilePath,
 }) => {
+  // 创建 Markdown 组件映射（使用 useMemo 优化性能）
   const components = useMemo(() => createMarkdownComponents(resolveLocalFilePath), [resolveLocalFilePath]);
+  // 规范化内容，编码文件 URL（使用 useMemo 优化性能）
   const normalizedContent = useMemo(() => encodeFileUrlsInMarkdown(content), [content]);
   return (
     <div className={`markdown-content text-[15px] leading-6 ${className}`}>

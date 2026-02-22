@@ -1,29 +1,29 @@
 ---
 name: web-search
-description: Real-time web search using Playwright-controlled browser. Use this skill when you need current information, latest documentation, recent news, or any data beyond your knowledge cutoff (January 2025).
+description: 使用 Playwright 控制的浏览器进行实时网络搜索。当您需要当前信息、最新文档、最新新闻或任何超出知识截止日期（2025年1月）的数据时，请使用此技能。
 ---
 
-# Web Search Skill
+# 网络搜索技能
 
-## When to Use This Skill
+## 何时使用此技能
 
-Use the web-search skill when you need:
+在以下情况下使用 web-search 技能：
 
-- **Current information** - Events, news, or data after January 2025
-- **Latest documentation** - Up-to-date framework/library docs (React 19, Next.js 15, etc.)
-- **Real-time data** - Stock prices, weather, sports scores, etc.
-- **Fact verification** - Check current status of projects, companies, or technologies
-- **Recent discussions** - Community opinions, GitHub issues, Stack Overflow answers
-- **Product comparisons** - Latest reviews and comparisons
-- **Troubleshooting** - Search for specific error messages or solutions
+- **当前信息** - 2025年1月之后的事件、新闻或数据
+- **最新文档** - 最新的框架/库文档（React 19、Next.js 15 等）
+- **实时数据** - 股票价格、天气、体育比分等
+- **事实核查** - 检查项目、公司或技术的当前状态
+- **近期讨论** - 社区观点、GitHub issues、Stack Overflow 问答
+- **产品比较** - 最新评论和对比
+- **故障排查** - 搜索特定错误消息或解决方案
 
-**Examples of when to use:**
-- User: "What are the new features in React 19?"
-- User: "Search for the latest Next.js App Router documentation"
-- User: "What's the current status of the Rust async project?"
-- User: "Find recent discussions about Vue 3 performance"
+**使用示例：**
+- 用户："React 19 有哪些新功能？"
+- 用户："搜索最新的 Next.js App Router 文档"
+- 用户："Rust async 项目的当前状态如何？"
+- 用户："查找关于 Vue 3 性能的近期讨论"
 
-## How It Works
+## 工作原理
 
 ```
 ┌──────────┐    Bash    ┌─────────┐    HTTP    ┌──────────────┐    CDP    ┌────────┐
@@ -36,24 +36,24 @@ Use the web-search skill when you need:
                                                 Extract Results
 ```
 
-**Architecture:**
-1. **CLI Script** - Simple bash interface for Claude
-2. **Bridge Server** - Express HTTP API (auto-started by Electron)
-3. **Playwright Manager** - Browser connection and session management
-4. **Search Engine Layer** - Google primary, Bing fallback
-5. **Chrome Browser** - Visible browser window (all operations transparent)
+**架构：**
+1. **CLI 脚本** - 为 Claude 提供简单的 bash 接口
+2. **Bridge Server（桥接服务器）** - Express HTTP API（由 Electron 自动启动）
+3. **Playwright Manager（Playwright 管理器）** - 浏览器连接和会话管理
+4. **Search Engine Layer（搜索引擎层）** - Google 优先，Bing 备用
+5. **Chrome 浏览器** - 可见浏览器窗口（所有操作透明可见）
 
-## Basic Usage
+## 基本用法
 
-### Simple Search (Recommended)
+### 简单搜索（推荐）
 
-**IMPORTANT:** Always use the `$SKILLS_ROOT` environment variable to locate the skill scripts. This ensures the skill works in both development and production environments.
+**重要提示：** 始终使用 `$SKILLS_ROOT` 环境变量来定位技能脚本。这确保技能在开发和生产环境中都能正常工作。
 
 ```bash
-bash "$SKILLS_ROOT/web-search/scripts/search.sh" "search query" [max_results]
+bash "$SKILLS_ROOT/web-search/scripts/search.sh" "搜索查询" [最大结果数]
 ```
 
-For non-ASCII queries (Chinese/Japanese/etc.), prefer UTF-8 file input to avoid shell encoding issues on Windows:
+对于非 ASCII 查询（中文/日文等），建议使用 UTF-8 文件输入以避免 Windows 上的 shell 编码问题：
 
 ```bash
 cat > /tmp/web-query.txt <<'TXT'
@@ -63,22 +63,22 @@ TXT
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" @/tmp/web-query.txt 10
 ```
 
-**Examples:**
+**示例：**
 
 ```bash
-# Search with default 10 results
+# 搜索，默认返回 10 条结果
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "TypeScript 5.0 new features"
 
-# Limit to 5 results
+# 限制返回 5 条结果
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "React Server Components guide" 5
 
-# Search for recent news
+# 搜索近期新闻
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "AI news January 2026" 10
 ```
 
-**Output Format:**
+**输出格式：**
 
-The script returns Markdown-formatted results:
+脚本返回 Markdown 格式的结果：
 
 ```markdown
 # Search Results: TypeScript 5.0 new features
@@ -100,48 +100,48 @@ TypeScript 5.0 introduces decorators, const type parameters...
 ## (More results...)
 ```
 
-### Workflow Example
+### 工作流示例
 
 ```bash
-# 1. Search for topic
+# 1. 搜索主题
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "Next.js 14 features" 5
 
-# 2. Analyze results and answer user
+# 2. 分析结果并回答用户
 
-# 3. Follow-up search if needed
+# 3. 如需跟进搜索
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "Next.js Server Actions tutorial" 3
 ```
 
-## Advanced Usage
+## 高级用法
 
-### Server Management
+### 服务器管理
 
-The Bridge Server is **automatically managed** by Electron. You typically don't need to start/stop it manually.
+Bridge Server 由 Electron **自动管理**。通常您不需要手动启动/停止它。
 
-However, for manual control:
+但是，如需手动控制：
 
 ```bash
-# Start server (if not already running)
+# 启动服务器（如果尚未运行）
 bash "$SKILLS_ROOT/web-search/scripts/start-server.sh"
 
-# Stop server
+# 停止服务器
 bash "$SKILLS_ROOT/web-search/scripts/stop-server.sh"
 
-# Check health (start script will print endpoint status)
+# 检查健康状态（启动脚本会打印端点状态）
 bash "$SKILLS_ROOT/web-search/scripts/start-server.sh"
 ```
 
-### Direct API Calls
+### 直接 API 调用
 
-For advanced use cases, you can call the HTTP API directly:
+对于高级用例，您可以直接调用 HTTP API：
 
 ```bash
-# Get or create connection
+# 获取或创建连接
 CONNECTION_ID=$(curl -s -X POST http://127.0.0.1:8923/api/browser/connect \
   -H "Content-Type: application/json" \
   -d '{}' | grep -o '"connectionId":"[^"]*"' | cut -d'"' -f4)
 
-# Perform search
+# 执行搜索
 curl -X POST http://127.0.0.1:8923/api/search \
   -H "Content-Type: application/json" \
   -d "{
@@ -150,7 +150,7 @@ curl -X POST http://127.0.0.1:8923/api/search \
     \"maxResults\": 5
   }"
 
-# Navigate to specific URL
+# 导航到特定 URL
 curl -X POST http://127.0.0.1:8923/api/page/navigate \
   -H "Content-Type: application/json" \
   -d "{
@@ -158,7 +158,7 @@ curl -X POST http://127.0.0.1:8923/api/page/navigate \
     \"url\": \"https://example.com\"
   }"
 
-# Take screenshot
+# 截图
 curl -X POST http://127.0.0.1:8923/api/page/screenshot \
   -H "Content-Type: application/json" \
   -d "{
@@ -167,393 +167,393 @@ curl -X POST http://127.0.0.1:8923/api/page/screenshot \
   }"
 ```
 
-## Best Practices
+## 最佳实践
 
-### 1. Use Specific Queries
+### 1. 使用具体的查询
 
-❌ Bad: `bash scripts/search.sh "react"`
-✅ Good: `bash scripts/search.sh "React 19 new features and breaking changes"`
+❌ 不好的做法：`bash scripts/search.sh "react"`
+✅ 好的做法：`bash scripts/search.sh "React 19 new features and breaking changes"`
 
-### 2. Limit Results Appropriately
+### 2. 适当限制结果数量
 
-- Quick lookup: 3-5 results
-- Comprehensive research: 10 results
-- Don't request more than needed (faster + less noise)
+- 快速查询：3-5 条结果
+- 全面研究：10 条结果
+- 不要请求超过需要的数量（更快 + 噪音更少）
 
-### 3. Check Server Status First
+### 3. 首先检查服务器状态
 
-If search fails, verify the server is running:
+如果搜索失败，验证服务器是否正在运行：
 
 ```bash
 bash "$SKILLS_ROOT/web-search/scripts/start-server.sh" || echo "Server not running"
 ```
 
-### 4. Reuse Connections
+### 4. 重用连接
 
-The CLI script automatically caches connections. Multiple searches in the same session will reuse the same browser connection for better performance.
+CLI 脚本会自动缓存连接。同一会话中的多次搜索将重用相同的浏览器连接以获得更好的性能。
 
-### 5. Clean Output
+### 5. 清理输出
 
-Parse the Markdown output to extract key information for the user. Don't just dump all results - synthesize and summarize.
+解析 Markdown 输出以为用户提取关键信息。不要只是倾倒所有结果——要综合和总结。
 
-## Common Patterns
+## 常见模式
 
-### Pattern 1: Latest Documentation
+### 模式 1：最新文档
 
 ```bash
-# User asks about latest framework features
+# 用户询问最新的框架功能
 bash SKILLs/web-search/scripts/search.sh "Next.js 15 documentation" 5
 
-# Parse results, find official docs, summarize features
+# 解析结果，找到官方文档，总结功能
 ```
 
-### Pattern 2: Troubleshooting
+### 模式 2：故障排查
 
 ```bash
-# User reports an error
+# 用户报告错误
 bash SKILLs/web-search/scripts/search.sh "TypeError: Cannot read property of undefined React" 5
 
-# Find Stack Overflow answers and GitHub issues, provide solution
+# 查找 Stack Overflow 答案和 GitHub issues，提供解决方案
 ```
 
-### Pattern 3: Current Events
+### 模式 3：当前事件
 
 ```bash
-# User asks about recent news
+# 用户询问近期新闻
 bash SKILLs/web-search/scripts/search.sh "AI developments January 2026" 10
 
-# Summarize key news items from results
+# 从结果中总结关键新闻条目
 ```
 
-### Pattern 4: Comparison Research
+### 模式 4：比较研究
 
 ```bash
-# User wants to compare technologies
+# 用户想要比较技术
 bash SKILLs/web-search/scripts/search.sh "Vue 3 vs React 18 performance 2026" 5
 
-# Synthesize comparison from multiple sources
+# 从多个来源综合比较
 ```
 
-### Pattern 5: API/Library Usage
+### 模式 5：API/库用法
 
 ```bash
-# User needs specific API documentation
+# 用户需要特定的 API 文档
 bash SKILLs/web-search/scripts/search.sh "Playwright page.evaluate examples" 5
 
-# Extract code examples and usage patterns
+# 提取代码示例和用法模式
 ```
 
-## Error Handling
+## 错误处理
 
-### Server Not Running
+### 服务器未运行
 
-**Error:** `✗ Bridge Server is not running`
+**错误：** `✗ Bridge Server is not running`
 
-**Solution:**
-- The server should auto-start with Electron
-- If manual start needed: `bash SKILLs/web-search/scripts/start-server.sh`
-- Check logs: `cat SKILLs/web-search/.server.log`
+**解决方案：**
+- 服务器应该随 Electron 自动启动
+- 如需手动启动：`bash SKILLs/web-search/scripts/start-server.sh`
+- 检查日志：`cat SKILLs/web-search/.server.log`
 
-### Browser Launch Failed
+### 浏览器启动失败
 
-**Error:** `Failed to launch browser`
+**错误：** `Failed to launch browser`
 
-**Cause:** Chrome not installed or not found
+**原因：** Chrome 未安装或未找到
 
-**Solution:**
-- macOS: Install from https://www.google.com/chrome/
-- Linux: `sudo apt install chromium-browser`
-- Windows: Install from https://www.google.com/chrome/
+**解决方案：**
+- macOS：从 https://www.google.com/chrome/ 安装
+- Linux：`sudo apt install chromium-browser`
+- Windows：从 https://www.google.com/chrome/ 安装
 
-### Connection Timeout
+### 连接超时
 
-**Error:** `CDP port not ready` or `Connection timeout`
+**错误：** `CDP port not ready` 或 `Connection timeout`
 
-**Solution:**
+**解决方案：**
 ```bash
-# Stop server
+# 停止服务器
 bash SKILLs/web-search/scripts/stop-server.sh
 
-# Clear cache
+# 清除缓存
 rm SKILLs/web-search/.connection
 
-# Restart
+# 重启
 bash SKILLs/web-search/scripts/start-server.sh
 ```
 
-### No Search Results
+### 无搜索结果
 
-**Error:** `Found 0 results`
+**错误：** `Found 0 results`
 
-**Possible causes:**
-- Query too specific or unusual
-- Bing changed page structure (rare)
-- Network issues
+**可能的原因：**
+- 查询过于具体或不常见
+- Bing 更改了页面结构（罕见）
+- 网络问题
 
-**Solution:**
-- Try broader query
-- Check internet connection
-- Verify page loads manually at bing.com
+**解决方案：**
+- 尝试更广泛的查询
+- 检查网络连接
+- 在 bing.com 手动验证页面是否加载
 
-### Search Timeout
+### 搜索超时
 
-**Error:** `Search failed: timeout`
+**错误：** `Search failed: timeout`
 
-**Solution:**
-- Check internet connection
-- Reduce max results
-- Try again (might be temporary network issue)
+**解决方案：**
+- 检查网络连接
+- 减少最大结果数
+- 重试（可能是临时网络问题）
 
-## Understanding Results
+## 理解结果
 
-### Result Structure
+### 结果结构
 
-Each search result contains:
+每个搜索结果包含：
 
 ```markdown
-## [Title of Result]
+## [结果标题]
 
 **URL:** [https://example.com/page]
 
-[Snippet/description from search results]
+[搜索结果中的摘要/描述]
 ```
 
-**Fields:**
-- **Title** - Page/article title
-- **URL** - Direct link (may include Bing tracking)
-- **Snippet** - Preview text from the page
+**字段：**
+- **Title（标题）** - 页面/文章标题
+- **URL** - 直接链接（可能包含 Bing 跟踪）
+- **Snippet（摘要）** - 页面预览文本
 
-### Parsing Results
+### 解析结果
 
-The search output is Markdown. Extract:
-1. Total results count
-2. Search duration
-3. Individual result titles and URLs
-4. Snippets for context
+搜索输出是 Markdown 格式。提取：
+1. 总结果数
+2. 搜索耗时
+3. 各结果标题和 URL
+4. 摘要作为上下文
 
-### Result Quality
+### 结果质量
 
-- **Official docs** - Usually appear in top 3 results
-- **Stack Overflow** - Appears for technical questions
-- **Recent articles** - Bing prioritizes recent content
-- **Chinese content** - Bing works well in China, includes Chinese sources
+- **官方文档** - 通常出现在前 3 条结果中
+- **Stack Overflow** - 技术问题会出现
+- **近期文章** - Bing 优先显示近期内容
+- **中文内容** - Bing 在中国工作良好，包含中文来源
 
-## Performance Considerations
+## 性能考虑
 
-### Typical Latencies
+### 典型延迟
 
-- Server startup: ~2 seconds (one-time, auto-started)
-- Browser launch: ~3 seconds (one-time per session)
-- First search: ~2-3 seconds (includes browser connection)
-- Subsequent searches: ~1 second (connection cached)
+- 服务器启动：约 2 秒（一次性，自动启动）
+- 浏览器启动：约 3 秒（每次会话一次性）
+- 首次搜索：约 2-3 秒（包含浏览器连接）
+- 后续搜索：约 1 秒（连接已缓存）
 
-### Optimization Tips
+### 优化技巧
 
-1. **Reuse connections** - The CLI script caches connections automatically
-2. **Limit results** - Request only what you need (5-10 is usually enough)
-3. **Batch searches** - If multiple searches needed, do them consecutively to reuse connection
-4. **Specific queries** - More specific = faster and better results
+1. **重用连接** - CLI 脚本自动缓存连接
+2. **限制结果** - 只请求需要的数量（5-10 条通常足够）
+3. **批量搜索** - 如需多次搜索，连续执行以重用连接
+4. **具体查询** - 越具体 = 越快且结果越好
 
-## Security and Privacy
+## 安全与隐私
 
-### Security Measures
+### 安全措施
 
-- **Localhost only** - Bridge Server binds to 127.0.0.1 (no external access)
-- **No network exposure** - Not accessible from other machines
-- **Isolated browser** - Uses separate Chrome profile, won't affect user's main browser
-- **Visible operations** - All browser actions shown in visible window (transparent)
-- **No credentials** - Skill never handles passwords or sensitive data
+- **仅本地主机** - Bridge Server 绑定到 127.0.0.1（无外部访问）
+- **无网络暴露** - 无法从其他机器访问
+- **隔离浏览器** - 使用独立的 Chrome 配置文件，不会影响用户的主浏览器
+- **可见操作** - 所有浏览器操作在可见窗口中显示（透明）
+- **无凭据** - 技能从不处理密码或敏感数据
 
-### Privacy Considerations
+### 隐私考虑
 
-- Search queries go through Google and/or Bing depending on availability
-- Google/Bing may track searches (their standard privacy policies apply)
-- No local storage of search history by the skill
-- User can observe all browser activity in real-time
+- 搜索查询通过 Google 和/或 Bing，取决于可用性
+- Google/Bing 可能会跟踪搜索（适用其标准隐私政策）
+- 技能不会在本地存储搜索历史
+- 用户可以实时观察所有浏览器活动
 
-## Limitations
+## 限制
 
-### Current Limitations
+### 当前限制
 
-1. **No CAPTCHA handling** - If Google or Bing shows CAPTCHA, user must solve manually
-2. **Engine availability varies by network/region** - Auto mode falls back between Google and Bing
-3. **English/Chinese focus** - Optimized for English and Chinese results
-4. **Basic extraction** - Extracts titles and snippets, not full page content
-5. **No authentication** - Cannot search pages requiring login
+1. **无 CAPTCHA 处理** - 如果 Google 或 Bing 显示 CAPTCHA，用户必须手动解决
+2. **搜索引擎可用性因网络/地区而异** - 自动模式在 Google 和 Bing 之间回退
+3. **侧重英文/中文** - 针对英文和中文结果优化
+4. **基础提取** - 提取标题和摘要，而非完整页面内容
+5. **无身份验证** - 无法搜索需要登录的页面
 
-### Not Suitable For
+### 不适用于
 
-- Searches requiring authentication
-- Filling out forms or submitting data
-- Actions requiring CAPTCHA solving (unless user manually solves)
-- Mass scraping or automated bulk searches
-- Accessing pages behind paywalls
+- 需要身份验证的搜索
+- 填写表单或提交数据
+- 需要 CAPTCHA 解决的操作（除非用户手动解决）
+- 大规模抓取或自动化批量搜索
+- 访问付费墙后的页面
 
-## Troubleshooting Guide
+## 故障排查指南
 
-### Quick Diagnostics
+### 快速诊断
 
 ```bash
-# 1. Check server health
+# 1. 检查服务器健康状态
 curl http://127.0.0.1:8923/api/health
 
-# 2. Check server logs
+# 2. 检查服务器日志
 cat SKILLs/web-search/.server.log | tail -50
 
-# 3. Test basic search
+# 3. 测试基本搜索
 bash SKILLs/web-search/scripts/search.sh "test" 1
 
-# 4. Check Chrome installation
+# 4. 检查 Chrome 安装
 which google-chrome || which chromium || which chromium-browser
 ```
 
-### Common Issues
+### 常见问题
 
-| Issue | Symptom | Solution |
+| 问题 | 症状 | 解决方案 |
 |-------|---------|----------|
-| Server down | `Connection refused` | Start server or restart Electron |
-| Browser missing | `Chrome not found` | Install Chrome/Chromium |
-| Port conflict | `Address already in use` | Stop conflicting process on port 8923 |
-| Stale connection | `Connection not found` | Remove `.connection` cache file |
-| Network issue | `Search timeout` | Check internet connection |
+| 服务器宕机 | `Connection refused` | 启动服务器或重启 Electron |
+| 浏览器缺失 | `Chrome not found` | 安装 Chrome/Chromium |
+| 端口冲突 | `Address already in use` | 停止占用端口 8923 的进程 |
+| 连接过期 | `Connection not found` | 删除 `.connection` 缓存文件 |
+| 网络问题 | `Search timeout` | 检查网络连接 |
 
-### Reset Everything
+### 完全重置
 
-If all else fails, full reset:
+如果所有方法都失败，执行完全重置：
 
 ```bash
 cd SKILLs/web-search
 
-# Stop server
+# 停止服务器
 bash scripts/stop-server.sh
 
-# Clean cache and state
+# 清理缓存和状态
 rm -f .connection .server.pid .server.log
 
-# Rebuild
+# 重新构建
 npm run build
 
-# Restart
+# 重启
 bash scripts/start-server.sh
 
-# Test
+# 测试
 bash scripts/search.sh "test" 1
 ```
 
-## Examples for Claude
+## Claude 使用示例
 
-### Example 1: User Asks About Latest Framework
+### 示例 1：用户询问最新框架
 
-**User:** "What are the new features in Next.js 15?"
+**用户：** "Next.js 15 有哪些新功能？"
 
-**Claude's approach:**
+**Claude 的方法：**
 ```bash
-# Search for Next.js 15 features
+# 搜索 Next.js 15 功能
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "Next.js 15 new features" 5
 ```
 
-**Then:** Parse results, identify official Next.js blog/docs, summarize key features for user.
+**然后：** 解析结果，识别官方 Next.js 博客/文档，为用户总结关键功能。
 
-### Example 2: Troubleshooting Error
+### 示例 2：排查错误
 
-**User:** "I'm getting 'Cannot find module' error in TypeScript"
+**用户：** "我在 TypeScript 中遇到 'Cannot find module' 错误"
 
-**Claude's approach:**
+**Claude 的方法：**
 ```bash
-# Search for the specific error
+# 搜索特定错误
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "TypeScript Cannot find module error solution" 5
 ```
 
-**Then:** Extract solutions from Stack Overflow results, provide step-by-step fix.
+**然后：** 从 Stack Overflow 结果中提取解决方案，提供分步修复方法。
 
-### Example 3: Current Events
+### 示例 3：当前事件
 
-**User:** "What happened in AI this month?"
+**用户：** "这个月 AI 领域发生了什么？"
 
-**Claude's approach:**
+**Claude 的方法：**
 ```bash
-# Search for recent AI news
+# 搜索近期 AI 新闻
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "AI news January 2026" 10
 ```
 
-**Then:** Synthesize news from multiple sources, provide summary of key events.
+**然后：** 综合多个来源的新闻，提供关键事件摘要。
 
-### Example 4: Documentation Lookup
+### 示例 4：文档查询
 
-**User:** "How do I use React Server Components?"
+**用户：** "如何使用 React Server Components？"
 
-**Claude's approach:**
+**Claude 的方法：**
 ```bash
-# Search for RSC documentation and tutorials
+# 搜索 RSC 文档和教程
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "React Server Components guide tutorial" 5
 ```
 
-**Then:** Find official React docs and good tutorials, explain with examples.
+**然后：** 找到官方 React 文档和优质教程，用示例解释。
 
-### Example 5: Comparison Research
+### 示例 5：比较研究
 
-**User:** "Should I use Vite or webpack in 2026?"
+**用户：** "2026 年我应该使用 Vite 还是 webpack？"
 
-**Claude's approach:**
+**Claude 的方法：**
 ```bash
-# Search for recent comparisons
+# 搜索近期比较
 bash "$SKILLS_ROOT/web-search/scripts/search.sh" "Vite vs webpack 2026 comparison" 5
 ```
 
-**Then:** Analyze multiple perspectives, provide balanced recommendation.
+**然后：** 分析多种观点，提供平衡的建议。
 
-## Tips for Effective Use
+## 有效使用技巧
 
-1. **Be specific in queries** - Include version numbers, dates, or specific aspects
-2. **Parse results carefully** - Don't just copy-paste, synthesize information
-3. **Verify with multiple sources** - Cross-check important information
-4. **Cite sources** - Tell user which sources you're using
-5. **Explain limitations** - If search doesn't find good results, tell user
-6. **Use follow-up searches** - One search might not be enough, do multiple if needed
-7. **Check result dates** - Prefer recent articles for current info
-8. **Look for official sources** - Prioritize official docs and authoritative sources
+1. **查询要具体** - 包含版本号、日期或具体方面
+2. **仔细解析结果** - 不要只是复制粘贴，要综合信息
+3. **用多个来源验证** - 交叉核对重要信息
+4. **引用来源** - 告诉用户您使用的是哪些来源
+5. **说明限制** - 如果搜索没有找到好的结果，告诉用户
+6. **使用跟进搜索** - 一次搜索可能不够，如需要可多次搜索
+7. **检查结果日期** - 对于当前信息，优先选择近期文章
+8. **寻找官方来源** - 优先选择官方文档和权威来源
 
-## Technical Details
+## 技术细节
 
-### Technologies Used
+### 使用的技术
 
-- **Playwright Core** - Browser automation framework
-- **Chrome DevTools Protocol** - Low-level browser control
-- **Express.js** - HTTP API server
-- **Google + Bing Search** - Multi-engine fallback search strategy
-- **Bash Scripts** - Simple CLI interface
+- **Playwright Core** - 浏览器自动化框架
+- **Chrome DevTools Protocol** - 底层浏览器控制
+- **Express.js** - HTTP API 服务器
+- **Google + Bing Search** - 多引擎回退搜索策略
+- **Bash Scripts** - 简单的 CLI 接口
 
-### System Requirements
+### 系统要求
 
 - Node.js 18+
-- Google Chrome or Chromium installed
-- Internet connection for searches
-- ~100MB RAM for Bridge Server
-- ~200MB RAM for Chrome instance
+- 已安装 Google Chrome 或 Chromium
+- 用于搜索的网络连接
+- Bridge Server 约 100MB RAM
+- Chrome 实例约 200MB RAM
 
-### File Locations
+### 文件位置
 
-- Server: `SKILLs/web-search/dist/server/index.js`
-- Logs: `SKILLs/web-search/.server.log`
-- PID: `SKILLs/web-search/.server.pid`
-- Connection cache: `SKILLs/web-search/.connection`
+- 服务器：`SKILLs/web-search/dist/server/index.js`
+- 日志：`SKILLs/web-search/.server.log`
+- PID：`SKILLs/web-search/.server.pid`
+- 连接缓存：`SKILLs/web-search/.connection`
 
-## Additional Resources
+## 其他资源
 
-- **Full documentation:** `SKILLs/web-search/README.md`
-- **Usage examples:** `SKILLs/web-search/examples/basic-search.md`
-- **API reference:** See README.md for complete API documentation
-- **Troubleshooting:** See examples/basic-search.md
+- **完整文档：** `SKILLs/web-search/README.md`
+- **使用示例：** `SKILLs/web-search/examples/basic-search.md`
+- **API 参考：** 参见 README.md 获取完整 API 文档
+- **故障排查：** 参见 examples/basic-search.md
 
-## Support
+## 支持
 
-For issues:
-1. Check `.server.log` for errors
-2. Run basic test: `node SKILLs/web-search/scripts/test-basic.js`
-3. Verify Chrome installation
-4. Check internet connection
-5. Review troubleshooting section above
+如遇问题：
+1. 检查 `.server.log` 中的错误
+2. 运行基本测试：`node SKILLs/web-search/scripts/test-basic.js`
+3. 验证 Chrome 安装
+4. 检查网络连接
+5. 查看上方的故障排查部分
 
 ---
 
-**Remember:** This skill provides real-time access to current information. Use it whenever users need information beyond your knowledge cutoff or when accuracy of current data is important.
+**记住：** 此技能提供对当前信息的实时访问。当用户需要超出您知识截止日期的信息或当前数据的准确性很重要时，请使用它。

@@ -4,14 +4,14 @@ import sys
 from pdf2image import convert_from_path
 
 
-# Converts each page of a PDF to a PNG image.
+# 将PDF的每一页转换为PNG图像。
 
 
 def convert(pdf_path, output_dir, max_dim=1000):
     images = convert_from_path(pdf_path, dpi=200)
 
     for i, image in enumerate(images):
-        # Scale image if needed to keep width/height under `max_dim`
+        # 如果需要，缩放图像以保持宽度/高度在 `max_dim` 以下
         width, height = image.size
         if width > max_dim or height > max_dim:
             scale_factor = min(max_dim / width, max_dim / height)
@@ -21,14 +21,14 @@ def convert(pdf_path, output_dir, max_dim=1000):
         
         image_path = os.path.join(output_dir, f"page_{i+1}.png")
         image.save(image_path)
-        print(f"Saved page {i+1} as {image_path} (size: {image.size})")
+        print(f"已保存第 {i+1} 页为 {image_path}（尺寸：{image.size}）")
 
-    print(f"Converted {len(images)} pages to PNG images")
+    print(f"已将 {len(images)} 页转换为PNG图像")
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: convert_pdf_to_images.py [input pdf] [output directory]")
+        print("用法：convert_pdf_to_images.py [输入PDF] [输出目录]")
         sys.exit(1)
     pdf_path = sys.argv[1]
     output_directory = sys.argv[2]

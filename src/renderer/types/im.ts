@@ -1,9 +1,9 @@
 /**
- * IM Gateway Types for Renderer Process
- * Mirrors src/main/im/types.ts for use in React components
+ * 渲染进程 IM 网关类型
+ * 对应 src/main/im/types.ts，用于 React 组件
  */
 
-// ==================== DingTalk Types ====================
+// ==================== 钉钉类型 ====================
 
 export interface DingTalkConfig {
   enabled: boolean;
@@ -25,7 +25,7 @@ export interface DingTalkGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-// ==================== Feishu Types ====================
+// ==================== 飞书类型 ====================
 
 export interface FeishuConfig {
   enabled: boolean;
@@ -47,7 +47,7 @@ export interface FeishuGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-// ==================== Telegram Types ====================
+// ==================== 电报类型 ====================
 
 export interface TelegramConfig {
   enabled: boolean;
@@ -64,7 +64,7 @@ export interface TelegramGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-// ==================== Discord Types ====================
+// ==================== Discord 类型 ====================
 
 export interface DiscordConfig {
   enabled: boolean;
@@ -82,7 +82,7 @@ export interface DiscordGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-// ==================== Common IM Types ====================
+// ==================== 通用 IM 类型 ====================
 
 export type IMPlatform = 'dingtalk' | 'feishu' | 'telegram' | 'discord';
 
@@ -106,7 +106,7 @@ export interface IMGatewayStatus {
   discord: DiscordGatewayStatus;
 }
 
-// ==================== Media Attachment Types ====================
+// ==================== 媒体附件类型 ====================
 
 export type TelegramMediaType = 'image' | 'video' | 'audio' | 'voice' | 'document' | 'sticker';
 
@@ -135,7 +135,7 @@ export interface IMMessage {
   mediaGroupId?: string;      // 媒体组 ID（用于合并多张图片）
 }
 
-// ==================== IPC Result Types ====================
+// ==================== IPC 结果类型 ====================
 
 export interface IMConfigResult {
   success: boolean;
@@ -154,7 +154,7 @@ export interface IMGatewayResult {
   error?: string;
 }
 
-// ==================== Connectivity Test Types ====================
+// ==================== 连接性测试类型 ====================
 
 export type IMConnectivityVerdict = 'pass' | 'warn' | 'fail';
 
@@ -193,7 +193,7 @@ export interface IMConnectivityTestResponse {
   error?: string;
 }
 
-// ==================== Default Configurations ====================
+// ==================== 默认配置 ====================
 
 export const DEFAULT_DINGTALK_CONFIG: DingTalkConfig = {
   enabled: false,

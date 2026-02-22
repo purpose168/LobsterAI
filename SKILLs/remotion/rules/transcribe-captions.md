@@ -1,26 +1,26 @@
 ---
 name: transcribe-captions
-description: Transcribing audio to generate captions in Remotion
+description: 在 Remotion 中转录音频生成字幕
 metadata:
   tags: captions, transcribe, whisper, audio, speech-to-text
 ---
 
-# Transcribing audio
+# 转录音频
 
-To transcribe audio to generate captions in Remotion, you can use the [`transcribe()`](https://www.remotion.dev/docs/install-whisper-cpp/transcribe) function from the [`@remotion/install-whisper-cpp`](https://www.remotion.dev/docs/install-whisper-cpp) package.
+要在 Remotion 中转录音频生成字幕，可以使用 [`@remotion/install-whisper-cpp`](https://www.remotion.dev/docs/install-whisper-cpp) 包中的 [`transcribe()`](https://www.remotion.dev/docs/install-whisper-cpp/transcribe) 函数。
 
-## Prerequisites
+## 前置条件
 
-First, the @remotion/install-whisper-cpp package needs to be installed.
-If it is not installed, use the following command:
+首先，需要安装 @remotion/install-whisper-cpp 包。
+如果尚未安装，请使用以下命令：
 
 ```bash
 npx remotion add @remotion/install-whisper-cpp
 ```
 
-## Transcribing
+## 转录操作
 
-Make a Node.js script to download Whisper.cpp and a model, and transcribe the audio.
+创建一个 Node.js 脚本来下载 Whisper.cpp 和模型，并转录音频。
 
 ```ts
 import path from "path";
@@ -44,7 +44,7 @@ await downloadWhisperModel({
   folder: to,
 });
 
-// Convert the audio to a 16KHz wav file first if needed:
+// 如果需要，先将音频转换为 16KHz wav 文件：
 // import {execSync} from 'child_process';
 // execSync('ffmpeg -i /path/to/audio.mp4 -ar 16000 /path/to/audio.wav -y');
 
@@ -56,15 +56,15 @@ const whisperCppOutput = await transcribe({
   tokenLevelTimestamps: true,
 });
 
-// Optional: Apply our recommended postprocessing
+// 可选：应用我们推荐的后处理
 const { captions } = toCaptions({
   whisperCppOutput,
 });
 
-// Write it to the public/ folder so it can be fetched from Remotion
+// 将结果写入 public/ 文件夹，以便 Remotion 可以获取
 fs.writeFileSync("captions123.json", JSON.stringify(captions, null, 2));
 ```
 
-Transcribe each clip individually and create multiple JSON files.
+单独转录每个片段并创建多个 JSON 文件。
 
-See [Displaying captions](display-captions.md) for how to display the captions in Remotion.
+有关如何在 Remotion 中显示字幕，请参阅 [显示字幕](display-captions.md)。

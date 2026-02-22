@@ -14,15 +14,27 @@ import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
 
+/**
+ * 定时任务视图组件属性接口
+ */
 interface ScheduledTasksViewProps {
-  isSidebarCollapsed?: boolean;
-  onToggleSidebar?: () => void;
-  onNewChat?: () => void;
-  updateBadge?: React.ReactNode;
+  isSidebarCollapsed?: boolean; // 侧边栏是否折叠
+  onToggleSidebar?: () => void; // 切换侧边栏的回调函数
+  onNewChat?: () => void; // 新建聊天的回调函数
+  updateBadge?: React.ReactNode; // 更新徽章组件
 }
 
+/**
+ * 标签页类型定义
+ * - tasks: 任务列表标签页
+ * - history: 历史记录标签页
+ */
 type TabType = 'tasks' | 'history';
 
+/**
+ * 定时任务视图组件
+ * 负责展示任务列表、任务表单、任务详情和历史记录
+ */
 const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
   isSidebarCollapsed,
   onToggleSidebar,
@@ -30,43 +42,64 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
   updateBadge,
 }) => {
   const dispatch = useDispatch();
-  const isMac = window.electron.platform === 'darwin';
-  const viewMode = useSelector((state: RootState) => state.scheduledTask.viewMode);
-  const selectedTaskId = useSelector((state: RootState) => state.scheduledTask.selectedTaskId);
-  const tasks = useSelector((state: RootState) => state.scheduledTask.tasks);
-  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
-  const [activeTab, setActiveTab] = useState<TabType>('tasks');
-  const [deleteTaskInfo, setDeleteTaskInfo] = useState<{ id: string; name: string } | null>(null);
+  const isMac = window.electron.platform === 'darwin'; // 判断是否为 Mac 系统
+  const viewMode = useSelector((state: RootState) => state.scheduledTask.viewMode); // 当前视图模式
+  const selectedTaskId = useSelector((state: RootState) => state.scheduledTask.selectedTaskId); // 选中的任务ID
+  const tasks = useSelector((state: RootState) => state.scheduledTask.tasks); // 任务列表
+  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null; // 选中的任务对象
+  const [activeTab, setActiveTab] = useState<TabType>('tasks'); // 当前激活的标签页
+  const [deleteTaskInfo, setDeleteTaskInfo] = useState<{ id: string; name: string } | null>(null); // 待删除任务信息
 
+  /**
+   * 处理删除任务请求
+   * @param taskId 任务ID
+   * @param taskName 任务名称
+   */
   const handleRequestDelete = useCallback((taskId: string, taskName: string) => {
     setDeleteTaskInfo({ id: taskId, name: taskName });
   }, []);
 
+  /**
+   * 确认删除任务
+   */
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTaskInfo) return;
     const taskId = deleteTaskInfo.id;
     setDeleteTaskInfo(null);
     await scheduledTaskService.deleteTask(taskId);
-    // If we were viewing this task's detail, go back to list
+    // 如果当前正在查看该任务的详情，则返回列表视图
     if (selectedTaskId === taskId) {
       dispatch(selectTask(null));
       dispatch(setViewMode('list'));
     }
   }, [deleteTaskInfo, selectedTaskId, dispatch]);
 
+  /**
+   * 取消删除任务
+   */
   const handleCancelDelete = useCallback(() => {
     setDeleteTaskInfo(null);
   }, []);
 
+  /**
+   * 组件加载时加载任务列表
+   */
   useEffect(() => {
     scheduledTaskService.loadTasks();
   }, []);
 
+  /**
+   * 返回任务列表
+   */
   const handleBackToList = () => {
     dispatch(selectTask(null));
     dispatch(setViewMode('list'));
   };
 
+  /**
+   * 切换标签页
+   * @param tab 目标标签页
+   */
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     if (tab === 'tasks') {
@@ -75,12 +108,12 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
     }
   };
 
-  // Show tabs only in list view (not in create/edit/detail sub-views)
+  // 仅在列表视图中显示标签页（不在创建/编辑/详情子视图中显示）
   const showTabs = viewMode === 'list' && !selectedTaskId;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* 头部区域 */}
       <div className="draggable flex h-12 items-center justify-between px-4 border-b dark:border-claude-darkBorder border-claude-border shrink-0">
         <div className="flex items-center space-x-3 h-8">
           {isSidebarCollapsed && (
@@ -118,7 +151,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
         <WindowTitleBar inline />
       </div>
 
-      {/* Tabs + New Task button */}
+      {/* 标签页和新建任务按钮 */}
       {showTabs && (
         <div className="flex items-center justify-between border-b dark:border-claude-darkBorder border-claude-border px-4 shrink-0">
           <div className="flex">
@@ -163,7 +196,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
         </div>
       )}
 
-      {/* Content */}
+      {/* 内容区域 */}
       <div className="flex-1 overflow-y-auto">
         {showTabs && activeTab === 'history' ? (
           <AllRunsHistory />
@@ -192,7 +225,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
         )}
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* 删除确认对话框 */}
       {deleteTaskInfo && (
         <DeleteConfirmModal
           taskName={deleteTaskInfo.name}

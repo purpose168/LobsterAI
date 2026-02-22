@@ -3,7 +3,7 @@ import { Skill } from '../../types/skill';
 
 interface SkillState {
   skills: Skill[];
-  activeSkillIds: string[]; // Currently selected skills for conversation (multi-select)
+  activeSkillIds: string[]; // 当前会话中选中的技能（支持多选）
 }
 
 const initialState: SkillState = {
@@ -17,7 +17,7 @@ const skillSlice = createSlice({
   reducers: {
     setSkills: (state, action: PayloadAction<Skill[]>) => {
       state.skills = action.payload;
-      // Remove any active skill IDs that no longer exist
+      // 移除已经不存在的活动技能ID
       state.activeSkillIds = state.activeSkillIds.filter(id =>
         action.payload.some(skill => skill.id === id)
       );

@@ -1,31 +1,31 @@
 /**
- * Search result types
+ * 搜索结果类型
  */
 
 export interface SearchResult {
-  /** Result title */
+  /** 结果标题 */
   title: string;
-  /** Result URL */
+  /** 结果URL */
   url: string;
-  /** Text snippet/description */
+  /** 文本摘要/描述 */
   snippet: string;
-  /** Source engine */
+  /** 来源搜索引擎 */
   source: 'bing' | 'google';
-  /** Position in results (1-based) */
+  /** 在结果中的位置（从1开始） */
   position: number;
 }
 
 export interface SearchResponse {
-  /** Search query */
+  /** 搜索查询 */
   query: string;
-  /** Engine used for this response */
+  /** 用于此响应的搜索引擎 */
   engine: 'bing' | 'google';
-  /** Search results */
+  /** 搜索结果 */
   results: SearchResult[];
-  /** Total results found */
+  /** 找到的结果总数 */
   totalResults: number;
-  /** Search timestamp */
+  /** 搜索时间戳 */
   timestamp: number;
-  /** Time taken in milliseconds */
+  /** 耗时（毫秒） */
   duration: number;
 }

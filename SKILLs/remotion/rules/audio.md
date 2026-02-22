@@ -1,24 +1,24 @@
 ---
 name: audio
-description: Using audio and sound in Remotion - importing, trimming, volume, speed, pitch
+description: 在 Remotion 中使用音频和声音 - 导入、修剪、音量、速度、音调
 metadata:
   tags: audio, media, trim, volume, speed, loop, pitch, mute, sound, sfx
 ---
 
-# Using audio in Remotion
+# 在 Remotion 中使用音频
 
-## Prerequisites
+## 前置条件
 
-First, the @remotion/media package needs to be installed.
-If it is not installed, use the following command:
+首先，需要安装 @remotion/media 包。
+如果尚未安装，请使用以下命令：
 
 ```bash
 npx remotion add @remotion/media
 ```
 
-## Importing Audio
+## 导入音频
 
-Use `<Audio>` from `@remotion/media` to add audio to your composition.
+使用 `@remotion/media` 中的 `<Audio>` 组件将音频添加到您的合成中。
 
 ```tsx
 import { Audio } from "@remotion/media";
@@ -29,18 +29,18 @@ export const MyComposition = () => {
 };
 ```
 
-Remote URLs are also supported:
+也支持远程 URL：
 
 ```tsx
 <Audio src="https://remotion.media/audio.mp3" />
 ```
 
-By default, audio plays from the start, at full volume and full length.
-Multiple audio tracks can be layered by adding multiple `<Audio>` components.
+默认情况下，音频从头开始播放，音量为最大，播放完整长度。
+可以通过添加多个 `<Audio>` 组件来叠加多个音轨。
 
-## Trimming
+## 修剪
 
-Use `trimBefore` and `trimAfter` to remove portions of the audio. Values are in frames.
+使用 `trimBefore` 和 `trimAfter` 来移除音频的部分内容。值以帧为单位。
 
 ```tsx
 const { fps } = useVideoConfig();
@@ -48,17 +48,17 @@ const { fps } = useVideoConfig();
 return (
   <Audio
     src={staticFile("audio.mp3")}
-    trimBefore={2 * fps} // Skip the first 2 seconds
-    trimAfter={10 * fps} // End at the 10 second mark
+    trimBefore={2 * fps} // 跳过前 2 秒
+    trimAfter={10 * fps} // 在 10 秒标记处结束
   />
 );
 ```
 
-The audio still starts playing at the beginning of the composition - only the specified portion is played.
+音频仍然从合成的开始处播放 - 只播放指定的部分。
 
-## Delaying
+## 延迟
 
-Wrap the audio in a `<Sequence>` to delay when it starts:
+将音频包裹在 `<Sequence>` 中可以延迟其开始播放的时间：
 
 ```tsx
 import { Sequence, staticFile } from "remotion";
@@ -73,17 +73,17 @@ return (
 );
 ```
 
-The audio will start playing after 1 second.
+音频将在 1 秒后开始播放。
 
-## Volume
+## 音量
 
-Set a static volume (0 to 1):
+设置静态音量（0 到 1）：
 
 ```tsx
 <Audio src={staticFile("audio.mp3")} volume={0.5} />
 ```
 
-Or use a callback for dynamic volume based on the current frame:
+或者使用回调函数根据当前帧动态设置音量：
 
 ```tsx
 import { interpolate } from "remotion";
@@ -100,11 +100,11 @@ return (
 );
 ```
 
-The value of `f` starts at 0 when the audio begins to play, not the composition frame.
+`f` 的值从音频开始播放时为 0 开始计算，而不是合成帧。
 
-## Muting
+## 静音
 
-Use `muted` to silence the audio. It can be set dynamically:
+使用 `muted` 属性使音频静音。可以动态设置：
 
 ```tsx
 const frame = useCurrentFrame();
@@ -113,57 +113,57 @@ const { fps } = useVideoConfig();
 return (
   <Audio
     src={staticFile("audio.mp3")}
-    muted={frame >= 2 * fps && frame <= 4 * fps} // Mute between 2s and 4s
+    muted={frame >= 2 * fps && frame <= 4 * fps} // 在 2 秒到 4 秒之间静音
   />
 );
 ```
 
-## Speed
+## 速度
 
-Use `playbackRate` to change the playback speed:
+使用 `playbackRate` 改变播放速度：
 
 ```tsx
-<Audio src={staticFile("audio.mp3")} playbackRate={2} /> {/* 2x speed */}
-<Audio src={staticFile("audio.mp3")} playbackRate={0.5} /> {/* Half speed */}
+<Audio src={staticFile("audio.mp3")} playbackRate={2} /> {/* 2 倍速 */}
+<Audio src={staticFile("audio.mp3")} playbackRate={0.5} /> {/* 半速 */}
 ```
 
-Reverse playback is not supported.
+不支持反向播放。
 
-## Looping
+## 循环
 
-Use `loop` to loop the audio indefinitely:
+使用 `loop` 属性无限循环音频：
 
 ```tsx
 <Audio src={staticFile("audio.mp3")} loop />
 ```
 
-Use `loopVolumeCurveBehavior` to control how the frame count behaves when looping:
+使用 `loopVolumeCurveBehavior` 控制循环时帧计数的行为：
 
-- `"repeat"`: Frame count resets to 0 each loop (default)
-- `"extend"`: Frame count continues incrementing
+- `"repeat"`: 每次循环帧计数重置为 0（默认）
+- `"extend"`: 帧计数继续递增
 
 ```tsx
 <Audio
   src={staticFile("audio.mp3")}
   loop
   loopVolumeCurveBehavior="extend"
-  volume={(f) => interpolate(f, [0, 300], [1, 0])} // Fade out over multiple loops
+  volume={(f) => interpolate(f, [0, 300], [1, 0])} // 在多次循环中淡出
 />
 ```
 
-## Pitch
+## 音调
 
-Use `toneFrequency` to adjust the pitch without affecting speed. Values range from 0.01 to 2:
+使用 `toneFrequency` 调整音调而不影响速度。值范围为 0.01 到 2：
 
 ```tsx
 <Audio
   src={staticFile("audio.mp3")}
-  toneFrequency={1.5} // Higher pitch
+  toneFrequency={1.5} // 更高的音调
 />
 <Audio
   src={staticFile("audio.mp3")}
-  toneFrequency={0.8} // Lower pitch
+  toneFrequency={0.8} // 更低的音调
 />
 ```
 
-Pitch shifting only works during server-side rendering, not in the Remotion Studio preview or in the `<Player />`.
+音调偏移仅在服务端渲染时有效，在 Remotion Studio 预览或 `<Player />` 中不起作用。

@@ -1,5 +1,5 @@
 /**
- * Skill Services Manager - Manages background services for skills
+ * 技能服务管理器 - 管理技能的后台服务
  */
 
 import { execSync, spawn, spawnSync } from 'child_process';
@@ -8,16 +8,16 @@ import fs from 'fs';
 import { app } from 'electron';
 
 /**
- * Resolve the user's login shell PATH on macOS/Linux.
- * Packaged Electron apps on macOS don't inherit the user's shell profile,
- * so node/npm won't be in PATH unless we resolve it explicitly.
+ * 解析用户在 macOS/Linux 上的登录 shell PATH。
+ * macOS 上打包后的 Electron 应用不会继承用户的 shell 配置文件，
+ * 因此除非显式解析，否则 node/npm 不会在 PATH 中。
  */
 function resolveUserShellPath(): string | null {
   if (process.platform === 'win32') return null;
 
   try {
     const shell = process.env.SHELL || '/bin/bash';
-    // Use login-interactive shell to source profile, then print PATH
+    // 使用登录交互式 shell 来加载配置文件，然后打印 PATH
     const result = execSync(`${shell} -ilc 'echo __PATH__=$PATH'`, {
       encoding: 'utf-8',
       timeout: 5000,
@@ -26,14 +26,14 @@ function resolveUserShellPath(): string | null {
     const match = result.match(/__PATH__=(.+)/);
     return match ? match[1].trim() : null;
   } catch (error) {
-    console.warn('[SkillServices] Failed to resolve user shell PATH:', error);
+    console.warn('[技能服务] 解析用户 shell PATH 失败:', error);
     return null;
   }
 }
 
 /**
- * Build an environment for spawning skill service scripts.
- * Merges the user's shell PATH with the current process environment.
+ * 构建用于启动技能服务脚本的环境变量。
+ * 将用户的 shell PATH 与当前进程环境合并。
  */
 function buildSkillServiceEnv(): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = { ...process.env };
@@ -46,9 +46,9 @@ function buildSkillServiceEnv(): Record<string, string | undefined> {
     const userPath = resolveUserShellPath();
     if (userPath) {
       env.PATH = userPath;
-      console.log('[SkillServices] Resolved user shell PATH for skill services');
+      console.log('[技能服务] 已为技能服务解析用户 shell PATH');
     } else {
-      // Fallback: append common node installation paths
+      // 备用方案：追加常见的 node 安装路径
       const commonPaths = [
         '/usr/local/bin',
         '/opt/homebrew/bin',
@@ -57,12 +57,12 @@ function buildSkillServiceEnv(): Record<string, string | undefined> {
         `${env.HOME}/.fnm/current/bin`,
       ];
       env.PATH = [env.PATH, ...commonPaths].filter(Boolean).join(':');
-      console.log('[SkillServices] Using fallback PATH for skill services');
+      console.log('[技能服务] 使用备用 PATH 启动技能服务');
     }
   }
 
-  // Expose Electron executable so skill scripts can run JS with ELECTRON_RUN_AS_NODE
-  // even when system Node.js is not installed.
+  // 暴露 Electron 可执行文件路径，以便技能脚本可以使用 ELECTRON_RUN_AS_NODE 运行 JS
+  // 即使系统未安装 Node.js 也能运行。
   env.LOBSTERAI_ELECTRON_PATH = process.execPath;
 
   return env;
@@ -130,9 +130,9 @@ export class SkillServiceManager {
         force: true,
         errorOnExist: false,
       });
-      console.log('[SkillServices] Repaired web-search runtime from bundled resources');
+      console.log('[技能服务] 已从打包资源修复网页搜索运行时');
     } catch (error) {
-      console.warn('[SkillServices] Failed to repair web-search runtime from bundled resources:', error);
+      console.warn('[技能服务] 从打包资源修复网页搜索运行时失败:', error);
     }
   }
 
@@ -168,89 +168,89 @@ export class SkillServiceManager {
     const shouldInstallDeps = !fs.existsSync(nodeModules) || !this.isWebSearchRuntimeHealthy(skillPath);
     if (shouldInstallDeps) {
       if (!npmAvailable) {
-        throw new Error('Web-search runtime is incomplete and npm is not available to repair it');
+        throw new Error('网页搜索运行时不完整，且 npm 不可用，无法修复');
       }
-      console.log('[SkillServices] Installing/reparing web-search dependencies...');
+      console.log('[技能服务] 正在安装/修复网页搜索依赖...');
       execSync('npm install', { cwd: skillPath, stdio: 'ignore', env });
     }
 
     if (!fs.existsSync(distDir)) {
       if (!npmAvailable) {
-        throw new Error('Web-search dist files are missing and npm is not available to rebuild them');
+        throw new Error('网页搜索 dist 文件缺失，且 npm 不可用，无法重新构建');
       }
-      console.log('[SkillServices] Compiling web-search TypeScript...');
+      console.log('[技能服务] 正在编译网页搜索 TypeScript...');
       execSync('npm run build', { cwd: skillPath, stdio: 'ignore', env });
     }
 
     if (!this.isWebSearchRuntimeHealthy(skillPath)) {
-      throw new Error('Web-search runtime is still unhealthy after attempted repair');
+      throw new Error('尝试修复后网页搜索运行时仍然不健康');
     }
   }
 
   /**
-   * Start all skill services
+   * 启动所有技能服务
    */
   async startAll(): Promise<void> {
-    console.log('[SkillServices] Starting skill services...');
+    console.log('[技能服务] 正在启动技能服务...');
 
-    // Resolve environment once for all service spawns
+    // 为所有服务启动解析一次环境变量
     this.skillEnv = buildSkillServiceEnv();
 
     try {
       await this.startWebSearchService();
     } catch (error) {
-      console.error('[SkillServices] Error starting services:', error);
+      console.error('[技能服务] 启动服务时出错:', error);
     }
   }
 
   /**
-   * Stop all skill services
+   * 停止所有技能服务
    */
   async stopAll(): Promise<void> {
-    console.log('[SkillServices] Stopping skill services...');
+    console.log('[技能服务] 正在停止技能服务...');
 
     try {
       await this.stopWebSearchService();
     } catch (error) {
-      console.error('[SkillServices] Error stopping services:', error);
+      console.error('[技能服务] 停止服务时出错:', error);
     }
   }
 
   /**
-   * Start Web Search Bridge Server
+   * 启动网页搜索桥接服务器
    */
   async startWebSearchService(): Promise<void> {
     try {
       const skillPath = this.getWebSearchPath();
       if (!skillPath) {
-        console.log('[SkillServices] Web Search skill not found, skipping');
+        console.log('[技能服务] 未找到网页搜索技能，跳过');
         return;
       }
 
-      // Check if already running
+      // 检查是否已在运行
       if (this.isWebSearchServiceRunning()) {
-        console.log('[SkillServices] Web Search service already running');
+        console.log('[技能服务] 网页搜索服务已在运行');
         return;
       }
 
-      console.log('[SkillServices] Starting Web Search Bridge Server...');
+      console.log('[技能服务] 正在启动网页搜索桥接服务器...');
 
       await this.startWebSearchServiceProcess(skillPath);
 
-      // Wait a moment for the server to start
+      // 等待服务器启动
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Check if server started successfully
+      // 检查服务器是否成功启动
       const pidFile = path.join(skillPath, '.server.pid');
       if (fs.existsSync(pidFile)) {
         const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
         this.webSearchPid = pid;
-        console.log(`[SkillServices] Web Search Bridge Server started (PID: ${pid})`);
+        console.log(`[技能服务] 网页搜索桥接服务器已启动 (进程ID: ${pid})`);
       } else {
-        console.warn('[SkillServices] Web Search Bridge Server may not have started correctly');
+        console.warn('[技能服务] 网页搜索桥接服务器可能未正确启动');
       }
     } catch (error) {
-      console.error('[SkillServices] Failed to start Web Search service:', error);
+      console.error('[技能服务] 启动网页搜索服务失败:', error);
     }
   }
 
@@ -267,8 +267,8 @@ export class SkillServiceManager {
       LOBSTERAI_ELECTRON_PATH: process.execPath,
     };
 
-    // Node/Electron validates stdio streams synchronously. Use fd to avoid
-    // races where createWriteStream has not opened the file descriptor yet.
+    // Node/Electron 会同步验证标准输入输出流。使用文件描述符来避免
+    // createWriteStream 尚未打开文件描述符时的竞态条件。
     const logFd = fs.openSync(logFile, 'a');
     let child;
     try {
@@ -286,12 +286,12 @@ export class SkillServiceManager {
     child.unref();
 
     const runtimeLabel = runtime.command === process.execPath ? 'electron-node' : 'node';
-    console.log(`[SkillServices] Web Search Bridge Server starting (PID: ${child.pid}, runtime: ${runtimeLabel})`);
-    console.log(`[SkillServices] Logs: ${logFile}`);
+    console.log(`[技能服务] 网页搜索桥接服务器正在启动 (进程ID: ${child.pid}, 运行时: ${runtimeLabel})`);
+    console.log(`[技能服务] 日志文件: ${logFile}`);
   }
 
   /**
-   * Stop Web Search Bridge Server
+   * 停止网页搜索桥接服务器
    */
   async stopWebSearchService(): Promise<void> {
     try {
@@ -301,17 +301,17 @@ export class SkillServiceManager {
       }
 
       if (!this.isWebSearchServiceRunning()) {
-        console.log('[SkillServices] Web Search service not running');
+        console.log('[技能服务] 网页搜索服务未运行');
         return;
       }
 
-      console.log('[SkillServices] Stopping Web Search Bridge Server...');
+      console.log('[技能服务] 正在停止网页搜索桥接服务器...');
 
       if (this.webSearchPid) {
         try {
           process.kill(this.webSearchPid, 'SIGTERM');
         } catch (error) {
-          console.warn('[SkillServices] Failed to kill process:', error);
+          console.warn('[技能服务] 终止进程失败:', error);
         }
       }
 
@@ -320,22 +320,22 @@ export class SkillServiceManager {
         fs.unlinkSync(pidFile);
       }
 
-      // Wait for graceful shutdown
+      // 等待优雅关闭
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('[SkillServices] Web Search Bridge Server stopped');
+      console.log('[技能服务] 网页搜索桥接服务器已停止');
       this.webSearchPid = null;
     } catch (error) {
-      console.error('[SkillServices] Failed to stop Web Search service:', error);
+      console.error('[技能服务] 停止网页搜索服务失败:', error);
     }
   }
 
   /**
-   * Check if Web Search service is running
+   * 检查网页搜索服务是否正在运行
    */
   isWebSearchServiceRunning(): boolean {
     if (this.webSearchPid === null) {
-      // Try to read PID from file
+      // 尝试从文件读取进程ID
       const skillPath = this.getWebSearchPath();
       if (!skillPath) {
         return false;
@@ -354,9 +354,9 @@ export class SkillServiceManager {
       }
     }
 
-    // Check if process is actually running
+    // 检查进程是否实际在运行
     try {
-      process.kill(this.webSearchPid, 0); // Signal 0 checks if process exists
+      process.kill(this.webSearchPid, 0); // 信号 0 用于检查进程是否存在
       return true;
     } catch (error) {
       this.webSearchPid = null;
@@ -365,18 +365,18 @@ export class SkillServiceManager {
   }
 
   /**
-   * Get Web Search skill path
+   * 获取网页搜索技能路径
    */
   private getWebSearchPath(): string | null {
     const candidates: string[] = [];
 
     if (app.isPackaged) {
-      // Prefer userData for packaged apps so scripts run from a real filesystem path.
+      // 打包后的应用优先使用 userData，以便脚本从真实文件系统路径运行。
       candidates.push(path.join(app.getPath('userData'), 'SKILLs', 'web-search'));
       candidates.push(path.join(process.resourcesPath, 'SKILLs', 'web-search'));
       candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
     } else {
-      // In development, __dirname is dist-electron/, so we need to go up one level to get to project root
+      // 开发模式下，__dirname 是 dist-electron/，需要向上一级才能到达项目根目录
       const projectRoot = path.resolve(__dirname, '..');
       candidates.push(path.join(projectRoot, 'SKILLs', 'web-search'));
       candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
@@ -386,7 +386,7 @@ export class SkillServiceManager {
   }
 
   /**
-   * Get service status
+   * 获取服务状态
    */
   getStatus(): { webSearch: boolean } {
     return {
@@ -395,7 +395,7 @@ export class SkillServiceManager {
   }
 
   /**
-   * Health check for Web Search service
+   * 网页搜索服务健康检查
    */
   async checkWebSearchHealth(): Promise<boolean> {
     try {
@@ -410,7 +410,7 @@ export class SkillServiceManager {
   }
 }
 
-// Singleton instance
+// 单例实例
 let serviceManager: SkillServiceManager | null = null;
 
 export function getSkillServiceManager(): SkillServiceManager {

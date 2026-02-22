@@ -1,5 +1,5 @@
-# Local Calendar Tool - PowerShell Implementation for Windows
-# Supports Microsoft Outlook COM API
+# 本地日历工具 - Windows PowerShell 实现
+# 支持 Microsoft Outlook COM API
 
 param(
     [Parameter(Position=0, Mandatory=$true)]
@@ -18,7 +18,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Output JSON result
+# 输出 JSON 结果
 function Output-Result($success, $data, $error) {
     $result = @{ success = $success }
     if ($data) { $result.data = $data }
@@ -26,7 +26,7 @@ function Output-Result($success, $data, $error) {
     $result | ConvertTo-Json -Depth 10 -Compress
 }
 
-# Check Outlook availability
+# 检查 Outlook 可用性
 function Test-OutlookAvailable {
     try {
         $Outlook = New-Object -ComObject Outlook.Application
@@ -37,7 +37,7 @@ function Test-OutlookAvailable {
     }
 }
 
-# List events
+# 列出事件
 function Get-CalendarEvents {
     param($StartTime, $EndTime, $CalendarName)
 
@@ -53,9 +53,9 @@ function Get-CalendarEvents {
         $Items.IncludeRecurrences = $true
         $Items.Sort('[Start]')
 
-        # Use standard interval overlap logic instead of strict containment
-        # This ensures we catch events that span multiple days or cross midnight
-        # Filter: Event overlaps with range if event starts before range ends AND event ends after range starts
+        # 使用标准的时间区间重叠逻辑，而非严格的包含关系
+        # 这确保我们能捕获跨越多天或跨越午夜的事件
+        # 过滤条件：如果事件在时间范围结束前开始，且在时间范围开始后结束，则事件与范围重叠
         $Filter = "[Start] < '$($EndTime.ToString('g'))' AND [End] > '$($StartTime.ToString('g'))'"
         $FilteredItems = $Items.Restrict($Filter)
 
@@ -79,12 +79,12 @@ function Get-CalendarEvents {
     }
 }
 
-# Create event
+# 创建事件
 function New-CalendarEvent {
     param($Title, $StartTime, $EndTime, $Location, $Notes, $CalendarName)
 
     if (-not $Title -or -not $StartTime -or -not $EndTime) {
-        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'title, start, and end are required'; recoverable = $false }
+        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = '标题、开始时间和结束时间为必填项'; recoverable = $false }
         return
     }
 
@@ -100,18 +100,18 @@ function New-CalendarEvent {
 
         $Appointment.Save()
 
-        Output-Result -success $true -data @{ eventId = $Appointment.EntryID; message = 'Event created successfully' }
+        Output-Result -success $true -data @{ eventId = $Appointment.EntryID; message = '事件创建成功' }
     } catch {
         Output-Result -success $false -error @{ code = 'CALENDAR_ACCESS_ERROR'; message = $_.Exception.Message; recoverable = $true }
     }
 }
 
-# Update event
+# 更新事件
 function Set-CalendarEvent {
     param($Id, $Title, $StartTime, $EndTime, $Location, $Notes)
 
     if (-not $Id) {
-        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'id is required'; recoverable = $false }
+        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'ID 为必填项'; recoverable = $false }
         return
     }
 
@@ -128,18 +128,18 @@ function Set-CalendarEvent {
 
         $Appointment.Save()
 
-        Output-Result -success $true -data @{ eventId = $Appointment.EntryID; message = 'Event updated successfully' }
+        Output-Result -success $true -data @{ eventId = $Appointment.EntryID; message = '事件更新成功' }
     } catch {
         Output-Result -success $false -error @{ code = 'CALENDAR_ACCESS_ERROR'; message = $_.Exception.Message; recoverable = $true }
     }
 }
 
-# Delete event
+# 删除事件
 function Remove-CalendarEvent {
     param($Id)
 
     if (-not $Id) {
-        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'id is required'; recoverable = $false }
+        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'ID 为必填项'; recoverable = $false }
         return
     }
 
@@ -150,13 +150,13 @@ function Remove-CalendarEvent {
 
         $Appointment.Delete()
 
-        Output-Result -success $true -data @{ message = 'Event deleted successfully' }
+        Output-Result -success $true -data @{ message = '事件删除成功' }
     } catch {
         Output-Result -success $false -error @{ code = 'CALENDAR_ACCESS_ERROR'; message = $_.Exception.Message; recoverable = $true }
     }
 }
 
-# Search events in a single folder
+# 在单个文件夹中搜索事件
 function Search-CalendarFolder {
     param($Folder, $Query, $FolderName)
     
@@ -184,19 +184,19 @@ function Search-CalendarFolder {
                 }
             }
         } catch {
-            # Skip items that can't be accessed
+            # 跳过无法访问的项目
         }
     }
     
     return $Results
 }
 
-# Search events across all calendars
+# 在所有日历中搜索事件
 function Find-CalendarEvents {
     param($Query, $CalendarName)
 
     if (-not $Query) {
-        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = 'query is required'; recoverable = $false }
+        Output-Result -success $false -error @{ code = 'INVALID_INPUT'; message = '查询内容为必填项'; recoverable = $false }
         return
     }
 
@@ -207,30 +207,30 @@ function Find-CalendarEvents {
         $AllEvents = @()
         
         if ($CalendarName) {
-            # Search specific calendar
+            # 搜索指定日历
             $CalendarFolder = $Namespace.GetDefaultFolder(9) # olFolderCalendar
             $Results = Search-CalendarFolder -Folder $CalendarFolder -Query $Query -FolderName $CalendarFolder.Name
             $AllEvents += $Results
         } else {
-            # Search all calendar folders
-            # Start with default calendar
+            # 搜索所有日历文件夹
+            # 从默认日历开始
             try {
                 $DefaultCalendar = $Namespace.GetDefaultFolder(9)
                 $Results = Search-CalendarFolder -Folder $DefaultCalendar -Query $Query -FolderName $DefaultCalendar.Name
                 $AllEvents += $Results
             } catch {
-                Write-Host "Warning: Could not access default calendar: $($_.Exception.Message)"
+                Write-Host "警告：无法访问默认日历：$($_.Exception.Message)"
             }
             
-            # Search additional calendar folders in the mailbox
+            # 在邮箱中搜索其他日历文件夹
             try {
                 $RootFolder = $Namespace.Folders
                 foreach ($Folder in $RootFolder) {
                     try {
-                        # Try to get calendar folders from each root folder
+                        # 尝试从每个根文件夹获取日历文件夹
                         $CalendarFolders = @()
                         
-                        # Check if this folder has a Calendar subfolder
+                        # 检查此文件夹是否有日历子文件夹
                         foreach ($SubFolder in $Folder.Folders) {
                             if ($SubFolder.DefaultItemType -eq 1 -or $SubFolder.Name -like '*Calendar*') {
                                 # 1 = olAppointmentItem
@@ -243,15 +243,15 @@ function Find-CalendarEvents {
                                 $Results = Search-CalendarFolder -Folder $CalFolder -Query $Query -FolderName $CalFolder.Name
                                 $AllEvents += $Results
                             } catch {
-                                # Skip folders that can't be accessed
+                                # 跳过无法访问的文件夹
                             }
                         }
                     } catch {
-                        # Skip folders that can't be accessed
+                        # 跳过无法访问的文件夹
                     }
                 }
             } catch {
-                Write-Host "Warning: Could not enumerate all calendars: $($_.Exception.Message)"
+                Write-Host "警告：无法枚举所有日历：$($_.Exception.Message)"
             }
         }
 
@@ -261,9 +261,9 @@ function Find-CalendarEvents {
     }
 }
 
-# Main
+# 主程序
 if (-not (Test-OutlookAvailable)) {
-    Output-Result -success $false -error @{ code = 'OUTLOOK_NOT_AVAILABLE'; message = 'Microsoft Outlook is not installed or not accessible'; recoverable = $true }
+    Output-Result -success $false -error @{ code = 'OUTLOOK_NOT_AVAILABLE'; message = 'Microsoft Outlook 未安装或无法访问'; recoverable = $true }
     exit 1
 }
 
@@ -274,6 +274,6 @@ switch ($Operation) {
     'delete' { Remove-CalendarEvent -Id $Id }
     'search' { Find-CalendarEvents -Query $Query -CalendarName $Calendar }
     default {
-        Output-Result -success $false -error @{ code = 'INVALID_OPERATION'; message = "Unknown operation: $Operation"; recoverable = $false }
+        Output-Result -success $false -error @{ code = 'INVALID_OPERATION'; message = "未知操作：$Operation"; recoverable = $false }
     }
 }

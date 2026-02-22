@@ -1,6 +1,6 @@
 /**
- * Web Search Skill - Bridge Server
- * Provides HTTP API for browser control and search operations
+ * 网页搜索技能 - 桥接服务器
+ * 提供浏览器控制和搜索操作的 HTTP API
  */
 
 import express, { NextFunction, Request, Response } from 'express';
@@ -16,12 +16,19 @@ import { SearchResponse } from './search/types';
 type SearchEngine = 'google' | 'bing';
 type SearchEnginePreference = SearchEngine | 'auto';
 
+/**
+ * 递归收集对象中的所有字符串值
+ * @param input - 输入数据（可以是任意类型）
+ * @param out - 输出字符串数组
+ */
 function collectStringValues(input: unknown, out: string[]): void {
+  // 如果输入是字符串，直接添加到输出数组
   if (typeof input === 'string') {
     out.push(input);
     return;
   }
 
+  // 如果输入是数组，递归处理每个元素
   if (Array.isArray(input)) {
     for (const item of input) {
       collectStringValues(item, out);
@@ -29,6 +36,7 @@ function collectStringValues(input: unknown, out: string[]): void {
     return;
   }
 
+  // 如果输入是对象，递归处理每个属性值
   if (input && typeof input === 'object') {
     for (const value of Object.values(input as Record<string, unknown>)) {
       collectStringValues(value, out);
@@ -36,42 +44,64 @@ function collectStringValues(input: unknown, out: string[]): void {
   }
 }
 
+/**
+ * 对解码后的 JSON 文本进行评分
+ * 用于判断哪种编码方式更合适
+ * @param text - 待评分的文本
+ * @returns 评分值，越高表示编码越合适
+ */
 function scoreDecodedJsonText(text: string): number {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
+    // JSON 解析失败，返回极低分数
     return -10000;
   }
 
+  // 收集所有字符串值
   const values: string[] = [];
   collectStringValues(parsed, values);
   const joined = values.join('\n');
   if (!joined) return 0;
 
-  const cjkCount = (joined.match(/[\u3400-\u9FFF]/g) || []).length;
-  const replacementCount = (joined.match(/\uFFFD/g) || []).length;
-  const mojibakeCount = (joined.match(/[ÃÂÐÑØÙÞæçèéêëìíîïðñòóôõöøùúûüýþÿ]/g) || []).length;
-  const nonAsciiCount = (joined.match(/[^\x00-\x7F]/g) || []).length;
+  // 计算各种字符统计
+  const cjkCount = (joined.match(/[\u3400-\u9FFF]/g) || []).length; // 中日韩文字数量
+  const replacementCount = (joined.match(/\uFFFD/g) || []).length; // 替换字符数量（表示解码错误）
+  const mojibakeCount = (joined.match(/[ÃÂÐÑØÙÞæçèéêëìíîïðñòóôõöøùúûüýþÿ]/g) || []).length; // 乱码字符数量
+  const nonAsciiCount = (joined.match(/[^\x00-\x7F]/g) || []).length; // 非ASCII字符数量
 
+  // 计算综合评分：CJK字符加分，非ASCII字符加分，替换字符和乱码字符减分
   return cjkCount * 4 + nonAsciiCount - replacementCount * 8 - mojibakeCount * 3;
 }
 
+/**
+ * 解码 JSON 请求体
+ * 支持多种编码格式，自动检测并选择最佳解码方式
+ * @param raw - 原始字节数据
+ * @returns 解码后的字符串
+ */
 function decodeJsonRequestBody(raw: Buffer): string {
+  // 空数据直接返回空字符串
   if (raw.length === 0) {
     return '';
   }
 
+  // 检测并处理 BOM（字节顺序标记）
+  // UTF-8 BOM
   if (raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf) {
     return new TextDecoder('utf-8', { fatal: false }).decode(raw.subarray(3));
   }
+  // UTF-16 LE BOM（小端序）
   if (raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe) {
     return new TextDecoder('utf-16le', { fatal: false }).decode(raw.subarray(2));
   }
+  // UTF-16 BE BOM（大端序）
   if (raw.length >= 2 && raw[0] === 0xfe && raw[1] === 0xff) {
     return new TextDecoder('utf-16be', { fatal: false }).decode(raw.subarray(2));
   }
 
+  // 尝试 UTF-8 解码
   let utf8Decoded: string | null = null;
   try {
     utf8Decoded = new TextDecoder('utf-8', { fatal: true }).decode(raw);
@@ -79,6 +109,7 @@ function decodeJsonRequestBody(raw: Buffer): string {
     utf8Decoded = null;
   }
 
+  // 尝试 GB18030 解码（中文编码）
   let gbDecoded: string | null = null;
   try {
     gbDecoded = new TextDecoder('gb18030', { fatal: true }).decode(raw);
@@ -86,28 +117,36 @@ function decodeJsonRequestBody(raw: Buffer): string {
     gbDecoded = null;
   }
 
+  // 如果两种编码都成功，选择评分更高的
   if (utf8Decoded && gbDecoded) {
     const utf8Score = scoreDecodedJsonText(utf8Decoded);
     const gbScore = scoreDecodedJsonText(gbDecoded);
     if (gbScore > utf8Score) {
-      console.warn(`[Bridge Server] Request body decoded using gb18030 (score ${gbScore} > utf8 ${utf8Score})`);
+      console.warn(`[桥接服务器] 请求体使用 gb18030 解码（评分 ${gbScore} > utf8 ${utf8Score}）`);
       return gbDecoded;
     }
     return utf8Decoded;
   }
 
+  // 优先使用 UTF-8
   if (utf8Decoded) {
     return utf8Decoded;
   }
 
+  // 回退到 GB18030
   if (gbDecoded) {
-    console.warn('[Bridge Server] Request body decoded using gb18030 fallback');
+    console.warn('[桥接服务器] 请求体使用 gb18030 解码作为回退方案');
     return gbDecoded;
   }
 
+  // 最终回退：使用容错模式的 UTF-8
   return new TextDecoder('utf-8', { fatal: false }).decode(raw);
 }
 
+/**
+ * 桥接服务器类
+ * 提供 HTTP API 接口，用于浏览器控制和搜索操作
+ */
 export class BridgeServer {
   private app: express.Application;
   private playwrightManager: PlaywrightManager;
@@ -117,6 +156,10 @@ export class BridgeServer {
   private httpServer: Server | null = null;
   private config: Config;
 
+  /**
+   * 构造函数
+   * @param config - 可选的服务器配置
+   */
   constructor(config?: Partial<Config>) {
     this.config = mergeConfig(config);
     this.app = express();
@@ -128,12 +171,18 @@ export class BridgeServer {
     this.setupRoutes();
   }
 
+  /**
+   * 设置中间件
+   * 包括请求体解析、CORS 处理和请求日志
+   */
   private setupMiddleware(): void {
+    // 配置原始请求体解析器，支持 JSON 格式
     this.app.use(express.raw({
       type: ['application/json', 'application/*+json'],
       limit: '2mb',
     }));
 
+    // 自定义请求体解析中间件
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       const contentType = req.headers['content-type'];
       const isJsonRequest = Array.isArray(contentType)
@@ -142,6 +191,7 @@ export class BridgeServer {
           ? contentType.includes('application/json') || contentType.includes('+json')
           : false;
 
+      // 非 JSON 请求，初始化空对象
       if (!isJsonRequest) {
         if (!req.body || typeof req.body !== 'object' || Buffer.isBuffer(req.body)) {
           req.body = {};
@@ -150,6 +200,7 @@ export class BridgeServer {
         return;
       }
 
+      // 解析 JSON 请求体
       const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
       if (rawBody.length === 0) {
         req.body = {};
@@ -164,12 +215,12 @@ export class BridgeServer {
       } catch (error) {
         res.status(400).json({
           success: false,
-          error: `Invalid JSON body: ${error instanceof Error ? error.message : String(error)}`
+          error: `无效的 JSON 请求体: ${error instanceof Error ? error.message : String(error)}`
         });
       }
     });
 
-    // CORS for localhost only
+    // CORS 配置（仅限本地主机）
     this.app.use((req, res, next) => {
       res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE');
@@ -177,37 +228,46 @@ export class BridgeServer {
       next();
     });
 
-    // Request logging
+    // 请求日志中间件
     this.app.use((req, res, next) => {
       console.log(`[API] ${req.method} ${req.path}`);
       next();
     });
   }
 
+  /**
+   * 设置路由
+   * 定义所有 API 端点
+   */
   private setupRoutes(): void {
-    // Health check
+    // 健康检查
     this.app.get('/api/health', this.handleHealth.bind(this));
 
-    // Browser management
+    // 浏览器管理
     this.app.post('/api/browser/launch', this.handleBrowserLaunch.bind(this));
     this.app.post('/api/browser/connect', this.handleBrowserConnect.bind(this));
     this.app.post('/api/browser/disconnect', this.handleBrowserDisconnect.bind(this));
     this.app.get('/api/browser/status', this.handleBrowserStatus.bind(this));
 
-    // Search operations
+    // 搜索操作
     this.app.post('/api/search', this.handleSearch.bind(this));
     this.app.post('/api/search/content', this.handleGetContent.bind(this));
 
-    // Page operations
+    // 页面操作
     this.app.post('/api/page/navigate', this.handleNavigate.bind(this));
     this.app.post('/api/page/screenshot', this.handleScreenshot.bind(this));
     this.app.post('/api/page/content', this.handlePageContent.bind(this));
     this.app.post('/api/page/text', this.handlePageText.bind(this));
 
-    // Connection management
+    // 连接管理
     this.app.get('/api/connections', this.handleListConnections.bind(this));
   }
 
+  /**
+   * 检查浏览器进程是否存活
+   * @param instance - 浏览器实例
+   * @returns 进程是否存活
+   */
   private isBrowserProcessAlive(instance: BrowserInstance | null): boolean {
     if (!instance) {
       return false;
@@ -218,6 +278,7 @@ export class BridgeServer {
     }
 
     try {
+      // 发送信号 0 检查进程是否存在
       process.kill(instance.pid, 0);
       return true;
     } catch {
@@ -225,6 +286,11 @@ export class BridgeServer {
     }
   }
 
+  /**
+   * 检查 CDP（Chrome DevTools Protocol）端口是否可达
+   * @param port - CDP 端口号
+   * @returns 端口是否可达
+   */
   private async isCdpReachable(port: number): Promise<boolean> {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json/version`, {
@@ -236,6 +302,10 @@ export class BridgeServer {
     }
   }
 
+  /**
+   * 重置浏览器状态
+   * 断开所有连接并关闭浏览器
+   */
   private async resetBrowserState(): Promise<void> {
     await this.playwrightManager.disconnectAll();
 
@@ -243,30 +313,39 @@ export class BridgeServer {
       try {
         await closeBrowser(this.browserInstance);
       } catch (error) {
-        console.warn(`[Bridge Server] Failed to close stale browser instance: ${error instanceof Error ? error.message : String(error)}`);
+        console.warn(`[桥接服务器] 关闭过期的浏览器实例失败: ${error instanceof Error ? error.message : String(error)}`);
       }
       this.browserInstance = null;
     }
   }
 
+  /**
+   * 确保浏览器准备就绪
+   * 检查现有实例或启动新实例
+   * @returns 浏览器实例和是否复用的标志
+   */
   private async ensureBrowserReady(): Promise<{ instance: BrowserInstance; reused: boolean }> {
     if (this.browserInstance) {
       const processAlive = this.isBrowserProcessAlive(this.browserInstance);
       const cdpReachable = processAlive ? await this.isCdpReachable(this.browserInstance.cdpPort) : false;
 
+      // 如果进程存活且 CDP 可达，复用现有实例
       if (processAlive && cdpReachable) {
         return { instance: this.browserInstance, reused: true };
       }
 
-      console.warn('[Bridge Server] Detected stale browser instance, relaunching...');
+      console.warn('[桥接服务器] 检测到过期的浏览器实例，正在重新启动...');
       await this.resetBrowserState();
     }
 
+    // 启动新的浏览器实例
     this.browserInstance = await launchBrowser(this.config.browser);
     return { instance: this.browserInstance, reused: false };
   }
 
-  // Health check endpoint
+  /**
+   * 处理健康检查请求
+   */
   private handleHealth(req: Request, res: Response): void {
     res.json({
       success: true,
@@ -278,7 +357,9 @@ export class BridgeServer {
     });
   }
 
-  // Launch browser
+  /**
+   * 处理浏览器启动请求
+   */
   private async handleBrowserLaunch(req: Request, res: Response): Promise<void> {
     try {
       const { instance, reused } = await this.ensureBrowserReady();
@@ -287,7 +368,7 @@ export class BridgeServer {
         res.json({
           success: true,
           data: {
-            message: 'Browser already running',
+            message: '浏览器已在运行',
             pid: instance.pid,
             cdpPort: instance.cdpPort
           }
@@ -311,13 +392,15 @@ export class BridgeServer {
     }
   }
 
-  // Connect to browser via Playwright
+  /**
+   * 处理浏览器连接请求（通过 Playwright）
+   */
   private async handleBrowserConnect(req: Request, res: Response): Promise<void> {
     try {
       const { cdpPort } = req.body;
       let port = cdpPort as number | undefined;
 
-      // If client does not specify a port, ensure managed browser is healthy first.
+      // 如果客户端未指定端口，确保管理的浏览器健康
       if (!port) {
         const { instance } = await this.ensureBrowserReady();
         port = instance.cdpPort;
@@ -340,7 +423,9 @@ export class BridgeServer {
     }
   }
 
-  // Disconnect from browser
+  /**
+   * 处理浏览器断开连接请求
+   */
   private async handleBrowserDisconnect(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId } = req.body;
@@ -348,7 +433,7 @@ export class BridgeServer {
       if (!connectionId) {
         res.status(400).json({
           success: false,
-          error: 'connectionId is required'
+          error: 'connectionId 是必需的'
         });
         return;
       }
@@ -357,7 +442,7 @@ export class BridgeServer {
 
       res.json({
         success: true,
-        data: { message: 'Disconnected successfully' }
+        data: { message: '已成功断开连接' }
       });
     } catch (error) {
       res.status(500).json({
@@ -367,7 +452,9 @@ export class BridgeServer {
     }
   }
 
-  // Get browser status
+  /**
+   * 处理获取浏览器状态请求
+   */
   private async handleBrowserStatus(req: Request, res: Response): Promise<void> {
     const processAlive = this.isBrowserProcessAlive(this.browserInstance);
     const cdpReachable = processAlive && this.browserInstance
@@ -387,7 +474,9 @@ export class BridgeServer {
     });
   }
 
-  // Search operation
+  /**
+   * 处理搜索请求
+   */
   private async handleSearch(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId, query, maxResults, engine } = req.body;
@@ -395,7 +484,7 @@ export class BridgeServer {
       if (!connectionId || !query) {
         res.status(400).json({
           success: false,
-          error: 'connectionId and query are required'
+          error: 'connectionId 和 query 是必需的'
         });
         return;
       }
@@ -415,6 +504,11 @@ export class BridgeServer {
     }
   }
 
+  /**
+   * 规范化搜索引擎偏好设置
+   * @param engine - 引擎类型
+   * @returns 规范化后的搜索引擎偏好
+   */
   private normalizeEnginePreference(engine: unknown): SearchEnginePreference {
     if (engine === 'google' || engine === 'bing' || engine === 'auto') {
       return engine;
@@ -423,11 +517,19 @@ export class BridgeServer {
     return this.config.search.defaultEngine;
   }
 
+  /**
+   * 解析搜索引擎顺序
+   * 根据偏好设置确定搜索引擎的使用顺序
+   * @param preferredEngine - 首选搜索引擎
+   * @returns 搜索引擎使用顺序数组
+   */
   private resolveSearchEngineOrder(preferredEngine: SearchEnginePreference): SearchEngine[] {
+    // 如果指定了特定引擎，只使用该引擎
     if (preferredEngine === 'google' || preferredEngine === 'bing') {
       return [preferredEngine];
     }
 
+    // 使用配置的回退顺序，并确保包含所有可用引擎
     const configuredOrder = this.config.search.fallbackOrder.filter(
       (item): item is SearchEngine => item === 'google' || item === 'bing'
     );
@@ -435,6 +537,15 @@ export class BridgeServer {
     return Array.from(new Set<SearchEngine>(fullOrder));
   }
 
+  /**
+   * 使用回退机制执行搜索
+   * 如果首选引擎失败，自动尝试其他引擎
+   * @param connectionId - 连接ID
+   * @param query - 搜索查询
+   * @param maxResults - 最大结果数
+   * @param preferredEngine - 首选搜索引擎
+   * @returns 搜索结果
+   */
   private async searchWithFallback(
     connectionId: string,
     query: string,
@@ -444,9 +555,10 @@ export class BridgeServer {
     const engineOrder = this.resolveSearchEngineOrder(preferredEngine);
     const errors: string[] = [];
 
+    // 按顺序尝试每个搜索引擎
     for (const engine of engineOrder) {
       try {
-        console.log(`[Search] Trying engine: ${engine}`);
+        console.log(`[搜索] 尝试使用引擎: ${engine}`);
         if (engine === 'google') {
           return await this.googleSearch.search(connectionId, query, { maxResults });
         }
@@ -455,14 +567,16 @@ export class BridgeServer {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`${engine}: ${message}`);
-        console.warn(`[Search] Engine failed (${engine}): ${message}`);
+        console.warn(`[搜索] 引擎失败 (${engine}): ${message}`);
       }
     }
 
-    throw new Error(`All configured search engines failed. ${errors.join(' | ')}`);
+    throw new Error(`所有配置的搜索引擎均失败。${errors.join(' | ')}`);
   }
 
-  // Get content from URL
+  /**
+   * 处理获取 URL 内容请求
+   */
   private async handleGetContent(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId, url } = req.body;
@@ -470,7 +584,7 @@ export class BridgeServer {
       if (!connectionId || !url) {
         res.status(400).json({
           success: false,
-          error: 'connectionId and url are required'
+          error: 'connectionId 和 url 是必需的'
         });
         return;
       }
@@ -489,7 +603,9 @@ export class BridgeServer {
     }
   }
 
-  // Navigate to URL
+  /**
+   * 处理页面导航请求
+   */
   private async handleNavigate(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId, url, waitUntil, timeout } = req.body;
@@ -497,7 +613,7 @@ export class BridgeServer {
       if (!connectionId || !url) {
         res.status(400).json({
           success: false,
-          error: 'connectionId and url are required'
+          error: 'connectionId 和 url 是必需的'
         });
         return;
       }
@@ -517,7 +633,9 @@ export class BridgeServer {
     }
   }
 
-  // Take screenshot
+  /**
+   * 处理页面截图请求
+   */
   private async handleScreenshot(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId, format = 'png', fullPage = false } = req.body;
@@ -525,7 +643,7 @@ export class BridgeServer {
       if (!connectionId) {
         res.status(400).json({
           success: false,
-          error: 'connectionId is required'
+          error: 'connectionId 是必需的'
         });
         return;
       }
@@ -549,7 +667,9 @@ export class BridgeServer {
     }
   }
 
-  // Get page HTML content
+  /**
+   * 处理获取页面 HTML 内容请求
+   */
   private async handlePageContent(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId } = req.body;
@@ -557,7 +677,7 @@ export class BridgeServer {
       if (!connectionId) {
         res.status(400).json({
           success: false,
-          error: 'connectionId is required'
+          error: 'connectionId 是必需的'
         });
         return;
       }
@@ -577,7 +697,9 @@ export class BridgeServer {
     }
   }
 
-  // Get page text content
+  /**
+   * 处理获取页面文本内容请求
+   */
   private async handlePageText(req: Request, res: Response): Promise<void> {
     try {
       const { connectionId } = req.body;
@@ -585,7 +707,7 @@ export class BridgeServer {
       if (!connectionId) {
         res.status(400).json({
           success: false,
-          error: 'connectionId is required'
+          error: 'connectionId 是必需的'
         });
         return;
       }
@@ -605,7 +727,9 @@ export class BridgeServer {
     }
   }
 
-  // List all connections
+  /**
+   * 处理列出所有连接请求
+   */
   private handleListConnections(req: Request, res: Response): void {
     const connections = this.playwrightManager.listConnections();
 
@@ -616,7 +740,7 @@ export class BridgeServer {
   }
 
   /**
-   * Start the server
+   * 启动服务器
    */
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -629,23 +753,23 @@ export class BridgeServer {
       });
 
       server.once('listening', () => {
-        console.log(`\n[Bridge Server] Started on http://${this.config.server.host}:${this.config.server.port}`);
-        console.log(`[Bridge Server] Health check: http://${this.config.server.host}:${this.config.server.port}/api/health\n`);
+        console.log(`\n[桥接服务器] 已启动于 http://${this.config.server.host}:${this.config.server.port}`);
+        console.log(`[桥接服务器] 健康检查: http://${this.config.server.host}:${this.config.server.port}/api/health\n`);
         resolve();
       });
     });
   }
 
   /**
-   * Stop the server and cleanup
+   * 停止服务器并清理资源
    */
   async stop(): Promise<void> {
-    console.log('\n[Bridge Server] Shutting down...');
+    console.log('\n[桥接服务器] 正在关闭...');
 
-    // Disconnect all Playwright connections
+    // 断开所有 Playwright 连接
     await this.playwrightManager.disconnectAll();
 
-    // Close browser if running
+    // 关闭运行中的浏览器
     if (this.browserInstance) {
       await closeBrowser(this.browserInstance);
       this.browserInstance = null;
@@ -664,15 +788,15 @@ export class BridgeServer {
       this.httpServer = null;
     }
 
-    console.log('[Bridge Server] Shutdown complete\n');
+    console.log('[桥接服务器] 关闭完成\n');
   }
 }
 
-// Main entry point
+// 主入口点
 if (require.main === module) {
   const server = new BridgeServer();
 
-  // Handle graceful shutdown
+  // 处理优雅关闭
   process.on('SIGINT', async () => {
     await server.stop();
     process.exit(0);
@@ -683,9 +807,9 @@ if (require.main === module) {
     process.exit(0);
   });
 
-  // Start server
+  // 启动服务器
   server.start().catch((error) => {
-    console.error('Failed to start server:', error);
+    console.error('启动服务器失败:', error);
     process.exit(1);
   });
 }

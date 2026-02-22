@@ -15,9 +15,9 @@ interface TaskFormProps {
 type ScheduleMode = 'once' | 'daily' | 'weekly' | 'monthly';
 
 const NOTIFY_PLATFORMS: NotifyPlatform[] = ['dingtalk', 'feishu', 'telegram', 'discord'];
-const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const; // 0=Sunday
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const; // 0=周日
 
-// Parse existing schedule into UI state
+// 将现有调度计划解析为UI状态
 function parseScheduleToUI(schedule: Schedule): {
   mode: ScheduleMode;
   date: string;
@@ -29,7 +29,7 @@ function parseScheduleToUI(schedule: Schedule): {
 
   if (schedule.type === 'at') {
     const dt = schedule.datetime ?? '';
-    // datetime-local format: "YYYY-MM-DDTHH:MM"
+    // datetime-local格式: "YYYY-MM-DDTHH:MM"
     if (dt.includes('T')) {
       return { ...defaults, mode: 'once', date: dt.slice(0, 10), time: dt.slice(11, 16) };
     }
@@ -43,19 +43,19 @@ function parseScheduleToUI(schedule: Schedule): {
       const timeStr = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
 
       if (dow !== '*' && dom === '*') {
-        // Weekly: M H * * DOW
+        // 每周: M H * * DOW
         return { ...defaults, mode: 'weekly', time: timeStr, weekday: parseInt(dow) || 0 };
       }
       if (dom !== '*' && dow === '*') {
-        // Monthly: M H DOM * *
+        // 每月: M H DOM * *
         return { ...defaults, mode: 'monthly', time: timeStr, monthDay: parseInt(dom) || 1 };
       }
-      // Daily: M H * * *
+      // 每天: M H * * *
       return { ...defaults, mode: 'daily', time: timeStr };
     }
   }
 
-  // Fallback for interval type - treat as daily
+  // interval类型的回退处理 - 视为每天执行
   if (schedule.type === 'interval') {
     return { ...defaults, mode: 'daily' };
   }
@@ -67,10 +67,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
   const coworkConfig = useSelector((state: RootState) => state.cowork.config);
   const defaultWorkingDirectory = coworkConfig?.workingDirectory ?? '';
 
-  // Parse existing schedule for edit mode
+  // 编辑模式下解析现有调度计划
   const parsed = task ? parseScheduleToUI(task.schedule) : null;
 
-  // Form state
+  // 表单状态
   const [name, setName] = useState(task?.name ?? '');
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>(parsed?.mode ?? 'once');
   const [scheduleDate, setScheduleDate] = useState(parsed?.date ?? '');
@@ -86,7 +86,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Close dropdown when clicking outside
+  // 点击外部时关闭下拉菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notifyDropdownRef.current && !notifyDropdownRef.current.contains(e.target as Node)) {
@@ -155,7 +155,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
       }
       onSaved();
     } catch {
-      // Error handled by service
+      // 错误由服务层处理
     } finally {
       setSubmitting(false);
     }
@@ -168,7 +168,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         setWorkingDirectory(result.path);
       }
     } catch {
-      // ignore
+      // 忽略错误
     }
   };
 
@@ -194,7 +194,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         {mode === 'create' ? i18nService.t('scheduledTasksFormCreate') : i18nService.t('scheduledTasksFormUpdate')}
       </h2>
 
-      {/* Name */}
+      {/* 名称 */}
       <div>
         <label className={labelClass}>{i18nService.t('scheduledTasksFormName')}</label>
         <input
@@ -207,7 +207,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         {errors.name && <p className={errorClass}>{errors.name}</p>}
       </div>
 
-      {/* Prompt */}
+      {/* 提示词 */}
       <div>
         <label className={labelClass}>{i18nService.t('scheduledTasksPrompt')}</label>
         <textarea
@@ -219,11 +219,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         {errors.prompt && <p className={errorClass}>{errors.prompt}</p>}
       </div>
 
-      {/* Schedule */}
+      {/* 调度计划 */}
       <div>
         <label className={labelClass}>{i18nService.t('scheduledTasksFormScheduleType')}</label>
         <div className="grid grid-cols-3 gap-2">
-          {/* Schedule Mode Dropdown */}
+          {/* 调度模式下拉菜单 */}
           <select
             value={scheduleMode}
             onChange={(e) => setScheduleMode(e.target.value as ScheduleMode)}
@@ -236,7 +236,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
             ))}
           </select>
 
-          {/* Second column: date/weekday/monthday or time (for daily) */}
+          {/* 第二列: 日期/星期/月份日期 或 时间 (用于每天模式) */}
           {scheduleMode === 'once' ? (
             <input
               type="date"
@@ -278,7 +278,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
             />
           )}
 
-          {/* Third column: time picker (or empty for daily) */}
+          {/* 第三列: 时间选择器 (每天模式时为空) */}
           {scheduleMode === 'daily' ? (
             <div />
           ) : (
@@ -293,7 +293,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         {errors.schedule && <p className={errorClass}>{errors.schedule}</p>}
       </div>
 
-      {/* Working Directory */}
+      {/* 工作目录 */}
       <div>
         <label className={labelClass}>{i18nService.t('scheduledTasksFormWorkingDirectory')}</label>
         <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
       </div>
       {errors.workingDirectory && <p className={errorClass}>{errors.workingDirectory}</p>}
 
-      {/* Expires At */}
+      {/* 过期时间 */}
       <div>
         <label className={labelClass}>
           {i18nService.t('scheduledTasksFormExpiresAt')}
@@ -343,7 +343,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         </div>
       </div>
 
-      {/* Notification */}
+      {/* 通知 */}
       <div>
         <label className={labelClass}>
           {i18nService.t('scheduledTasksFormNotify')}
@@ -400,7 +400,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         </div>
       </div>
 
-      {/* Actions */}
+      {/* 操作按钮 */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           type="button"

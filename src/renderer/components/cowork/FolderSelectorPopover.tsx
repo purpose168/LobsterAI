@@ -4,7 +4,7 @@ import { i18nService } from '../../services/i18n';
 import { coworkService } from '../../services/cowork';
 import { getCompactFolderName } from '../../utils/path';
 
-// Custom tooltip for folder paths
+// 文件夹路径的自定义提示工具
 interface PathTooltipProps {
   path: string;
   anchorRect: DOMRect | null;
@@ -14,7 +14,7 @@ interface PathTooltipProps {
 const PathTooltip: React.FC<PathTooltipProps> = ({ path, anchorRect, visible }) => {
   if (!visible || !anchorRect) return null;
 
-  // Position tooltip above the item, centered
+  // 将提示工具定位在项目上方，居中显示
   const style: React.CSSProperties = {
     position: 'fixed',
     top: anchorRect.top - 8,
@@ -61,7 +61,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
   const recentFoldersRef = useRef<HTMLDivElement>(null);
   const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup tooltip timer on unmount
+  // 组件卸载时清理提示工具定时器
   useEffect(() => {
     return () => {
       if (tooltipTimerRef.current) {
@@ -70,7 +70,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
     };
   }, []);
 
-  // Load recent folders when popover opens
+  // 当弹出窗口打开时加载最近使用的文件夹
   useEffect(() => {
     if (isOpen) {
       const loadRecentFolders = async () => {
@@ -79,7 +79,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
           const folders = await coworkService.getRecentCwds(10);
           setRecentFolders(folders);
         } catch (error) {
-          console.error('Failed to load recent folders:', error);
+          console.error('加载最近文件夹失败:', error);
           setRecentFolders([]);
         } finally {
           setIsLoading(false);
@@ -88,7 +88,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
       loadRecentFolders();
     } else {
       setShowRecentSubmenu(false);
-      // Clear tooltip when popover closes
+      // 弹出窗口关闭时清除提示工具
       setTooltipState({ visible: false, path: '', rect: null });
       if (tooltipTimerRef.current) {
         clearTimeout(tooltipTimerRef.current);
@@ -97,7 +97,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
     }
   }, [isOpen]);
 
-  // Handle click outside
+  // 处理点击外部区域
   useEffect(() => {
     if (!isOpen) return;
 
@@ -116,7 +116,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose, anchorRef]);
 
-  // Handle escape key
+  // 处理 ESC 键
   useEffect(() => {
     if (!isOpen) return;
 
@@ -130,13 +130,13 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Calculate submenu position relative to the Recent Folders button
+  // 计算子菜单相对于"最近文件夹"按钮的位置
   useEffect(() => {
     if (showRecentSubmenu && recentFoldersRef.current) {
       const rect = recentFoldersRef.current.getBoundingClientRect();
       setSubmenuPosition({
         top: rect.top,
-        left: rect.right + 4, // 4px gap
+        left: rect.right + 4, // 4px 间距
       });
     }
   }, [showRecentSubmenu]);
@@ -149,7 +149,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
         onClose();
       }
     } catch (error) {
-      console.error('Failed to select directory:', error);
+      console.error('选择目录失败:', error);
     }
   };
 
@@ -160,11 +160,11 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
 
   const handleFolderMouseEnter = useCallback((path: string, event: React.MouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    // Clear any existing timer
+    // 清除任何现有的定时器
     if (tooltipTimerRef.current) {
       clearTimeout(tooltipTimerRef.current);
     }
-    // Show tooltip after a short delay
+    // 延迟显示提示工具
     tooltipTimerRef.current = setTimeout(() => {
       setTooltipState({
         visible: true,
@@ -191,12 +191,12 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
 
   return (
     <>
-      {/* Main popover */}
+      {/* 主弹出窗口 */}
       <div
         ref={popoverRef}
         className="absolute bottom-full left-0 mb-2 w-56 rounded-lg border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-claude-surface shadow-lg z-50"
       >
-        {/* Add Folder option */}
+        {/* 添加文件夹选项 */}
         <button
           onClick={handleAddFolder}
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm dark:text-claude-darkText text-claude-text dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors rounded-t-lg"
@@ -205,7 +205,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
           <span>{i18nService.t('addFolder')}</span>
         </button>
 
-        {/* Recent Folders option */}
+        {/* 最近文件夹选项 */}
         <div
           ref={recentFoldersRef}
           className="relative"
@@ -224,7 +224,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
         </div>
       </div>
 
-      {/* Recent folders submenu - rendered as a portal-like fixed element */}
+      {/* 最近文件夹子菜单 - 以类似 portal 的固定元素形式渲染 */}
       {showRecentSubmenu && (
         <div
           ref={submenuRef}
@@ -258,7 +258,7 @@ const FolderSelectorPopover: React.FC<FolderSelectorPopoverProps> = ({
         </div>
       )}
 
-      {/* Path tooltip */}
+      {/* 路径提示工具 */}
       <PathTooltip
         path={tooltipState.path}
         anchorRect={tooltipState.rect}

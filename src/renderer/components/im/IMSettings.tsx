@@ -1,6 +1,6 @@
 /**
- * IM Settings Component
- * Configuration UI for DingTalk, Feishu and Telegram IM bots
+ * 即时通讯设置组件
+ * 钉钉、飞书和 Telegram 即时通讯机器人的配置界面
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -13,7 +13,7 @@ import { i18nService } from '../../services/i18n';
 import type { IMPlatform, IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig } from '../../types/im';
 import { getVisibleIMPlatforms } from '../../utils/regionFilter';
 
-// Platform metadata
+// 平台元数据
 const platformMeta: Record<IMPlatform, { label: string; logo: string }> = {
   dingtalk: { label: '钉钉', logo: 'dingding.png' },
   feishu: { label: '飞书', logo: 'feishu.png' },
@@ -43,7 +43,7 @@ const IMSettings: React.FC = () => {
   const [connectivityModalPlatform, setConnectivityModalPlatform] = useState<IMPlatform | null>(null);
   const [language, setLanguage] = useState<'zh' | 'en'>(i18nService.getLanguage());
 
-  // Subscribe to language changes
+  // 订阅语言变更
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
       setLanguage(i18nService.getLanguage());
@@ -51,7 +51,7 @@ const IMSettings: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Initialize IM service and subscribe status updates
+  // 初始化即时通讯服务并订阅状态更新
   useEffect(() => {
     void imService.init();
     return () => {
@@ -59,27 +59,27 @@ const IMSettings: React.FC = () => {
     };
   }, []);
 
-  // Handle DingTalk config change
+  // 处理钉钉配置变更
   const handleDingTalkChange = (field: 'clientId' | 'clientSecret', value: string) => {
     dispatch(setDingTalkConfig({ [field]: value }));
   };
 
-  // Handle Feishu config change
+  // 处理飞书配置变更
   const handleFeishuChange = (field: 'appId' | 'appSecret', value: string) => {
     dispatch(setFeishuConfig({ [field]: value }));
   };
 
-  // Handle Telegram config change
+  // 处理 Telegram 配置变更
   const handleTelegramChange = (field: 'botToken', value: string) => {
     dispatch(setTelegramConfig({ [field]: value }));
   };
 
-  // Handle Discord config change
+  // 处理 Discord 配置变更
   const handleDiscordChange = (field: 'botToken', value: string) => {
     dispatch(setDiscordConfig({ [field]: value }));
   };
 
-  // Save config on blur
+  // 失去焦点时保存配置
   const handleSaveConfig = async () => {
     await imService.updateConfig(config);
   };
@@ -122,12 +122,12 @@ const IMSettings: React.FC = () => {
     setTestingPlatform(null);
   };
 
-  // Toggle gateway on/off and persist enabled state
+  // 切换网关开关并持久化启用状态
   const toggleGateway = async (platform: IMPlatform) => {
     const isEnabled = config[platform].enabled;
     const newEnabled = !isEnabled;
 
-    // Map platform to its Redux action
+    // 将平台映射到其 Redux 操作
     const setConfigAction = {
       dingtalk: setDingTalkConfig,
       feishu: setFeishuConfig,
@@ -135,17 +135,17 @@ const IMSettings: React.FC = () => {
       discord: setDiscordConfig,
     }[platform];
 
-    // Update Redux state
+    // 更新 Redux 状态
     dispatch(setConfigAction({ enabled: newEnabled }));
 
-    // Persist the updated config (construct manually since Redux state hasn't re-rendered yet)
+    // 持久化更新的配置（手动构建，因为 Redux 状态尚未重新渲染）
     await imService.updateConfig({ [platform]: { ...config[platform], enabled: newEnabled } });
 
     if (newEnabled) {
       dispatch(clearError());
       const success = await imService.startGateway(platform);
       if (!success) {
-        // Rollback enabled state on failure
+        // 失败时回滚启用状态
         dispatch(setConfigAction({ enabled: false }));
         await imService.updateConfig({ [platform]: { ...config[platform], enabled: false } });
       } else {
@@ -163,20 +163,20 @@ const IMSettings: React.FC = () => {
   const telegramConnected = status.telegram.connected;
   const discordConnected = status.discord.connected;
 
-  // Compute visible platforms based on language
+  // 根据语言计算可见平台
   const platforms = useMemo<IMPlatform[]>(() => {
     return getVisibleIMPlatforms(language) as IMPlatform[];
   }, [language]);
 
-  // Ensure activePlatform is always in visible platforms when language changes
+  // 当语言变更时确保活动平台始终在可见平台中
   useEffect(() => {
     if (platforms.length > 0 && !platforms.includes(activePlatform)) {
-      // If current activePlatform is not visible, switch to first visible platform
+      // 如果当前活动平台不可见，切换到第一个可见平台
       setActivePlatform(platforms[0]);
     }
   }, [platforms, activePlatform]);
 
-  // Check if platform can be started
+  // 检查平台是否可以启动
   const canStart = (platform: IMPlatform): boolean => {
     if (platform === 'dingtalk') {
       return !!(config.dingtalk.clientId && config.dingtalk.clientSecret);
@@ -190,12 +190,12 @@ const IMSettings: React.FC = () => {
     return !!(config.feishu.appId && config.feishu.appSecret);
   };
 
-  // Get platform enabled state (persisted toggle state)
+  // 获取平台启用状态（持久化的切换状态）
   const isPlatformEnabled = (platform: IMPlatform): boolean => {
     return config[platform].enabled;
   };
 
-  // Get platform connection status (runtime state)
+  // 获取平台连接状态（运行时状态）
   const getPlatformConnected = (platform: IMPlatform): boolean => {
     if (platform === 'dingtalk') return dingtalkConnected;
     if (platform === 'telegram') return telegramConnected;
@@ -203,7 +203,7 @@ const IMSettings: React.FC = () => {
     return feishuConnected;
   };
 
-  // Get platform transient starting status
+  // 获取平台瞬时启动状态
   const getPlatformStarting = (platform: IMPlatform): boolean => {
     if (platform === 'discord') return status.discord.starting;
     return false;
@@ -216,10 +216,10 @@ const IMSettings: React.FC = () => {
     } as Partial<IMGatewayConfig>);
   };
 
-  // Handle platform toggle
+  // 处理平台切换
   const handlePlatformToggle = (platform: IMPlatform) => {
     const isEnabled = isPlatformEnabled(platform);
-    // Can toggle ON if credentials are present, can always toggle OFF
+    // 如果凭据存在则可以开启，始终可以关闭
     const canToggle = isEnabled || canStart(platform);
     if (canToggle && !isLoading) {
       setActivePlatform(platform);
@@ -258,7 +258,7 @@ const IMSettings: React.FC = () => {
 
   return (
     <div className="flex h-full gap-4">
-      {/* Platform List - Left Side */}
+      {/* 平台列表 - 左侧 */}
       <div className="w-48 flex-shrink-0 border-r dark:border-claude-darkBorder border-claude-border pr-3 space-y-2 overflow-y-auto">
         {platforms.map((platform) => {
           const meta = platformMeta[platform];
@@ -315,9 +315,9 @@ const IMSettings: React.FC = () => {
         })}
       </div>
 
-      {/* Platform Settings - Right Side */}
+      {/* 平台设置 - 右侧 */}
       <div className="flex-1 min-w-0 space-y-4 overflow-y-auto">
-        {/* Header with status */}
+        {/* 带状态的标题 */}
         <div className="flex items-center gap-3 pb-3 border-b dark:border-claude-darkBorder/60 border-claude-border/60">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white dark:bg-claude-darkBorder/30 p-1">
@@ -344,13 +344,13 @@ const IMSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* DingTalk Settings */}
+        {/* 钉钉设置 */}
         {activePlatform === 'dingtalk' && (
           <div className="space-y-3">
-            {/* Client ID */}
+            {/* 客户端 ID */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Client ID (AppKey)
+                客户端 ID (AppKey)
               </label>
               <input
                 type="text"
@@ -362,10 +362,10 @@ const IMSettings: React.FC = () => {
               />
             </div>
 
-            {/* Client Secret */}
+            {/* 客户端密钥 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Client Secret (AppSecret)
+                客户端密钥 (AppSecret)
               </label>
               <input
                 type="password"
@@ -381,7 +381,7 @@ const IMSettings: React.FC = () => {
               {renderConnectivityTestButton('dingtalk')}
             </div>
 
-            {/* Error display */}
+            {/* 错误显示 */}
             {status.dingtalk.lastError && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {status.dingtalk.lastError}
@@ -390,13 +390,13 @@ const IMSettings: React.FC = () => {
           </div>
         )}
 
-        {/* Feishu Settings */}
+        {/* 飞书设置 */}
         {activePlatform === 'feishu' && (
           <div className="space-y-3">
-            {/* App ID */}
+            {/* 应用 ID */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                App ID
+                应用 ID
               </label>
               <input
                 type="text"
@@ -408,10 +408,10 @@ const IMSettings: React.FC = () => {
               />
             </div>
 
-            {/* App Secret */}
+            {/* 应用密钥 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                App Secret
+                应用密钥
               </label>
               <input
                 type="password"
@@ -427,7 +427,7 @@ const IMSettings: React.FC = () => {
               {renderConnectivityTestButton('feishu')}
             </div>
 
-            {/* Error display */}
+            {/* 错误显示 */}
             {status.feishu.error && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {status.feishu.error}
@@ -436,13 +436,13 @@ const IMSettings: React.FC = () => {
           </div>
         )}
 
-        {/* Telegram Settings */}
+        {/* Telegram 设置 */}
         {activePlatform === 'telegram' && (
           <div className="space-y-3">
-            {/* Bot Token */}
+            {/* 机器人令牌 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Bot Token
+                机器人令牌
               </label>
               <input
                 type="password"
@@ -461,14 +461,14 @@ const IMSettings: React.FC = () => {
               {renderConnectivityTestButton('telegram')}
             </div>
 
-            {/* Bot username display */}
+            {/* 机器人用户名显示 */}
             {status.telegram.botUsername && (
               <div className="text-xs text-green-600 dark:text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
-                Bot: @{status.telegram.botUsername}
+                机器人: @{status.telegram.botUsername}
               </div>
             )}
 
-            {/* Error display */}
+            {/* 错误显示 */}
             {status.telegram.lastError && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {status.telegram.lastError}
@@ -477,13 +477,13 @@ const IMSettings: React.FC = () => {
           </div>
         )}
 
-        {/* Discord Settings */}
+        {/* Discord 设置 */}
         {activePlatform === 'discord' && (
           <div className="space-y-3">
-            {/* Bot Token */}
+            {/* 机器人令牌 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium dark:text-claude-darkTextSecondary text-claude-textSecondary">
-                Bot Token
+                机器人令牌
               </label>
               <input
                 type="password"
@@ -502,14 +502,14 @@ const IMSettings: React.FC = () => {
               {renderConnectivityTestButton('discord')}
             </div>
 
-            {/* Bot username display */}
+            {/* 机器人用户名显示 */}
             {status.discord.botUsername && (
               <div className="text-xs text-green-600 dark:text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
-                Bot: {status.discord.botUsername}
+                机器人: {status.discord.botUsername}
               </div>
             )}
 
-            {/* Error display */}
+            {/* 错误显示 */}
             {status.discord.lastError && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {status.discord.lastError}

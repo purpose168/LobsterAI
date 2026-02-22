@@ -30,14 +30,14 @@ function appendEnvPath(current: string | undefined, additions: string[]): string
 }
 
 /**
- * Cached user shell PATH. Resolved once and reused across calls.
+ * 缓存的用户 shell PATH。解析一次后在多次调用中复用。
  */
 let cachedUserShellPath: string | null | undefined;
 
 /**
- * Resolve the user's login shell PATH on macOS/Linux.
- * Packaged Electron apps on macOS don't inherit the user's shell profile,
- * so node/npm and other tools won't be in PATH unless we resolve it.
+ * 在 macOS/Linux 上解析用户的登录 shell PATH。
+ * macOS 上的打包 Electron 应用不会继承用户的 shell 配置文件，
+ * 因此除非我们解析它，否则 node/npm 和其他工具将不在 PATH 中。
  */
 function resolveUserShellPath(): string | null {
   if (cachedUserShellPath !== undefined) return cachedUserShellPath;
@@ -57,7 +57,7 @@ function resolveUserShellPath(): string | null {
     const match = result.match(/__PATH__=(.+)/);
     cachedUserShellPath = match ? match[1].trim() : null;
   } catch (error) {
-    console.warn('[coworkUtil] Failed to resolve user shell PATH:', error);
+    console.warn('[coworkUtil] 解析用户 shell PATH 失败:', error);
     cachedUserShellPath = null;
   }
 
@@ -65,7 +65,7 @@ function resolveUserShellPath(): string | null {
 }
 
 /**
- * Cached git-bash path on Windows. Resolved once and reused.
+ * Windows 上缓存的 git-bash 路径。解析一次后复用。
  */
 let cachedGitBashPath: string | null | undefined;
 
@@ -113,7 +113,7 @@ function listGitInstallPathsFromRegistry(): string[] {
         }
       }
     } catch {
-      // registry key might not exist
+      // 注册表键可能不存在
     }
   }
 
@@ -161,7 +161,7 @@ function ensureWindowsElectronNodeShim(electronPath: string): string | null {
     const nodeShContent = [
       '#!/usr/bin/env bash',
       'if [ -z "${LOBSTERAI_ELECTRON_PATH:-}" ]; then',
-      '  echo "LOBSTERAI_ELECTRON_PATH is not set" >&2',
+      '  echo "LOBSTERAI_ELECTRON_PATH 未设置" >&2',
       '  exit 127',
       'fi',
       'exec env ELECTRON_RUN_AS_NODE=1 "${LOBSTERAI_ELECTRON_PATH}" "$@"',
@@ -171,7 +171,7 @@ function ensureWindowsElectronNodeShim(electronPath: string): string | null {
     const nodeCmdContent = [
       '@echo off',
       'if "%LOBSTERAI_ELECTRON_PATH%"=="" (',
-      '  echo LOBSTERAI_ELECTRON_PATH is not set 1>&2',
+      '  echo LOBSTERAI_ELECTRON_PATH 未设置 1>&2',
       '  exit /b 127',
       ')',
       'set ELECTRON_RUN_AS_NODE=1',
@@ -184,20 +184,20 @@ function ensureWindowsElectronNodeShim(electronPath: string): string | null {
     try {
       chmodSync(nodeSh, 0o755);
     } catch {
-      // Ignore chmod errors on Windows file systems that do not support POSIX modes.
+      // 忽略不支持 POSIX 模式的 Windows 文件系统上的 chmod 错误
     }
 
     return shimDir;
   } catch (error) {
-    coworkLog('WARN', 'resolveNodeShim', `Failed to prepare Electron Node shim: ${error instanceof Error ? error.message : String(error)}`);
+    coworkLog('WARN', 'resolveNodeShim', `准备 Electron Node 垫片失败: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
 
 /**
- * Resolve git-bash path on Windows.
- * Claude Code CLI requires git-bash for shell tool execution.
- * Checks: env var > common install paths > PATH lookup > bundled PortableGit fallback.
+ * 在 Windows 上解析 git-bash 路径。
+ * Claude Code CLI 需要 git-bash 来执行 shell 工具。
+ * 检查顺序：环境变量 > 常见安装路径 > PATH 查找 > 捆绑的 PortableGit 回退。
  */
 function resolveWindowsGitBashPath(): string | null {
   if (cachedGitBashPath !== undefined) return cachedGitBashPath;
@@ -207,15 +207,15 @@ function resolveWindowsGitBashPath(): string | null {
     return null;
   }
 
-  // 1. Explicit env var (user override)
+  // 1. 显式环境变量（用户覆盖）
   const envPath = normalizeWindowsPath(process.env.CLAUDE_CODE_GIT_BASH_PATH);
   if (envPath && existsSync(envPath)) {
-    coworkLog('INFO', 'resolveGitBash', `Using CLAUDE_CODE_GIT_BASH_PATH: ${envPath}`);
+    coworkLog('INFO', 'resolveGitBash', `使用 CLAUDE_CODE_GIT_BASH_PATH: ${envPath}`);
     cachedGitBashPath = envPath;
     return envPath;
   }
 
-  // 2. Common Git for Windows installation paths (prefer user/system install first)
+  // 2. 常见的 Git for Windows 安装路径（优先用户/系统安装）
   const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
   const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
   const localAppData = process.env.LOCALAPPDATA || '';
@@ -236,13 +236,13 @@ function resolveWindowsGitBashPath(): string | null {
 
   for (const candidate of candidates) {
     if (candidate && existsSync(candidate)) {
-      coworkLog('INFO', 'resolveGitBash', `Found git-bash at: ${candidate}`);
+      coworkLog('INFO', 'resolveGitBash', `在以下位置找到 git-bash: ${candidate}`);
       cachedGitBashPath = candidate;
       return candidate;
     }
   }
 
-  // 3. Query Git for Windows install root from registry
+  // 3. 从注册表查询 Git for Windows 安装根目录
   const registryInstallRoots = listGitInstallPathsFromRegistry();
   for (const installRoot of registryInstallRoots) {
     const registryCandidates = [
@@ -251,24 +251,24 @@ function resolveWindowsGitBashPath(): string | null {
     ];
     for (const candidate of registryCandidates) {
       if (existsSync(candidate)) {
-        coworkLog('INFO', 'resolveGitBash', `Found git-bash via registry: ${candidate}`);
+        coworkLog('INFO', 'resolveGitBash', `通过注册表找到 git-bash: ${candidate}`);
         cachedGitBashPath = candidate;
         return candidate;
       }
     }
   }
 
-  // 4. Try `where bash`
+  // 4. 尝试 `where bash`
   const bashPaths = listWindowsCommandPaths('where bash');
   for (const bashPath of bashPaths) {
     if (bashPath.toLowerCase().endsWith('\\bash.exe')) {
-      coworkLog('INFO', 'resolveGitBash', `Found bash via PATH: ${bashPath}`);
+      coworkLog('INFO', 'resolveGitBash', `通过 PATH 找到 bash: ${bashPath}`);
       cachedGitBashPath = bashPath;
       return bashPath;
     }
   }
 
-  // 5. Try `where git` and derive bash from git location
+  // 5. 尝试 `where git` 并从 git 位置推导 bash
   const gitPaths = listWindowsCommandPaths('where git');
   for (const gitPath of gitPaths) {
     const gitRoot = dirname(dirname(gitPath));
@@ -278,16 +278,16 @@ function resolveWindowsGitBashPath(): string | null {
     ];
     for (const candidate of bashCandidates) {
       if (existsSync(candidate)) {
-        coworkLog('INFO', 'resolveGitBash', `Found bash via PATH git: ${candidate}`);
+        coworkLog('INFO', 'resolveGitBash', `通过 PATH git 找到 bash: ${candidate}`);
         cachedGitBashPath = candidate;
         return candidate;
       }
     }
   }
 
-  // 6. Bundled PortableGit fallback.
-  // - Packaged app: resources/mingit
-  // - Development mode: project resources/mingit (for local Windows dev without system Git install)
+  // 6. 捆绑的 PortableGit 回退。
+  // - 打包应用：resources/mingit
+  // - 开发模式：项目 resources/mingit（用于本地 Windows 开发而无需系统 Git 安装）
   const bundledRoots = app.isPackaged
     ? [join(process.resourcesPath, 'mingit')]
     : [
@@ -295,27 +295,27 @@ function resolveWindowsGitBashPath(): string | null {
       join(process.cwd(), 'resources', 'mingit'),
     ];
   for (const root of bundledRoots) {
-    // Prefer bin/bash.exe on Windows; invoking usr/bin/bash.exe directly may miss Git toolchain PATH.
+    // 在 Windows 上优先使用 bin/bash.exe；直接调用 usr/bin/bash.exe 可能会遗漏 Git 工具链 PATH
     const bundledPaths = [
       join(root, 'bin', 'bash.exe'),
       join(root, 'usr', 'bin', 'bash.exe'),
     ];
     for (const p of bundledPaths) {
       if (existsSync(p)) {
-        coworkLog('INFO', 'resolveGitBash', `Using bundled PortableGit: ${p}`);
+        coworkLog('INFO', 'resolveGitBash', `使用捆绑的 PortableGit: ${p}`);
         cachedGitBashPath = p;
         return p;
       }
     }
   }
 
-  coworkLog('WARN', 'resolveGitBash', 'git-bash not found on this system');
+  coworkLog('WARN', 'resolveGitBash', '在此系统上未找到 git-bash');
   cachedGitBashPath = null;
   return null;
 }
 
 function applyPackagedEnvOverrides(env: Record<string, string | undefined>): void {
-  // On Windows, resolve git-bash and ensure Git toolchain directories are available in PATH.
+  // 在 Windows 上，解析 git-bash 并确保 Git 工具链目录在 PATH 中可用
   if (process.platform === 'win32') {
     env.LOBSTERAI_ELECTRON_PATH = process.execPath;
 
@@ -328,13 +328,13 @@ function applyPackagedEnvOverrides(env: Record<string, string | undefined>): voi
       env.CLAUDE_CODE_GIT_BASH_PATH = bashPath;
       const gitToolDirs = getWindowsGitToolDirs(bashPath);
       env.PATH = appendEnvPath(env.PATH, gitToolDirs);
-      coworkLog('INFO', 'resolveGitBash', `Injected Windows Git toolchain PATH entries: ${gitToolDirs.join(', ')}`);
+      coworkLog('INFO', 'resolveGitBash', `注入 Windows Git 工具链 PATH 条目: ${gitToolDirs.join(', ')}`);
     }
 
     const shimDir = ensureWindowsElectronNodeShim(process.execPath);
     if (shimDir) {
       env.PATH = appendEnvPath(env.PATH, [shimDir]);
-      coworkLog('INFO', 'resolveNodeShim', `Injected Electron Node shim PATH entry: ${shimDir}`);
+      coworkLog('INFO', 'resolveNodeShim', `注入 Electron Node 垫片 PATH 条目: ${shimDir}`);
     }
   }
 
@@ -346,12 +346,12 @@ function applyPackagedEnvOverrides(env: Record<string, string | undefined>): voi
     env.HOME = app.getPath('home');
   }
 
-  // Resolve user's shell PATH so that node, npm, and other tools are findable
+  // 解析用户的 shell PATH，以便 node、npm 和其他工具可被找到
   const userPath = resolveUserShellPath();
   if (userPath) {
     env.PATH = userPath;
   } else {
-    // Fallback: append common node installation paths
+    // 回退：追加常见的 node 安装路径
     const home = env.HOME || app.getPath('home');
     const commonPaths = [
       '/usr/local/bin',
@@ -375,8 +375,8 @@ function applyPackagedEnvOverrides(env: Record<string, string | undefined>): voi
 }
 
 /**
- * Resolve system proxy configuration from Electron session
- * @param targetUrl Target URL to resolve proxy for
+ * 从 Electron 会话解析系统代理配置
+ * @param targetUrl 要解析代理的目标 URL
  */
 async function resolveSystemProxy(targetUrl: string): Promise<string | null> {
   try {
@@ -385,7 +385,7 @@ async function resolveSystemProxy(targetUrl: string): Promise<string | null> {
       return null;
     }
 
-    // proxyResult format: "PROXY host:port" or "SOCKS5 host:port"
+    // proxyResult 格式："PROXY host:port" 或 "SOCKS5 host:port"
     const match = proxyResult.match(/^(PROXY|SOCKS5?)\s+(.+)$/i);
     if (match) {
       const [, type, hostPort] = match;
@@ -395,22 +395,22 @@ async function resolveSystemProxy(targetUrl: string): Promise<string | null> {
 
     return null;
   } catch (error) {
-    console.error('Failed to resolve system proxy:', error);
+    console.error('解析系统代理失败:', error);
     return null;
   }
 }
 
 /**
- * Get SKILLs directory path (handles both development and production)
+ * 获取 SKILLs 目录路径（同时处理开发和生产环境）
  */
 export function getSkillsRoot(): string {
   if (app.isPackaged) {
-    // In production, SKILLs are copied to userData
+    // 在生产环境中，SKILLs 被复制到 userData
     return join(app.getPath('userData'), 'SKILLs');
   }
 
-  // In development, __dirname can vary with bundling output (e.g. dist-electron/ or dist-electron/libs/).
-  // Resolve from several stable anchors and pick the first existing SKILLs directory.
+  // 在开发环境中，__dirname 可能因打包输出而变化（例如 dist-electron/ 或 dist-electron/libs/）。
+  // 从几个稳定的锚点解析并选择第一个存在的 SKILLs 目录。
   const envRoots = [process.env.LOBSTERAI_SKILLS_ROOT, process.env.SKILLS_ROOT]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
@@ -428,13 +428,13 @@ export function getSkillsRoot(): string {
     }
   }
 
-  // Final fallback for first-run dev environments where SKILLs may not exist yet.
+  // 首次运行开发环境的最终回退，此时 SKILLs 可能尚不存在
   return join(app.getAppPath(), 'SKILLs');
 }
 
 /**
- * Get enhanced environment variables (including proxy configuration)
- * Async function to fetch system proxy and inject into environment variables
+ * 获取增强的环境变量（包括代理配置）
+ * 异步函数，用于获取系统代理并注入到环境变量中
  */
 export async function getEnhancedEnv(target: OpenAICompatProxyTarget = 'local'): Promise<Record<string, string | undefined>> {
   const config = getCurrentApiConfig(target);
@@ -444,50 +444,50 @@ export async function getEnhancedEnv(target: OpenAICompatProxyTarget = 'local'):
 
   applyPackagedEnvOverrides(env);
 
-  // Inject SKILLs directory path for skill scripts
+  // 为技能脚本注入 SKILLs 目录路径
   const skillsRoot = getSkillsRoot();
   env.SKILLS_ROOT = skillsRoot;
-  env.LOBSTERAI_SKILLS_ROOT = skillsRoot; // Alternative name for clarity
+  env.LOBSTERAI_SKILLS_ROOT = skillsRoot; // 替代名称，更清晰
   env.LOBSTERAI_ELECTRON_PATH = process.execPath;
 
-  // Inject internal API base URL for skill scripts (e.g. scheduled-task creation)
+  // 为技能脚本注入内部 API 基础 URL（例如计划任务创建）
   const internalApiBaseURL = getInternalApiBaseURL();
   if (internalApiBaseURL) {
     env.LOBSTERAI_API_BASE_URL = internalApiBaseURL;
   }
 
-  // Skip system proxy resolution if proxy env vars already exist
+  // 如果代理环境变量已存在，则跳过系统代理解析
   if (env.http_proxy || env.HTTP_PROXY || env.https_proxy || env.HTTPS_PROXY) {
     return env;
   }
 
-  // Resolve proxy from system settings
+  // 从系统设置解析代理
   const proxyUrl = await resolveSystemProxy('https://openrouter.ai');
   if (proxyUrl) {
     env.http_proxy = proxyUrl;
     env.https_proxy = proxyUrl;
     env.HTTP_PROXY = proxyUrl;
     env.HTTPS_PROXY = proxyUrl;
-    console.log('Injected system proxy for subprocess:', proxyUrl);
+    console.log('为子进程注入系统代理:', proxyUrl);
   }
 
   return env;
 }
 
 /**
- * Ensure the cowork temp directory exists in the given working directory
- * @param cwd Working directory path
- * @returns Path to the temp directory
+ * 确保在给定的工作目录中存在 cowork 临时目录
+ * @param cwd 工作目录路径
+ * @returns 临时目录的路径
  */
 export function ensureCoworkTempDir(cwd: string): string {
   const tempDir = join(cwd, '.cowork-temp');
   if (!existsSync(tempDir)) {
     try {
       mkdirSync(tempDir, { recursive: true });
-      console.log('Created cowork temp directory:', tempDir);
+      console.log('已创建 cowork 临时目录:', tempDir);
     } catch (error) {
-      console.error('Failed to create cowork temp directory:', error);
-      // Fall back to cwd if we can't create the temp dir
+      console.error('创建 cowork 临时目录失败:', error);
+      // 如果无法创建临时目录，则回退到 cwd
       return cwd;
     }
   }
@@ -495,9 +495,9 @@ export function ensureCoworkTempDir(cwd: string): string {
 }
 
 /**
- * Get enhanced environment variables with TMPDIR set to the cowork temp directory
- * This ensures Claude Agent SDK creates temporary files in the user's working directory
- * @param cwd Working directory path
+ * 获取设置了 TMPDIR 的增强环境变量（指向 cowork 临时目录）
+ * 这确保 Claude Agent SDK 在用户的工作目录中创建临时文件
+ * @param cwd 工作目录路径
  */
 export async function getEnhancedEnvWithTmpdir(
   cwd: string,
@@ -506,7 +506,7 @@ export async function getEnhancedEnvWithTmpdir(
   const env = await getEnhancedEnv(target);
   const tempDir = ensureCoworkTempDir(cwd);
 
-  // Set temp directory environment variables for all platforms
+  // 为所有平台设置临时目录环境变量
   env.TMPDIR = tempDir;  // macOS, Linux
   env.TMP = tempDir;     // Windows
   env.TEMP = tempDir;    // Windows
@@ -515,12 +515,12 @@ export async function getEnhancedEnvWithTmpdir(
 }
 
 export async function generateSessionTitle(userIntent: string | null): Promise<string> {
-  if (!userIntent) return 'New Session';
+  if (!userIntent) return '新会话';
 
   const claudeCodePath = getClaudeCodePath();
   const currentEnv = await getEnhancedEnv();
 
-  // Ensure child_process.fork() runs cli.js as Node, not as another Electron app
+  // 确保 child_process.fork() 将 cli.js 作为 Node 运行，而不是作为另一个 Electron 应用
   if (app.isPackaged) {
     currentEnv.ELECTRON_RUN_AS_NODE = '1';
   }
@@ -534,10 +534,10 @@ export async function generateSessionTitle(userIntent: string | null): Promise<s
     };
 
     const result: SDKResultMessage = await unstable_v2_prompt(
-      `Generate a short, clear title (max 50 chars) for this conversation based on the user input below.
-IMPORTANT: The title MUST be in the SAME language as the user input. If user writes in Chinese, output Chinese title. If user writes in English, output English title.
-User input: ${userIntent}
-Output only the title, nothing else.`,
+      `根据下面的用户输入，为这个对话生成一个简短、清晰的标题（最多 50 个字符）。
+重要：标题必须与用户输入使用相同的语言。如果用户用中文写作，输出中文标题。如果用户用英文写作，输出英文标题。
+用户输入：${userIntent}
+只输出标题，不要其他内容。`,
       promptOptions as any
     );
 
@@ -545,19 +545,19 @@ Output only the title, nothing else.`,
       return result.result;
     }
 
-    console.error('Claude SDK returned non-success result:', result);
-    return 'New Session';
+    console.error('Claude SDK 返回了非成功结果:', result);
+    return '新会话';
   } catch (error) {
-    console.error('Failed to generate session title:', error);
-    console.error('Claude Code path:', claudeCodePath);
-    console.error('Is packaged:', app.isPackaged);
-    console.error('Resources path:', process.resourcesPath);
+    console.error('生成会话标题失败:', error);
+    console.error('Claude Code 路径:', claudeCodePath);
+    console.error('是否已打包:', app.isPackaged);
+    console.error('资源路径:', process.resourcesPath);
 
     if (userIntent) {
       const words = userIntent.trim().split(/\s+/).slice(0, 5);
       return words.join(' ').toUpperCase() + (userIntent.trim().split(/\s+/).length > 5 ? '...' : '');
     }
 
-    return 'New Session';
+    return '新会话';
   }
 }

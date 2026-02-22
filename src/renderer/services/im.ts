@@ -1,6 +1,6 @@
 /**
- * IM Service
- * IPC wrapper for IM gateway operations
+ * IM 服务
+ * IM 网关操作的 IPC 封装器
  */
 
 import { store } from '../store';
@@ -26,26 +26,26 @@ class IMService {
   private messageUnsubscribe: (() => void) | null = null;
 
   /**
-   * Initialize IM service
+   * 初始化 IM 服务
    */
   async init(): Promise<void> {
-    // Set up status change listener
+    // 设置状态变更监听器
     this.statusUnsubscribe = window.electron.im.onStatusChange((status: IMGatewayStatus) => {
       store.dispatch(setStatus(status));
     });
 
-    // Set up message listener (for logging/monitoring)
+    // 设置消息监听器（用于日志记录/监控）
     this.messageUnsubscribe = window.electron.im.onMessageReceived((message) => {
-      console.log('[IM Service] Message received:', message);
+      console.log('[IM 服务] 收到消息:', message);
     });
 
-    // Load initial config and status
+    // 加载初始配置和状态
     await this.loadConfig();
     await this.loadStatus();
   }
 
   /**
-   * Clean up listeners
+   * 清理监听器
    */
   destroy(): void {
     if (this.statusUnsubscribe) {
@@ -59,7 +59,7 @@ class IMService {
   }
 
   /**
-   * Load configuration from main process
+   * 从主进程加载配置
    */
   async loadConfig(): Promise<IMGatewayConfig | null> {
     try {
@@ -69,11 +69,11 @@ class IMService {
         store.dispatch(setConfig(result.config));
         return result.config;
       } else {
-        store.dispatch(setError(result.error || 'Failed to load IM config'));
+        store.dispatch(setError(result.error || '加载 IM 配置失败'));
         return null;
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load IM config';
+      const message = error instanceof Error ? error.message : '加载 IM 配置失败';
       store.dispatch(setError(message));
       return null;
     } finally {
@@ -82,7 +82,7 @@ class IMService {
   }
 
   /**
-   * Load status from main process
+   * 从主进程加载状态
    */
   async loadStatus(): Promise<IMGatewayStatus | null> {
     try {
@@ -93,28 +93,28 @@ class IMService {
       }
       return null;
     } catch (error) {
-      console.error('[IM Service] Failed to load status:', error);
+      console.error('[IM 服务] 加载状态失败:', error);
       return null;
     }
   }
 
   /**
-   * Update configuration
+   * 更新配置
    */
   async updateConfig(config: Partial<IMGatewayConfig>): Promise<boolean> {
     try {
       store.dispatch(setLoading(true));
       const result: IMGatewayResult = await window.electron.im.setConfig(config);
       if (result.success) {
-        // Reload config to get merged values
+        // 重新加载配置以获取合并后的值
         await this.loadConfig();
         return true;
       } else {
-        store.dispatch(setError(result.error || 'Failed to update IM config'));
+        store.dispatch(setError(result.error || '更新 IM 配置失败'));
         return false;
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update IM config';
+      const message = error instanceof Error ? error.message : '更新 IM 配置失败';
       store.dispatch(setError(message));
       return false;
     } finally {
@@ -123,7 +123,7 @@ class IMService {
   }
 
   /**
-   * Start a gateway
+   * 启动网关
    */
   async startGateway(platform: IMPlatform): Promise<boolean> {
     try {
@@ -134,11 +134,11 @@ class IMService {
         await this.loadStatus();
         return true;
       } else {
-        store.dispatch(setError(result.error || `Failed to start ${platform} gateway`));
+        store.dispatch(setError(result.error || `启动 ${platform} 网关失败`));
         return false;
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : `Failed to start ${platform} gateway`;
+      const message = error instanceof Error ? error.message : `启动 ${platform} 网关失败`;
       store.dispatch(setError(message));
       return false;
     } finally {
@@ -147,7 +147,7 @@ class IMService {
   }
 
   /**
-   * Stop a gateway
+   * 停止网关
    */
   async stopGateway(platform: IMPlatform): Promise<boolean> {
     try {
@@ -157,11 +157,11 @@ class IMService {
         await this.loadStatus();
         return true;
       } else {
-        store.dispatch(setError(result.error || `Failed to stop ${platform} gateway`));
+        store.dispatch(setError(result.error || `停止 ${platform} 网关失败`));
         return false;
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : `Failed to stop ${platform} gateway`;
+      const message = error instanceof Error ? error.message : `停止 ${platform} 网关失败`;
       store.dispatch(setError(message));
       return false;
     } finally {
@@ -170,7 +170,7 @@ class IMService {
   }
 
   /**
-   * Test gateway connectivity and conversation readiness
+   * 测试网关连接性和会话就绪状态
    */
   async testGateway(
     platform: IMPlatform,
@@ -182,10 +182,10 @@ class IMService {
       if (result.success && result.result) {
         return result.result;
       }
-      store.dispatch(setError(result.error || `Failed to test ${platform} connectivity`));
+      store.dispatch(setError(result.error || `测试 ${platform} 连接性失败`));
       return null;
     } catch (error) {
-      const message = error instanceof Error ? error.message : `Failed to test ${platform} connectivity`;
+      const message = error instanceof Error ? error.message : `测试 ${platform} 连接性失败`;
       store.dispatch(setError(message));
       return null;
     } finally {
@@ -194,21 +194,21 @@ class IMService {
   }
 
   /**
-   * Get current config from store
+   * 从 store 获取当前配置
    */
   getConfig(): IMGatewayConfig {
     return store.getState().im.config;
   }
 
   /**
-   * Get current status from store
+   * 从 store 获取当前状态
    */
   getStatus(): IMGatewayStatus {
     return store.getState().im.status;
   }
 
   /**
-   * Check if any gateway is connected
+   * 检查是否有任何网关已连接
    */
   isAnyConnected(): boolean {
     const status = this.getStatus();
