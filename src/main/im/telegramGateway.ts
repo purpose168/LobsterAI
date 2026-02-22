@@ -20,7 +20,6 @@ import { extractMediaFromMessage, cleanupOldMediaFiles } from './telegramMedia';
 import { parseMediaMarkers } from './dingtalkMediaParser';
 
 // 导入 node-fetch 用于 HTTP 请求（grammy 的默认配置）
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodeFetch = require('node-fetch');
 
 /**
@@ -150,7 +149,6 @@ export class TelegramGateway extends EventEmitter {
       this.bot = new Bot(config.botToken, {
         client: {
           // 使用我们的自定义 fetch 包装器
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           fetch: grammyFetch as any,
           // 将 API 超时时间增加到 60 秒以支持文件上传（默认为 500 秒，太长）
           timeoutSeconds: 60,

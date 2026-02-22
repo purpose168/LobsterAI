@@ -63,6 +63,7 @@ cd lobsterai
 npm install
 
 # 启动开发环境（Vite 开发服务器 + Electron 热重载）
+export DISPLAY=:0
 npm run electron:dev
 ```
 
